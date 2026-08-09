@@ -27,5 +27,6 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-10 | 두 번째 게임 오버 — 평판이 바닥에 4주 붙어 있으면 수주가 끊기고 직원이 떠나 폐업한다 | docs/superpowers/specs/2026-08-10-webdi-core-design.md(§4·§7), project-context(설계 결정표) |
 | 2026-08-10 | 코어 설계 확정 — 무한 샌드박스 · 행동력이 곧 시간 · 업무는 공정의 줄 · 직원은 주차로 일한다 | docs/superpowers/specs/2026-08-10-webdi-core-design.md, project-context(설계 결정표) |
 | 2026-08-09 | 하네스 세팅 — windowsGame의 검증된 파이프라인을 이식하고 기획을 정본으로 박음 | .claude(agents 2·skills 3), CLAUDE.md, AGENTS.md, docs/SPEC.md, .gitignore |
