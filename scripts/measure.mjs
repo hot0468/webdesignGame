@@ -91,7 +91,10 @@ async function ensureChrome(width, height) {
       `--window-size=${width},${height}`,
       '--disable-background-timer-throttling',
       '--disable-renderer-backgrounding',
-      `--user-data-dir=${process.env.TEMP || '/tmp'}/windowsgame-cdp`,
+      // ⚠️ 프로젝트 전용 프로필 디렉터리 — 이름이 겹치면 형제 프로젝트(windowsGame)의
+      //    측정 크롬과 프로필을 공유해 서로의 실행을 깨뜨린다. 끼인 크롬을 죽일 때도
+      //    이 이름으로 골라 죽인다(사용자의 진짜 크롬을 죽이지 않기 위해).
+      `--user-data-dir=${process.env.TEMP || '/tmp'}/webdi-cdp`,
       'about:blank',
     ],
     { detached: true, stdio: 'ignore' }, // ⚠️ 스크립트와 수명을 끊는다
@@ -252,7 +255,8 @@ CDP 실측 하네스 — 헤드리스 크롬으로 찍고 합성 픽셀로 대�
 
 옵션
   --click <셀렉터>   요소를 누른다. 여러 번 줄 수 있고 준 순서대로 실행된다
-  --dblclick <셀>    더블클릭한다. **바탕화면 아이콘(.desktop-icon)은 이쪽이라야 열린다**
+  --dblclick <셀>    더블클릭한다. ⚠️ 이 리포의 바탕화면 아이콘은 **단일 클릭**으로 열린다 —
+                     --dblclick은 아무 일도 안 하면서 ok를 찍는다. --click을 써라
   --wait <ms>        --click 사이 대기(기본 400)
   --shot <파일>      스크린샷을 저장한다
   --contrast <셀>    그 셀렉터에 걸리는 요소의 합성 대비를 잰다(기본 검사 대상 없음)
