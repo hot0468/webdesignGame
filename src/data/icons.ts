@@ -9,6 +9,12 @@ export const SHELL_ICONS = {
   close: 'mdi:close',
 } as const
 
+/** 창 내용 안에서 쓰는 단색 글리프. HUD와 같은 이유로 `mdi` 한 세트다. */
+export const PROGRAM_ICONS = {
+  crisis: 'mdi:alert-outline',
+  noSite: 'mdi:link-variant-off',
+} as const
+
 export const HUD_ICONS = {
   week: 'mdi:calendar-week-outline',
   ap: 'mdi:lightning-bolt-outline',

@@ -8,12 +8,17 @@ import '@fontsource-variable/noto-sans-kr'
 import { Desktop } from './components/Desktop'
 import { Window } from './components/Window'
 import { findProgram, type ProgramId } from './data/programs'
+import { Browser } from './programs/Browser'
+import { Company } from './programs/Company'
 import { Schedule } from './programs/Schedule'
 import { useGame } from './store'
 
-/** 프로그램 id → 창 내용. PROGRAMS(데이터)에 항목을 더하면 여기 컴포넌트도 짝지어야 한다. */
+/** 프로그램 id → 창 내용. PROGRAMS(데이터)에 항목을 더하면 여기 컴포넌트도 짝지어야 한다.
+ *  Record<ProgramId, ...>라서 짝을 빼먹으면 타입 검사가 잡는다. */
 const VIEWS: Record<ProgramId, () => React.JSX.Element> = {
   schedule: Schedule,
+  company: Company,
+  browser: Browser,
 }
 
 export default function App() {
@@ -23,8 +28,9 @@ export default function App() {
     <Desktop>
       {windows.map((w) => {
         const View = VIEWS[w.id]
+        const program = findProgram(w.id)
         return (
-          <Window key={w.id} id={w.id} title={findProgram(w.id).title}>
+          <Window key={w.id} id={w.id} title={program.title} wide={'wide' in program}>
             <View />
           </Window>
         )

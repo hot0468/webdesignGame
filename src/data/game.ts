@@ -15,6 +15,12 @@ export const INITIAL_GAME = {
   reputation: 30,
 } as const
 
+/** 평판 위기선. 이 아래로 내려가면 신규 수주가 끊기고 매주 직원이 떠난다. */
+export const REPUTATION_CRISIS = 10
+/** 위기가 이만큼 이어지면 폐업(두 번째 게임 오버). */
+export const CRISIS_WEEKS_TO_SHUTDOWN = 4
+export const REPUTATION_MAX = 100
+
 /** 달력 환산의 단위. 주차 → 몇 월 몇째 주는 이 값으로만 나눈다. */
 export const WEEKS_PER_MONTH = 4
 export const MONTHS_PER_YEAR = 12

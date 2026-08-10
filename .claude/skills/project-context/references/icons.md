@@ -11,5 +11,6 @@
 - 아이콘은 **문자열 이름으로 참조**한다(`"세트:이름"`, 예: `"devicon:figma"`). 렌더는 `src/icons/AppIcon.tsx` 하나만 쓴다(컴포넌트가 `@iconify/react`를 직접 import하지 않는다). `@iconify/react/offline` 엔트리를 써서 이름을 못 찾아도 네트워크로 나가지 않는다
 - ⚠️ `@iconify-json/*`의 icons.json을 통째로 import하면 번들이 **20MB**가 된다(JSON은 트리셰이킹 안 됨). `scripts/build-icon-subset.mjs`가 `src/`를 스캔해 쓰는 것만 `src/icons/generated.ts`로 추출한다. **`generated.ts`는 직접 수정 금지, 커밋 대상**
 - 아이콘 이름을 추가·변경하면 `npm run icons`(`build`/`dev`가 자동 선행하고 **존재하지 않는 이름이면 빌드가 실패한다**). 이름을 지어내지 말고 해당 세트의 `icons.json`에서 확인하라
+- ⚠️ **이미 떠 있는 dev 서버·열려 있는 탭에서는 새 아이콘이 빈칸으로 보인다.** `addCollection`이 모듈 최상단에서 한 번만 돌기 때문에 HMR 패치로는 다시 등록되지 않는다. 등록 안 된 이름은 (CDN으로 안 나가는 설계상) 조용히 비므로 **오류도 안 난다** — 새 이름을 추가한 뒤에는 탭을 전체 새로고침하라
 - 아이콘 이름은 데이터다: 스탯·UI 골격의 아이콘은 `src/data/` 아래가 단일 출처. 한 컴포넌트 안에서만 쓰는 일회성 장식만 예외
 - **다색 플랫 아이콘에 CSS `color`를 절대 입히지 않는다**(원래 색을 망치거나 아무 효과도 없다). 색을 입혀야 하는 자리에는 단색 세트를 쓴다

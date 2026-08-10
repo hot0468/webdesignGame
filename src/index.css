@@ -334,3 +334,101 @@ body {
   /* 카드 위이므로 muted-foreground 사용 가능(4.76:1) */
   color: var(--color-muted-foreground);
 }
+
+/* ── 사내시스템 프로그램 ──────────────────────────────── */
+.company {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.company__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.company__label {
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-sm);
+}
+
+.company__value {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-variant-numeric: tabular-nums;
+}
+
+.company__max {
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-md);
+}
+
+.company__note {
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+}
+
+.company__warn {
+  display: flex;
+  align-items: start;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 2px solid var(--color-border);
+  font-size: var(--fs-sm);
+  color: var(--color-muted-foreground);
+}
+
+/* 위기에 들어가면 경고문이 실제 경고가 된다. #DC2626 on 카드 = 4.83:1로 AA 통과. */
+.company__warn--on {
+  color: var(--color-destructive);
+  font-weight: 700;
+}
+
+.gauge {
+  position: relative;
+  height: var(--sp-3);
+  border-radius: var(--sp-2);
+  background: var(--color-muted);
+  overflow: hidden;
+}
+
+.gauge__fill {
+  height: 100%;
+  background: var(--color-primary);
+  transition: width var(--dur-slow) ease-out;
+}
+
+.gauge--crisis .gauge__fill {
+  background: var(--color-destructive);
+}
+
+/* 위기선 눈금. ⚠️ --color-foreground여야 채워진 구간(primary 3.4:1)과 빈 구간
+   (muted 14:1) **양쪽에서** 보인다. destructive로 하면 위기 상태에서 같은 색 위에 얹혀 사라진다. */
+.gauge__crisis {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--color-foreground);
+}
+
+/* ── 빈 상태(내용이 아직 없는 창) ─────────────────────── */
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6) var(--sp-4);
+  text-align: center;
+  color: var(--color-muted-foreground);
+}
+
+.empty__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  color: var(--color-card-foreground);
+}
+
+.empty__note {
+  font-size: var(--fs-sm);
+}
