@@ -106,7 +106,12 @@ async function ensureChrome(width, height) {
 /** CDP 연결. `send`(원시 메서드)와 `evalJs`(페이지 안 평가)를 준다. */
 async function connect() {
   const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json()
-  const page = targets.find((t) => t.type === 'page')
+  const pages = targets.filter((t) => t.type === 'page')
+  // ⚠️ 페이지 타깃이 2개면 죽은 세션이 남긴 스테일 탭이다(같은 프로필로 재spawn하면 탭만 는다).
+  //    그 탭에 붙으면 Runtime.evaluate가 영원히 안 돌아와 **출력 없이 매달린다** — 즉사가 낫다.
+  if (pages.length > 1)
+    throw new Error('page 타깃이 여러 개다 — webdi-cdp 크롬을 죽이고 다시 실행하라')
+  const page = pages[0]
   if (!page) throw new Error('page 타깃이 없다')
   const ws = new WebSocket(page.webSocketDebuggerUrl)
   await new Promise((res, rej) => {
