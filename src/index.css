@@ -384,20 +384,36 @@ body {
   color: var(--color-on-primary);
 }
 
-/* 사이드바 목록의 머리말. ⚠️ 판이 --color-muted라서 --color-muted-foreground를 쓰면
-   3.8:1로 AA 미달이다(카드 위에서만 통과하는 색이다). 크기로 위계를 준다. */
-.company__section {
-  margin-top: var(--sp-3);
-  padding-inline: var(--sp-3);
-  font-family: var(--font-display);
-  font-size: var(--fs-xs);
-  font-weight: 400;
+/* 업체 목록. 업체가 늘면 줄바꿈해 쌓인다 — 사이드바와 달리 창 높이를 밀지 않는다. */
+.company__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-1);
 }
 
-.company__title {
+.company__tab {
+  padding: var(--sp-1) var(--sp-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--sp-2);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
   font-family: var(--font-display);
-  font-size: var(--fs-lg);
-  font-weight: 400;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) ease,
+    border-color var(--dur-fast) ease;
+}
+
+.company__tab:hover {
+  border-color: var(--color-primary);
+}
+
+.company__tab--on {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 .company__body {

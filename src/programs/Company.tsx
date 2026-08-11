@@ -7,41 +7,37 @@ import { useGame } from '../store'
 
 /** `사내시스템` 창. 왼쪽 메뉴로 화면을 가르는 백오피스형이다.
  *
- * ⚠️ 업체는 여러 개라 **사이드바가 목록을 진다**(한 화면에 다 쌓으면 창이 화면보다 길어진다).
- *    고른 항목은 `useState`에 둔다 — 게임 상태가 아니라 창을 보는 방식이라 스토어에 넣으면
+ * ⚠️ 사이드바는 **화면**만 진다. 업체 목록은 업체정보 화면 안에 있다 — 수주가 늘면
+ *    업체도 느는데, 사이드바에 쌓으면 메뉴가 화면보다 길어진다.
+ *
+ * ⚠️ 고른 화면은 `useState`에 둔다 — 게임 상태가 아니라 창을 보는 방식이라 스토어에 넣으면
  *    세이브에 들어가고, 세이브 버전을 그것 때문에 올리게 된다. */
+
+const MENU = [
+  { id: 'status', label: '회사현황' },
+  { id: 'info', label: '업체정보' },
+] as const
+
 export function Company() {
-  const [view, setView] = useState<'status' | Client['id']>('status')
+  const [view, setView] = useState<(typeof MENU)[number]['id']>('status')
 
   return (
     <div className="company">
       <nav className="company__menu">
-        <button
-          type="button"
-          className={`company__item${view === 'status' ? ' company__item--on' : ''}`}
-          aria-current={view === 'status' ? 'page' : undefined}
-          onClick={() => setView('status')}
-        >
-          회사현황
-        </button>
-
-        <h3 className="company__section">업체정보</h3>
-        {CLIENTS.map((c) => (
+        {MENU.map((m) => (
           <button
-            key={c.id}
+            key={m.id}
             type="button"
-            className={`company__item${view === c.id ? ' company__item--on' : ''}`}
-            aria-current={view === c.id ? 'page' : undefined}
-            onClick={() => setView(c.id)}
+            className={`company__item${view === m.id ? ' company__item--on' : ''}`}
+            aria-current={view === m.id ? 'page' : undefined}
+            onClick={() => setView(m.id)}
           >
-            {c.name}
+            {m.label}
           </button>
         ))}
       </nav>
 
-      <div className="company__body">
-        {view === 'status' ? <Status /> : <Info client={CLIENTS.find((c) => c.id === view)!} />}
-      </div>
+      <div className="company__body">{view === 'status' ? <Status /> : <Info />}</div>
     </div>
   )
 }
@@ -93,8 +89,10 @@ function Status() {
   )
 }
 
-/** 업체 하나의 접속 정보. 업로드 공정이 생기면 플레이어가 여기를 보고 입력하게 된다. */
-function Info({ client }: { client: Client }) {
+/** 업체 목록 + 고른 업체의 접속 정보. 업로드 공정이 생기면 플레이어가 여기를 보고 입력한다. */
+function Info() {
+  const [id, setId] = useState<Client['id']>(CLIENTS[0].id)
+  const client = CLIENTS.find((c) => c.id === id)!
   const groups = [
     { title: 'FTP 접속 정보', rows: client.ftp },
     { title: '관리자 사이트 계정정보', rows: client.admin },
@@ -102,7 +100,21 @@ function Info({ client }: { client: Client }) {
 
   return (
     <div className="company__panel">
-      <h3 className="company__title">{client.name}</h3>
+      <div className="company__tabs">
+        {CLIENTS.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            className={`company__tab${c.id === id ? ' company__tab--on' : ''}`}
+            aria-current={c.id === id ? 'true' : undefined}
+            onClick={() => setId(c.id)}
+          >
+            {c.name}
+          </button>
+        ))}
+      </div>
+
+      {/* 고른 업체 이름은 칩이 이미 진다 — 바로 아래 제목으로 또 적지 않는다. */}
       {groups.map((g) => (
         <section key={g.title} className="company__group">
           <h4 className="company__group-title">{g.title}</h4>
