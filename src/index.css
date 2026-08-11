@@ -218,6 +218,16 @@ body {
   padding: var(--sp-4);
 }
 
+/* 백오피스형 창. 사이드바가 창 가장자리까지 닿아야 메뉴가 "판"으로 읽히므로
+   본문 패딩을 걷고 내용 쪽이 자기 패딩을 진다. */
+.window--wide {
+  width: min(680px, calc(100vw - var(--sp-8)));
+}
+
+.window--wide .window__body {
+  padding: 0;
+}
+
 /* ── 작업 표시줄 ──────────────────────────────────────── */
 .taskbar {
   position: absolute;
@@ -336,9 +346,82 @@ body {
 }
 
 /* ── 사내시스템 프로그램 ──────────────────────────────── */
+/* 사이드바는 stretch(그리드 기본)로 본문 높이만큼 늘어난다. align-items를 건드리면
+   메뉴가 짧을 때 판이 중간에서 끊긴다. */
 .company {
   display: grid;
+  grid-template-columns: 140px 1fr;
+}
+
+.company__menu {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-2);
+  border-right: 2px solid var(--color-border);
+  background: var(--color-muted);
+}
+
+.company__item {
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--sp-2);
+  background: transparent;
+  color: var(--color-foreground);
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease;
+}
+
+.company__item:hover {
+  background: rgb(255 255 255 / 0.6);
+}
+
+.company__item--on {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.company__body {
+  padding: var(--sp-4);
+}
+
+.company__panel {
+  display: grid;
   gap: var(--sp-2);
+}
+
+/* 묶음 사이의 칸막이. .schedule__note·.company__warn과 같은 구분선 관용구다. */
+.company__group + .company__group {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 2px solid var(--color-border);
+}
+
+.company__group-title {
+  margin-bottom: var(--sp-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 400;
+}
+
+.company__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding-block: var(--sp-1);
+  font-size: var(--fs-sm);
+}
+
+.company__row dt {
+  color: var(--color-muted-foreground);
+}
+
+.company__row dd {
+  font-variant-numeric: tabular-nums;
 }
 
 .company__head {

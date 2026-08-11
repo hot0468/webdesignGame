@@ -28,6 +28,8 @@
 - 모든 창 UI는 공용 `Window`를 쓴다. 이동은 **transform으로만**
 - **포커스는 별도 필드가 아니라 `z` 최대값에서 파생**한다(`focusedWindowId`). 관계를 한 방향으로만 적는다
 - `moveWindow`는 화면 크기를 **인자로 받는다** — 스토어는 DOM을 모른다. 상한 clamp(`WINDOW_DRAG.keepVisible`)가 없으면 창이 작업 표시줄 밑으로 들어가 타이틀바를 못 잡는다
+- 사이드바 메뉴로 화면을 가르는 **백오피스형 창**은 `PROGRAMS`에 `wide`를 준다. `.window--wide`가 폭을 넓히고 `.window__body` 패딩을 걷으므로 **내용 쪽이 자기 패딩을 진다**(`Company.tsx`가 예시)
+- ⚠️ 창 안에서 **고른 메뉴는 `useState`**다. 스토어에 넣으면 세이브에 들어가고, 창을 보는 방식 때문에 세이브 버전을 올리게 된다
 
 ## 실측 (`scripts/measure.mjs`, windowsGame에서 이식 — 의존성 0)
 ```
