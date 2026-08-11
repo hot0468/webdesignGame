@@ -40,7 +40,7 @@ export function Hud() {
           icon={HUD_ICONS.mental}
           label="정신력"
           value={`${g.mental}/${g.mentalMax}`}
-          bar={<Bar value={g.mental} max={g.mentalMax} tone="soft" />}
+          bar={<Bar value={g.mental} max={g.mentalMax} tone="success" />}
         />
         {/* 평판만 기본색(primary)을 쓴다 — 위기에 destructive로 튀는 변화가 가장 커야 한다. */}
         <Stat
@@ -120,7 +120,8 @@ function Ticks({ value, max, tone }: { value: number; max: number; tone?: Tone }
   )
 }
 
-/** 막대 색. ⚠️ 팔레트가 주는 색은 primary·secondary·accent 셋뿐이고 destructive는 위기
- *  표시로 예약돼 있다 — 막대가 늘어난다고 없는 색을 지어내지 마라(그 순간 새 시각 언어다). */
-type Tone = 'accent' | 'soft'
+/** 막대 색. ⚠️ **밝기가 아니라 색상으로** 가른다 — primary/secondary는 같은 인디고라
+ *  8px 막대에서 구분이 안 됐다. 막대가 늘어난다고 없는 색을 지어내지 마라(그 순간 새 시각
+ *  언어다). 색 값과 출처는 index.css의 `--color-success` 주석에 있다. */
+type Tone = 'accent' | 'success'
 const toneClass = (tone?: Tone) => (tone ? ` gauge--${tone}` : '')

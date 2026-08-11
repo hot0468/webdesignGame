@@ -28,6 +28,14 @@
   --color-on-destructive: #ffffff;
   --color-ring: #4f46e5;
 
+  /* 세 번째 색상(막대 구분용). primary와 secondary는 같은 인디고 계열이라 8px 막대에서
+     구분이 안 됐다 — 다른 **색상환 자리**가 필요해서 들였다.
+     출처: ui-ux-pro-max colors.csv "Remote Work/Collaboration Tool — Calm indigo + success green"
+     (같은 인디고 팔레트에 붙는 초록이고 WCAG 3:1로 이미 조정된 값이다. "E-commerce" 행에서는
+     이 초록이 우리 accent와 같은 #EA580C와 짝지어 쓰인다 — 셋이 같이 서도 되는 조합이다).
+     ⚠️ 트랙(--color-muted) 대비 3.28:1이라 **면으로만** 쓴다. 글자를 얹지 않는다. */
+  --color-success: #059669;
+
   /* 그림자에 쓰는 foreground의 채널값. 새 색이 아니라 --color-foreground와 같은 값이다 —
      rgb()에 알파를 넣으려면 hex가 아니라 채널이 필요해서 따로 둔다. */
   --shadow-rgb: 30 27 75;
@@ -601,17 +609,19 @@ body {
   background: var(--color-primary);
 }
 
-/* 막대마다 다른 색. 셋이 같은 색이면 판을 훑을 때 어느 줄인지 매번 라벨을 읽어야 한다.
-   ⚠️ 쓸 수 있는 색은 primary·secondary·accent 셋뿐이다(destructive는 위기 표시로 예약).
-      막대를 더 늘리려고 없는 색을 지어내지 말 것 — 그 순간 새 시각 언어다.
-   ⚠️ accent 위에는 글자를 얹지 않는다(흰 글자 3.56:1). 막대는 글자가 없는 면이라 괜찮다. */
+/* 막대마다 다른 **색상**. ⚠️ 밝기만 다른 같은 계열(primary/secondary)은 8px 막대에서
+   구분이 안 된다 — 실제로 실패했다. 그래서 인디고·오렌지·초록으로 색상환을 벌린다.
+   ⚠️ 넷째 막대가 생겨도 없는 색을 지어내지 말 것(destructive는 위기 표시로 예약).
+      정말 필요하면 ui-ux-pro-max를 다시 열어 이 팔레트에 붙는 색을 받아 온다.
+   ⚠️ accent·success 위에는 글자를 얹지 않는다(각각 3.56:1·3.28:1). 막대는 글자 없는 면이다. */
 .gauge--accent .gauge__fill,
 .gauge--accent .gauge__tick--on {
   background: var(--color-accent);
 }
 
-.gauge--soft .gauge__fill {
-  background: var(--color-secondary);
+.gauge--success .gauge__fill,
+.gauge--success .gauge__tick--on {
+  background: var(--color-success);
 }
 
 /* 위기선 눈금. ⚠️ --color-foreground여야 채워진 구간(primary 3.4:1)과 빈 구간
