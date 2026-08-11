@@ -601,6 +601,19 @@ body {
   background: var(--color-primary);
 }
 
+/* 막대마다 다른 색. 셋이 같은 색이면 판을 훑을 때 어느 줄인지 매번 라벨을 읽어야 한다.
+   ⚠️ 쓸 수 있는 색은 primary·secondary·accent 셋뿐이다(destructive는 위기 표시로 예약).
+      막대를 더 늘리려고 없는 색을 지어내지 말 것 — 그 순간 새 시각 언어다.
+   ⚠️ accent 위에는 글자를 얹지 않는다(흰 글자 3.56:1). 막대는 글자가 없는 면이라 괜찮다. */
+.gauge--accent .gauge__fill,
+.gauge--accent .gauge__tick--on {
+  background: var(--color-accent);
+}
+
+.gauge--soft .gauge__fill {
+  background: var(--color-secondary);
+}
+
 /* 위기선 눈금. ⚠️ --color-foreground여야 채워진 구간(primary 3.4:1)과 빈 구간
    (muted 14:1) **양쪽에서** 보인다. destructive로 하면 위기 상태에서 같은 색 위에 얹혀 사라진다. */
 .gauge__crisis {

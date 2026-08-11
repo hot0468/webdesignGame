@@ -34,15 +34,15 @@ export function Hud() {
           icon={HUD_ICONS.ap}
           label="행동력"
           value={`${g.ap}/${g.apMax}`}
-          bar={<Ticks value={g.ap} max={g.apMax} />}
+          bar={<Ticks value={g.ap} max={g.apMax} tone="accent" />}
         />
         <Stat
           icon={HUD_ICONS.mental}
           label="정신력"
           value={`${g.mental}/${g.mentalMax}`}
-          bar={<Bar value={g.mental} max={g.mentalMax} />}
+          bar={<Bar value={g.mental} max={g.mentalMax} tone="soft" />}
         />
-        <Stat icon={HUD_ICONS.money} label="소지금" value={`${g.money.toLocaleString('ko-KR')}원`} />
+        {/* 평판만 기본색(primary)을 쓴다 — 위기에 destructive로 튀는 변화가 가장 커야 한다. */}
         <Stat
           icon={HUD_ICONS.reputation}
           label="회사평판"
@@ -55,6 +55,8 @@ export function Hud() {
             />
           }
         />
+        {/* 소지금은 막대가 없다 — 상한이 없는 값이라 채울 끝이 없다. 그래서 맨 아래다. */}
+        <Stat icon={HUD_ICONS.money} label="소지금" value={`${g.money.toLocaleString('ko-KR')}원`} />
       </dl>
     </div>
   )
@@ -87,9 +89,19 @@ function Stat({
  *
  * ⚠️ 평판에 **위기선 눈금을 얹지 마라** — 위기선까지의 거리는 사내시스템 창이 지는 몫이고,
  *    그것마저 여기 오면 그 창의 회사현황 화면이 할 일이 없어진다. */
-function Bar({ value, max, crisis }: { value: number; max: number; crisis?: boolean }) {
+function Bar({
+  value,
+  max,
+  tone,
+  crisis,
+}: {
+  value: number
+  max: number
+  tone?: Tone
+  crisis?: boolean
+}) {
   return (
-    <div className={`gauge${crisis ? ' gauge--crisis' : ''}`} aria-hidden="true">
+    <div className={`gauge${toneClass(tone)}${crisis ? ' gauge--crisis' : ''}`} aria-hidden="true">
       <div className="gauge__fill" style={{ width: `${(value / max) * 100}%` }} />
     </div>
   )
@@ -98,12 +110,17 @@ function Bar({ value, max, crisis }: { value: number; max: number; crisis?: bool
 /** 눈금 막대. ⚠️ 행동력은 **정수 자원**이라 칸으로 센다 — 연속 막대로 그리면 "2.5쯤 남았다"로
  *  읽히는데, 실제로는 공정 하나를 더 돌릴 수 있느냐 없느냐뿐이다.
  *  칸 수는 `apMax`라 회사레벨이 올라 최대치가 늘면 칸도 같이 는다. */
-function Ticks({ value, max }: { value: number; max: number }) {
+function Ticks({ value, max, tone }: { value: number; max: number; tone?: Tone }) {
   return (
-    <div className="gauge gauge--ticks" aria-hidden="true">
+    <div className={`gauge gauge--ticks${toneClass(tone)}`} aria-hidden="true">
       {Array.from({ length: max }, (_, i) => (
         <span key={i} className={`gauge__tick${i < value ? ' gauge__tick--on' : ''}`} />
       ))}
     </div>
   )
 }
+
+/** 막대 색. ⚠️ 팔레트가 주는 색은 primary·secondary·accent 셋뿐이고 destructive는 위기
+ *  표시로 예약돼 있다 — 막대가 늘어난다고 없는 색을 지어내지 마라(그 순간 새 시각 언어다). */
+type Tone = 'accent' | 'soft'
+const toneClass = (tone?: Tone) => (tone ? ` gauge--${tone}` : '')
