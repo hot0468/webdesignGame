@@ -1,39 +1,47 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { PROGRAM_ICONS } from '../data/icons'
-import { COMPANY_INFO } from '../data/company'
+import { CLIENTS, type Client } from '../data/company'
 import { CRISIS_WEEKS_TO_SHUTDOWN, REPUTATION_CRISIS, REPUTATION_MAX } from '../data/game'
 import { useGame } from '../store'
 
 /** `사내시스템` 창. 왼쪽 메뉴로 화면을 가르는 백오피스형이다.
  *
- * ⚠️ 고른 메뉴는 `useState`에 둔다 — 게임 상태가 아니라 창을 보는 방식이라
- *    스토어에 넣으면 세이브에 들어가고, 세이브 버전을 그것 때문에 올리게 된다. */
-
-const MENU = [
-  { id: 'status', label: '회사현황' },
-  { id: 'info', label: '업체정보' },
-] as const
-
+ * ⚠️ 업체는 여러 개라 **사이드바가 목록을 진다**(한 화면에 다 쌓으면 창이 화면보다 길어진다).
+ *    고른 항목은 `useState`에 둔다 — 게임 상태가 아니라 창을 보는 방식이라 스토어에 넣으면
+ *    세이브에 들어가고, 세이브 버전을 그것 때문에 올리게 된다. */
 export function Company() {
-  const [menu, setMenu] = useState<(typeof MENU)[number]['id']>('status')
+  const [view, setView] = useState<'status' | Client['id']>('status')
 
   return (
     <div className="company">
       <nav className="company__menu">
-        {MENU.map((m) => (
+        <button
+          type="button"
+          className={`company__item${view === 'status' ? ' company__item--on' : ''}`}
+          aria-current={view === 'status' ? 'page' : undefined}
+          onClick={() => setView('status')}
+        >
+          회사현황
+        </button>
+
+        <h3 className="company__section">업체정보</h3>
+        {CLIENTS.map((c) => (
           <button
-            key={m.id}
+            key={c.id}
             type="button"
-            className={`company__item${menu === m.id ? ' company__item--on' : ''}`}
-            aria-current={menu === m.id ? 'page' : undefined}
-            onClick={() => setMenu(m.id)}
+            className={`company__item${view === c.id ? ' company__item--on' : ''}`}
+            aria-current={view === c.id ? 'page' : undefined}
+            onClick={() => setView(c.id)}
           >
-            {m.label}
+            {c.name}
           </button>
         ))}
       </nav>
-      <div className="company__body">{menu === 'status' ? <Status /> : <Info />}</div>
+
+      <div className="company__body">
+        {view === 'status' ? <Status /> : <Info client={CLIENTS.find((c) => c.id === view)!} />}
+      </div>
     </div>
   )
 }
@@ -85,16 +93,22 @@ function Status() {
   )
 }
 
-/** 접속 정보 모음. 업로드 공정이 생기면 플레이어가 여기를 보고 입력하게 된다. */
-function Info() {
+/** 업체 하나의 접속 정보. 업로드 공정이 생기면 플레이어가 여기를 보고 입력하게 된다. */
+function Info({ client }: { client: Client }) {
+  const groups = [
+    { title: 'FTP 접속 정보', rows: client.ftp },
+    { title: '관리자 사이트 계정정보', rows: client.admin },
+  ]
+
   return (
     <div className="company__panel">
-      {Object.entries(COMPANY_INFO).map(([key, group]) => (
-        <section key={key} className="company__group">
-          <h3 className="company__group-title">{group.title}</h3>
+      <h3 className="company__title">{client.name}</h3>
+      {groups.map((g) => (
+        <section key={g.title} className="company__group">
+          <h4 className="company__group-title">{g.title}</h4>
           {/* 라벨-값 쌍은 dl이 정본이다. dl > div > dt+dd는 HTML5에서 유효하다. */}
           <dl>
-            {group.rows.map((row) => (
+            {g.rows.map((row) => (
               <div key={row.label} className="company__row">
                 <dt>{row.label}</dt>
                 <dd>{row.value}</dd>

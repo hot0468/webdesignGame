@@ -384,6 +384,22 @@ body {
   color: var(--color-on-primary);
 }
 
+/* 사이드바 목록의 머리말. ⚠️ 판이 --color-muted라서 --color-muted-foreground를 쓰면
+   3.8:1로 AA 미달이다(카드 위에서만 통과하는 색이다). 크기로 위계를 준다. */
+.company__section {
+  margin-top: var(--sp-3);
+  padding-inline: var(--sp-3);
+  font-family: var(--font-display);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+}
+
+.company__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 400;
+}
+
 .company__body {
   padding: var(--sp-4);
 }

@@ -104,15 +104,17 @@ async function ensureChrome(width, height) {
 }
 
 /** CDP 연결. `send`(원시 메서드)와 `evalJs`(페이지 안 평가)를 준다. */
-async function connect() {
+async function connect(url) {
   const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json()
   const pages = targets.filter((t) => t.type === 'page')
-  // ⚠️ 페이지 타깃이 2개면 죽은 세션이 남긴 스테일 탭이다(같은 프로필로 재spawn하면 탭만 는다).
-  //    그 탭에 붙으면 Runtime.evaluate가 영원히 안 돌아와 **출력 없이 매달린다** — 즉사가 낫다.
-  if (pages.length > 1)
-    throw new Error('page 타깃이 여러 개다 — webdi-cdp 크롬을 죽이고 다시 실행하라')
-  const page = pages[0]
-  if (!page) throw new Error('page 타깃이 없다')
+  /*
+   * ⚠️ **첫 page 타깃을 집지 마라.** 이 크롬은 `about:blank`를 인자로 줘도 시작 페이지
+   *    (이 PC에서는 zum.com)를 같이 여는 일이 있고, 그 광고투성이 탭에 붙으면
+   *    `Runtime.evaluate`가 끝내 안 돌아와 **출력 없이 매달린다.**
+   *    우리 페이지 → 아직 이동 전이면 빈 탭 순으로 고른다.
+   */
+  const page = pages.find((t) => t.url.startsWith(url)) ?? pages.find((t) => t.url === 'about:blank')
+  if (!page) throw new Error(`쓸 수 있는 page 타깃이 없다(연 탭: ${pages.map((p) => p.url).join(', ') || '없음'})`)
   const ws = new WebSocket(page.webSocketDebuggerUrl)
   await new Promise((res, rej) => {
     ws.onopen = res
@@ -311,7 +313,7 @@ async function main() {
   const [width, height] = o.size.split('x').map(Number)
   const url = await findDevServer(o.url)
   await ensureChrome(width, height)
-  const d = await connect()
+  const d = await connect(url)
   try {
     await d.send('Emulation.setDeviceMetricsOverride', {
       width,
