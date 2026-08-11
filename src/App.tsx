@@ -10,12 +10,22 @@ import { Window } from './components/Window'
 import { findProgram, type ProgramId } from './data/programs'
 import { Browser } from './programs/Browser'
 import { Company } from './programs/Company'
+import { Editor } from './programs/Editor'
+import { Figma } from './programs/Figma'
+import { Mail } from './programs/Mail'
+import { Messenger } from './programs/Messenger'
+import { Photoshop } from './programs/Photoshop'
 import { Schedule } from './programs/Schedule'
 import { useGame } from './store'
 
 /** 프로그램 id → 창 내용. PROGRAMS(데이터)에 항목을 더하면 여기 컴포넌트도 짝지어야 한다.
  *  Record<ProgramId, ...>라서 짝을 빼먹으면 타입 검사가 잡는다. */
 const VIEWS: Record<ProgramId, () => React.JSX.Element> = {
+  figma: Figma,
+  photoshop: Photoshop,
+  messenger: Messenger,
+  editor: Editor,
+  mail: Mail,
   schedule: Schedule,
   company: Company,
   browser: Browser,
@@ -30,7 +40,7 @@ export default function App() {
         const View = VIEWS[w.id]
         const program = findProgram(w.id)
         return (
-          <Window key={w.id} id={w.id} title={program.title} wide={'wide' in program}>
+          <Window key={w.id} id={w.id} title={program.title} size={'size' in program ? program.size : undefined}>
             <View />
           </Window>
         )

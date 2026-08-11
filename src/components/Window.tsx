@@ -7,8 +7,8 @@ import { focusedWindowId, useGame } from '../store'
 type Props = {
   id: ProgramId
   title: string
-  /** 사이드바 메뉴가 있는 백오피스형 창. 폭 출처는 PROGRAMS의 `wide`다. */
-  wide?: boolean
+  /** 창 크기 등급. 출처는 PROGRAMS의 `size`다(없으면 기본 폭). */
+  size?: 'app'
   children: ReactNode
 }
 
@@ -16,7 +16,7 @@ type Props = {
  *
  * ⚠️ 이동은 transform으로만 한다. top/left/width/height를 애니메이션하면 매 프레임
  *    레이아웃을 다시 계산해 드래그가 끊긴다. */
-export function Window({ id, title, wide, children }: Props) {
+export function Window({ id, title, size, children }: Props) {
   const win = useGame((s) => s.windows.find((w) => w.id === id))
   const focused = useGame((s) => focusedWindowId(s.windows)) === id
   const { closeWindow, focusWindow, moveWindow } = useGame.getState()
@@ -37,7 +37,7 @@ export function Window({ id, title, wide, children }: Props) {
 
   return (
     <section
-      className={`window${wide ? ' window--wide' : ''}${focused ? ' window--focused' : ''}`}
+      className={`window${size ? ` window--${size}` : ''}${focused ? ' window--focused' : ''}`}
       style={{ transform: `translate(${win.x}px, ${win.y}px)`, zIndex: win.z }}
       onPointerDown={() => focusWindow(id)}
       aria-label={title}

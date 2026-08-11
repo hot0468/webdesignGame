@@ -21,6 +21,11 @@ export const REPUTATION_CRISIS = 10
 export const CRISIS_WEEKS_TO_SHUTDOWN = 4
 export const REPUTATION_MAX = 100
 
+/** 마감이 **이만큼 남았거나 덜 남으면 임박**이다(업무목록에서 빨갛게 선다).
+ *  ⚠️ 1주 = 남은 턴이 이번 주 하나뿐이라는 뜻이다. 데드라인 초과는 계약 파기라
+ *  이 경고가 마지막 신호다. */
+export const DEADLINE_URGENT_WEEKS = 1
+
 /** 달력 환산의 단위. 주차 → 몇 월 몇째 주는 이 값으로만 나눈다. */
 export const WEEKS_PER_MONTH = 4
 export const MONTHS_PER_YEAR = 12
@@ -30,8 +35,10 @@ export const MONTHS_PER_YEAR = 12
 export const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'] as const
 export const WEEKEND_COUNT = 2
 
-/** 창을 처음 열 때의 위치와, 겹치지 않게 계단식으로 밀어내는 간격(px). */
-export const WINDOW_SPAWN = { x: 160, y: 80, cascade: 28 } as const
+/** 창을 처음 열 때의 위치와, 겹치지 않게 계단식으로 밀어내는 간격(px).
+ *  ⚠️ `y`는 **화면 위쪽 기준**이다(바탕화면 아이콘과 같은 24px 여백) — 창이 클수록
+ *  아래로 쓸 높이가 필요하므로 위에서 시작한다. 가운데 정렬로 바꾸지 말 것. */
+export const WINDOW_SPAWN = { x: 160, y: 24, cascade: 28 } as const
 
 /** 드래그로 창을 화면 밖에 버려 되찾을 수 없게 되는 것을 막는 최소 노출량(px).
  *  ⚠️ 세로 96은 index.css의 `--os-taskbar-h`(56) + `--os-titlebar-h`(40)와 같은 값이다 —

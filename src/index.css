@@ -124,15 +124,24 @@ body {
   pointer-events: auto;
 }
 
+/* 아이콘 두 줄. 왼쪽 = 회사를 굴리는 창, 오른쪽 = 손으로 쓰는 프로그램(출처는 PROGRAMS의 col). */
 .desktop__icons {
   position: absolute;
   inset: var(--sp-6) auto auto var(--sp-6);
-  display: grid;
+  display: flex;
+  align-items: start;
   gap: var(--sp-4);
   z-index: var(--z-desktop);
 }
 
+.desktop__col {
+  display: grid;
+  gap: var(--sp-4);
+}
+
 .desktop-icon {
+  /* 새 글 뱃지가 아이콘 모서리에 얹히는 기준이다. */
+  position: relative;
   display: grid;
   justify-items: center;
   gap: var(--sp-2);
@@ -226,13 +235,18 @@ body {
   padding: var(--sp-4);
 }
 
-/* 백오피스형 창. 사이드바가 창 가장자리까지 닿아야 메뉴가 "판"으로 읽히므로
-   본문 패딩을 걷고 내용 쪽이 자기 패딩을 진다. */
-.window--wide {
-  width: min(680px, calc(100vw - var(--sp-8)));
+/* 큰 프로그램 창(메일 · 사내시스템). 사이드바가 창 가장자리까지 닿아야 메뉴가 "판"으로
+   읽히므로 본문 패딩을 걷고 내용 쪽이 자기 패딩을 진다.
+   ⚠️ 높이를 고정해야 안쪽 칸이 각자 스크롤한다 — 높이를 내용에 맡기면 창이 작업
+   표시줄을 뚫고 내려간다. */
+.window--app {
+  width: min(1040px, calc(100vw - var(--sp-8)));
+  height: min(640px, calc(100vh - var(--os-taskbar-h) - var(--sp-12)));
 }
 
-.window--wide .window__body {
+.window--app .window__body {
+  flex: 1;
+  min-height: 0;
   padding: 0;
 }
 
@@ -289,19 +303,20 @@ body {
 }
 
 /* ── 계기판(오른쪽 위) ────────────────────────────────── */
-/* ⚠️ 작업 표시줄에서 분리된 셸 크롬이다. 창 레이어 **밖**이라 창이 아래로 지나간다.
-   주차 판과 스탯 판 두 장이 나란히 서고, 위쪽 끝을 맞춘다(주차 판이 훨씬 짧다). */
+/* 주차 판 옆에 **스탯 판 + 업무목록 판**이 세로로 선다(위쪽 끝을 맞춘다).
+   ⚠️ z는 **바탕화면 층**이다 — 창이 계기판을 덮고 지나간다. 창 위로 올리면
+      큰 창(메일 등)의 오른쪽 위 내용을 계기판이 가린다. 작업 표시줄과 다른 층이다. */
 .hud {
   position: absolute;
   inset: var(--sp-6) var(--sp-6) auto auto;
-  z-index: var(--z-taskbar);
+  z-index: var(--z-desktop);
   display: flex;
   align-items: start;
   gap: var(--sp-3);
 }
 
-/* ⚠️ 판(--color-card) 위라야 라벨에 --color-muted-foreground를 쓸 수 있다. 판을 없애고
-   바탕화면에 직접 얹으면 4.26:1로 AA 미달이 된다. */
+/* ⚠️ 판(--color-card) 위라야 글자가 AA를 넘는다. 판을 없애고 바탕화면에 직접 얹으면
+   --color-foreground도 4.26:1로 미달이 된다. */
 .hud__panel {
   padding: var(--sp-4);
   border: 2px solid var(--color-border);
@@ -309,12 +324,6 @@ body {
   background: var(--color-card);
   color: var(--color-card-foreground);
   box-shadow: var(--el-window);
-}
-
-.hud__stats {
-  display: grid;
-  gap: var(--sp-2);
-  min-width: 200px;
 }
 
 .hud__week {
@@ -326,25 +335,39 @@ body {
   white-space: nowrap;
 }
 
-.hud__stat {
+/* 스탯 판 + 업무목록 판이 세로로 서는 칸. 폭 상한은 **칸**이 진다 — 목록 쪽에만 걸면
+   긴 업무 제목이 판을 늘려 빠져나간다(줄임표는 폭이 정해져야 걸린다). */
+.hud__col {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 224px;
+  max-width: 288px;
+}
+
+.stats {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.stat {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--sp-4);
 }
 
-/* 평판 줄만 두 줄이다 — 라벨 옆에 두면 막대에 60px밖에 안 남아 눈금 구실을 못 한다. */
-.hud__stat--bar {
+/* 막대가 있는 줄만 두 줄이다 — 라벨 옆에 두면 막대에 60px밖에 안 남아 눈금 구실을 못 한다. */
+.stat--bar {
   flex-wrap: wrap;
   gap: var(--sp-1) var(--sp-4);
 }
 
-.hud__stat--bar .gauge {
+.stat--bar .gauge {
   flex: 0 0 100%;
   height: var(--sp-2);
 }
 
-.hud__label {
+.stat__label {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
@@ -353,11 +376,85 @@ body {
   white-space: nowrap;
 }
 
-.hud__value {
+.stat__value {
   font-family: var(--font-display);
   font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* ── 업무목록 판 ──────────────────────────────────────── */
+.hud__none {
+  margin-top: var(--sp-1);
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+}
+
+.joblist {
+  display: grid;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+  padding: 0;
+  list-style: none;
+  /* 업무가 쌓여도 계기판이 작업 표시줄까지 자라지 않는다 — 목록만 구른다 */
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+/* ⚠️ 누르는 자리가 아니다 — 완료는 업무를 끝내야 붙는다(사람이 켜는 체크박스가 아니다). */
+.job {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.job__mark {
+  flex: none;
+  color: var(--color-muted-foreground);
+}
+
+.job--done .job__mark {
+  color: var(--color-success);
+}
+
+.job__from {
+  flex: none;
+  font-family: var(--font-display);
+}
+
+.job__title {
+  /* min-width:0이 없으면 flex 항목이 내용만큼 늘어 줄임표가 걸리지 않는다 */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-muted-foreground);
+}
+
+.job__due {
+  flex: none;
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 임박한 마감. destructive on 카드 = 4.83:1로 AA를 넘는다. */
+.job__due--soon {
+  color: var(--color-destructive);
+  font-weight: 700;
+}
+
+/* 완료. ⚠️ 취소선만으로는 색맹·저시력에서 약하므로 색도 함께 죽인다. */
+.job--done {
+  color: var(--color-muted-foreground);
+  text-decoration: line-through;
+}
+
+/* 끝낸 업무의 마감은 더 이상 경고가 아니다 — 빨강을 거둔다. */
+.job--done .job__due--soon {
+  color: var(--color-muted-foreground);
+  font-weight: 400;
 }
 
 /* ── 일정 프로그램 ────────────────────────────────────── */
@@ -425,6 +522,9 @@ body {
 .company {
   display: grid;
   grid-template-columns: 140px 1fr;
+  /* 창 높이가 고정(.window--app)이라 내용이 그 안에서 자리를 잡는다 */
+  height: 100%;
+  min-height: 0;
 }
 
 .company__menu {
@@ -436,7 +536,12 @@ body {
   background: var(--color-muted);
 }
 
+/* 뱃지가 붙는 줄은 오른쪽 끝을 쓴다. 뱃지가 없는 메뉴는 모양이 그대로다. */
 .company__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
   border: 0;
   border-radius: var(--sp-2);
@@ -490,8 +595,11 @@ body {
   color: var(--color-on-primary);
 }
 
+/* 화면이 길어지면 본문만 구른다 — 사이드바는 제자리에 선다. */
 .company__body {
+  min-height: 0;
   padding: var(--sp-4);
+  overflow-y: auto;
 }
 
 .company__panel {
@@ -632,6 +740,174 @@ body {
   bottom: 0;
   width: 3px;
   background: var(--color-foreground);
+}
+
+/* ── 새 글 뱃지 ───────────────────────────────────────── */
+/* ⚠️ 숫자를 지는 뱃지는 destructive다 — accent 위에는 소형 글자를 얹지 못한다(3.56:1).
+      흰 글자는 destructive 위에서 4.83:1로 AA를 넘고, 빨간 알림 뱃지는 OS 관용구이기도 하다.
+   ⚠️ 카드색 테두리는 장식이 아니다 — 선택된 메뉴(primary, 같은 어두운 밝기)와 바탕화면
+      그라디언트 위에서 빨강이 배경에 묻지 않게 하는 장치다. 지우면 그 두 자리에서만 사라진다. */
+.badge {
+  display: grid;
+  place-items: center;
+  min-width: var(--sp-6);
+  height: var(--sp-6);
+  padding-inline: var(--sp-1);
+  border: 2px solid var(--color-card);
+  border-radius: var(--sp-3);
+  background: var(--color-destructive);
+  color: var(--color-on-destructive);
+  font-family: var(--font-display);
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+
+/* 목록 줄의 안 읽음 표시. 그 줄이 곧 글 하나라 숫자가 필요 없다. */
+.badge--dot {
+  flex: none;
+  min-width: var(--sp-2);
+  height: var(--sp-2);
+  padding: 0;
+  border: 0;
+}
+
+/* 바탕화면 아이콘 위. 아이콘 오른쪽 위 모서리에 얹힌다. */
+.badge--corner {
+  position: absolute;
+  top: var(--sp-1);
+  right: var(--sp-2);
+}
+
+/* ── 받은 글 목록(고객게시판) ─────────────────────────── */
+/* 결정 버튼(.jobact)의 색은 감싸는 쪽이 준다 — 여기서는 셸 팔레트다. */
+.msgs {
+  display: grid;
+  gap: var(--sp-2);
+  --jobact-accent: var(--color-primary);
+  --jobact-on-accent: var(--color-on-primary);
+  --jobact-subtle: var(--color-muted);
+  --jobact-muted: var(--color-muted-foreground);
+}
+
+.msgs .jobact__btn {
+  font-family: var(--font-display);
+}
+
+.msg {
+  border: 2px solid var(--color-border);
+  border-radius: var(--sp-2);
+}
+
+/* 안 읽은 글은 테두리로 선다 — 면을 채우면 목록 절반이 색 덩어리가 된다. */
+.msg--unread {
+  border-color: var(--color-primary);
+}
+
+.msg__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--sp-2);
+  background: transparent;
+  color: var(--color-card-foreground);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease;
+}
+
+.msg__head:hover {
+  background: var(--color-muted);
+}
+
+.msg__from {
+  flex: none;
+  font-family: var(--font-display);
+}
+
+/* 제목은 한 줄로 자른다 — 목록에서 줄 높이가 글마다 달라지면 훑기가 어려워진다. */
+.msg__subject {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-muted-foreground);
+}
+
+.msg--unread .msg__subject {
+  color: var(--color-card-foreground);
+}
+
+.msg__at {
+  flex: none;
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+/* 펼친 글: 본문 + 결정 버튼이 한 칸에 든다. */
+.msg__open {
+  padding: var(--sp-3);
+  border-top: 2px solid var(--color-border);
+}
+
+.msg__body {
+  font-size: var(--fs-sm);
+  color: var(--color-muted-foreground);
+}
+
+/* ── 의뢰 결정 버튼(메일 · 고객게시판 공용) ───────────── */
+/* ⚠️ 여기에는 **색이 없다**. 감싸는 창이 --jobact-*를 준다 — 메일 창은 Fluent 파랑,
+      사내시스템은 셸 인디고다. 여기서 색을 정하면 한 창 안에 두 팔레트가 선다. */
+.jobact {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.jobact__btn {
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--jobact-accent);
+  border-radius: var(--sp-1);
+  background: transparent;
+  color: var(--jobact-accent);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) ease,
+    opacity var(--dur-fast) ease;
+}
+
+.jobact__btn:hover {
+  background: var(--jobact-subtle);
+}
+
+/* 견적보내기가 주 행동이다 — 한 화면에 주 버튼은 하나만 채운다. */
+.jobact__btn--go {
+  background: var(--jobact-accent);
+  color: var(--jobact-on-accent);
+}
+
+.jobact__btn--go:hover {
+  background: var(--jobact-accent);
+  opacity: 0.88;
+}
+
+.jobact__due {
+  align-self: center;
+  color: var(--jobact-muted);
+  font-size: var(--fs-sm);
+}
+
+.jobact__decided {
+  margin-top: var(--sp-3);
+  color: var(--jobact-muted);
+  font-size: var(--fs-sm);
 }
 
 /* ── 빈 상태(내용이 아직 없는 창) ─────────────────────── */

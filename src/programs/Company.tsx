@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
+import { MessageList } from '../components/MessageList'
 import { PROGRAM_ICONS } from '../data/icons'
 import { CLIENTS, type Client } from '../data/company'
+import { unreadCount } from '../data/inbox'
 import { CRISIS_WEEKS_TO_SHUTDOWN, REPUTATION_CRISIS, REPUTATION_MAX } from '../data/game'
 import { useGame } from '../store'
 
@@ -13,31 +15,46 @@ import { useGame } from '../store'
  * ⚠️ 고른 화면은 `useState`에 둔다 — 게임 상태가 아니라 창을 보는 방식이라 스토어에 넣으면
  *    세이브에 들어가고, 세이브 버전을 그것 때문에 올리게 된다. */
 
+/** `badge`가 붙은 메뉴는 안 읽은 수를 진다 — 바탕화면 아이콘 뱃지가 어느 메뉴를
+ *  가리키는지 여기서 다시 보이지 않으면 창을 열고 나서 찾아 헤매게 된다. */
 const MENU = [
   { id: 'status', label: '회사현황' },
+  { id: 'board', label: '고객게시판', badge: 'board' },
   { id: 'info', label: '업체정보' },
 ] as const
 
 export function Company() {
   const [view, setView] = useState<(typeof MENU)[number]['id']>('status')
+  const readIds = useGame((s) => s.readIds)
 
   return (
     <div className="company">
       <nav className="company__menu">
-        {MENU.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            className={`company__item${view === m.id ? ' company__item--on' : ''}`}
-            aria-current={view === m.id ? 'page' : undefined}
-            onClick={() => setView(m.id)}
-          >
-            {m.label}
-          </button>
-        ))}
+        {MENU.map((m) => {
+          const unread = 'badge' in m ? unreadCount(m.badge, readIds) : 0
+          return (
+            <button
+              key={m.id}
+              type="button"
+              className={`company__item${view === m.id ? ' company__item--on' : ''}`}
+              aria-current={view === m.id ? 'page' : undefined}
+              aria-label={unread ? `${m.label}, 새 글 ${unread}개` : undefined}
+              onClick={() => setView(m.id)}
+            >
+              {m.label}
+              {unread > 0 && (
+                <span className="badge" aria-hidden="true">
+                  {unread}
+                </span>
+              )}
+            </button>
+          )
+        })}
       </nav>
 
-      <div className="company__body">{view === 'status' ? <Status /> : <Info />}</div>
+      <div className="company__body">
+        {view === 'status' ? <Status /> : view === 'board' ? <MessageList channel="board" /> : <Info />}
+      </div>
     </div>
   )
 }

@@ -15,10 +15,23 @@ export const PROGRAM_ICONS = {
   noSite: 'mdi:link-variant-off',
 } as const
 
-export const HUD_ICONS = {
+/** `메일` 창 전용 글리프. ⚠️ 다색을 들이지 않는다 — Fluent 팔레트가 currentColor로
+ *  물들어야 창 안에서 색이 하나로 선다(`programs/mail.css`). */
+export const MAIL_ICONS = {
+  inbox: 'mdi:inbox-arrow-down-outline',
+  sent: 'mdi:send-outline',
+  blank: 'mdi:email-open-outline',
+} as const
+
+/** 계기판(주차)과 `스탯` 창이 함께 쓰는 단색 묶음. 한 세트여야 currentColor로 물든다. */
+export const STAT_ICONS = {
   week: 'mdi:calendar-week-outline',
   ap: 'mdi:lightning-bolt-outline',
   mental: 'mdi:emoticon-happy-outline',
   money: 'mdi:wallet-outline',
   reputation: 'mdi:star-outline',
+  jobs: 'mdi:clipboard-text-outline',
+  /** 업무 상태 표식. ⚠️ 체크박스가 아니다 — 완료는 업무를 끝내야 붙는다. */
+  jobOpen: 'mdi:circle-outline',
+  jobDone: 'mdi:check-circle-outline',
 } as const

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { INITIAL_GAME, WINDOW_DRAG } from './data/game'
+import { MESSAGES } from './data/inbox'
 import type { ProgramId } from './data/programs'
 import { focusedWindowId, useGame } from './store'
 
@@ -70,6 +71,58 @@ describe('창', () => {
     expect(useGame.getState().windows[0]).toMatchObject({
       x: viewport.w - keep,
       y: viewport.h - keep,
+    })
+  })
+})
+
+describe('업무 수주', () => {
+  // ⚠️ 광고가 아닌 글만 수주된다(기한이 있는 것). 타입도 그렇게 갈라져 있다.
+  const requests = MESSAGES.filter((m) => !m.ad)
+  const first = requests[0]!
+  const second = requests[1]!
+
+  beforeEach(() => {
+    useGame.setState({ jobs: [], rejectedIds: [] })
+  })
+
+  // 같은 의뢰가 두 줄이 되면 완료 표시가 갈리고, 공정·대금이 붙는 순간
+  // 한 건을 두 번 받는 구멍이 된다.
+  it('같은 의뢰를 두 번 수주하지 않는다', () => {
+    const { acceptJob } = useGame.getState()
+    acceptJob(first)
+    acceptJob(first)
+    expect(useGame.getState().jobs).toHaveLength(1)
+
+    acceptJob(second)
+    expect(useGame.getState().jobs.map((j) => j.id)).toEqual([first.id, second.id])
+  })
+
+  // 상대 기한(`dueWeeks`)을 그대로 들고 있으면 주가 지나도 남은 기한이 줄지 않는다.
+  // 마감은 **받는 주에 굳어야** 데드라인이 뜻을 가진다.
+  it('마감은 수주한 주에 굳는다', () => {
+    useGame.setState({ week: 7 })
+    useGame.getState().acceptJob(first)
+    expect(useGame.getState().jobs[0]!.due).toBe(7 + first.dueWeeks)
+  })
+
+  it('거절은 업무를 만들지 않는다', () => {
+    useGame.getState().rejectJob(first.id)
+    expect(useGame.getState().jobs).toHaveLength(0)
+    expect(useGame.getState().rejectedIds).toEqual([first.id])
+  })
+
+  // 취소선은 사람이 켜는 것이 아니라 **완료가 붙이는** 표시다 — 되돌아가지 않아야
+  // 완료가 뜻을 가진다. 그리고 한 건을 끝냈다고 옆 업무까지 끝나면 안 된다.
+  it('완료는 그 업무에만 붙고 되돌아가지 않는다', () => {
+    const { acceptJob, completeJob } = useGame.getState()
+    acceptJob(first)
+    acceptJob(second)
+    completeJob(first.id)
+    completeJob(first.id)
+
+    expect(Object.fromEntries(useGame.getState().jobs.map((j) => [j.id, j.done]))).toEqual({
+      [first.id]: true,
+      [second.id]: false,
     })
   })
 })
