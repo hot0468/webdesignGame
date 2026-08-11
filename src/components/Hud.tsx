@@ -1,5 +1,6 @@
 import { AppIcon } from '../icons/AppIcon'
 import { HUD_ICONS } from '../data/icons'
+import { REPUTATION_CRISIS, REPUTATION_MAX } from '../data/game'
 import { toCalendar } from '../systems/calendar'
 import { useGame } from '../store'
 
@@ -32,7 +33,26 @@ export function Hud() {
         <Stat icon={HUD_ICONS.ap} label="행동력" value={`${g.ap}/${g.apMax}`} />
         <Stat icon={HUD_ICONS.mental} label="정신력" value={`${g.mental}/${g.mentalMax}`} />
         <Stat icon={HUD_ICONS.money} label="소지금" value={`${g.money.toLocaleString('ko-KR')}원`} />
-        <Stat icon={HUD_ICONS.reputation} label="회사평판" value={`${g.reputation}`} />
+
+        <div className="hud__stat hud__stat--bar">
+          <dt className="hud__label">
+            <AppIcon name={HUD_ICONS.reputation} />
+            회사평판
+          </dt>
+          <dd className="hud__value">{g.reputation}</dd>
+          {/* ⚠️ 위기선 눈금은 여기 두지 않는다 — 위기선까지의 **거리**는 사내시스템 창이 지는
+              몫이고, 그것마저 여기 오면 그 창의 회사현황 화면이 할 일이 없어진다.
+              숫자는 위 dd가 이미 읽어 주므로 이 막대는 장식이다(aria-hidden). */}
+          <div
+            className={`gauge${g.reputation < REPUTATION_CRISIS ? ' gauge--crisis' : ''}`}
+            aria-hidden="true"
+          >
+            <div
+              className="gauge__fill"
+              style={{ width: `${(g.reputation / REPUTATION_MAX) * 100}%` }}
+            />
+          </div>
+        </div>
       </dl>
     </div>
   )

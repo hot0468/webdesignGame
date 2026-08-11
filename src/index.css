@@ -325,6 +325,17 @@ body {
   gap: var(--sp-4);
 }
 
+/* 평판 줄만 두 줄이다 — 라벨 옆에 두면 막대에 60px밖에 안 남아 눈금 구실을 못 한다. */
+.hud__stat--bar {
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+}
+
+.hud__stat--bar .gauge {
+  flex: 0 0 100%;
+  height: var(--sp-2);
+}
+
 .hud__label {
   display: flex;
   align-items: center;
