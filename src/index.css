@@ -243,18 +243,6 @@ body {
   box-shadow: var(--el-taskbar);
 }
 
-/* 지금 주차. 시간은 스탯 판이 아니라 여기가 진다 — OS에서 시계가 사는 자리다. */
-.taskbar__week {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding-right: var(--sp-3);
-  border-right: 2px solid rgb(255 255 255 / 0.3);
-  font-family: var(--font-display);
-  font-size: var(--fs-sm);
-  white-space: nowrap;
-}
-
 .taskbar__windows {
   display: flex;
   align-items: center;
@@ -292,23 +280,42 @@ body {
   border-color: var(--color-accent);
 }
 
-/* ── 스탯 패널(오른쪽 위) ─────────────────────────────── */
+/* ── 계기판(오른쪽 위) ────────────────────────────────── */
 /* ⚠️ 작업 표시줄에서 분리된 셸 크롬이다. 창 레이어 **밖**이라 창이 아래로 지나간다.
-   ⚠️ 판(--color-card) 위라서 라벨에 --color-muted-foreground를 쓸 수 있다. 판을 없애고
-      바탕화면에 직접 얹으면 4.26:1로 AA 미달이 된다. */
+   주차 판과 스탯 판 두 장이 나란히 서고, 위쪽 끝을 맞춘다(주차 판이 훨씬 짧다). */
 .hud {
   position: absolute;
   inset: var(--sp-6) var(--sp-6) auto auto;
   z-index: var(--z-taskbar);
-  display: grid;
-  gap: var(--sp-2);
-  min-width: 200px;
+  display: flex;
+  align-items: start;
+  gap: var(--sp-3);
+}
+
+/* ⚠️ 판(--color-card) 위라야 라벨에 --color-muted-foreground를 쓸 수 있다. 판을 없애고
+   바탕화면에 직접 얹으면 4.26:1로 AA 미달이 된다. */
+.hud__panel {
   padding: var(--sp-4);
   border: 2px solid var(--color-border);
   border-radius: var(--os-window-radius);
   background: var(--color-card);
   color: var(--color-card-foreground);
   box-shadow: var(--el-window);
+}
+
+.hud__stats {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 200px;
+}
+
+.hud__week {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
 }
 
 .hud__stat {
