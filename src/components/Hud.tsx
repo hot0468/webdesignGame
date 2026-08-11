@@ -17,7 +17,7 @@ export function Hud() {
 
   return (
     <dl className="hud" aria-label="회사 현황">
-      <Stat icon={HUD_ICONS.week} label="주차" value={`${g.week}주`} />
+      {/* 주차는 여기 없다 — 시간은 작업 표시줄 왼쪽이 진다(`Taskbar`). */}
       <Stat icon={HUD_ICONS.ap} label="행동력" value={`${g.ap}/${g.apMax}`} />
       <Stat icon={HUD_ICONS.mental} label="정신력" value={`${g.mental}/${g.mentalMax}`} />
       <Stat icon={HUD_ICONS.money} label="소지금" value={`${g.money.toLocaleString('ko-KR')}원`} />

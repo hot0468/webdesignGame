@@ -14,7 +14,7 @@
 
 ## 셸 구조
 - `Desktop`이 배경 + 아이콘 그리드 + 창 레이어 + `Taskbar` + `Hud`를 담는다
-- **작업 표시줄은 열린 창 목록만** 진다. 스탯은 오른쪽 위 `Hud` 패널이 따로 진다 — 둘은 분리되어 있다
+- **작업 표시줄은 왼쪽에 주차, 오른쪽에 열린 창 목록**을 진다. 나머지 스탯은 오른쪽 위 `Hud` 패널이 따로 진다 — 셋은 분리되어 있다. ⚠️ 주차를 `Hud`로 되돌리지 말 것
 - `Hud`는 **창이 아니다**(공용 `Window` 미사용). 닫거나 옮길 수 있으면 상태를 못 보는 판이 생기고 다시 여는 경로도 없다. 항상 보이는 계기판이다
 - ⚠️ **작업 표시줄과 `Hud`는 창 레이어 밖에 둔다.** 안에 넣으면 `--z-taskbar`가 창 레이어의 스택 컨텍스트에 갇혀 뜻을 잃는다
 - ⚠️ `Hud`의 라벨이 `--color-muted-foreground`를 쓸 수 있는 것은 **판이 `--color-card`이기 때문**이다. 판을 없애고 바탕화면에 직접 얹으면 AA 미달이 된다
@@ -51,6 +51,7 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/data/programs.ts` | `PROGRAMS`(바탕화면 아이콘의 단일 출처) · `ProgramId` |
 | `src/data/icons.ts` | 아이콘 이름 단일 출처 |
 | `src/icons/AppIcon.tsx` | 유일한 아이콘 창구(`@iconify/react/offline`). 다른 곳에서 `@iconify/react`를 import하지 않는다 |
+| `src/systems/` | 순수 함수(React·Math.random 금지). 지금은 `calendar.ts` — 주차 → 몇 년 몇 월 몇째 주 |
 | `src/store.ts` | zustand — 게임 5축 + 창 목록(x·y·z) |
 | `src/components/` | `Window` · `Desktop` · `Taskbar`(창 목록) · `Hud`(오른쪽 위 스탯 패널) |
 | `src/programs/` | 창 내용. `ProgramId` → 컴포넌트 짝은 `App.tsx`의 `VIEWS` |

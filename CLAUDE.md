@@ -27,6 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-11 | `일정`을 달력 격자로 + 주차를 스탯 판에서 작업 표시줄 왼쪽으로 옮김 | src/programs/Schedule.tsx, src/components/, src/systems/calendar.ts(신규) |
 | 2026-08-11 | 사내시스템에 업체 3곳 추가 — 사이드바는 화면만, 업체 목록은 본문 칩 + measure가 dev 서버 탭을 골라 붙는다 | src/data/company.ts, src/programs/Company.tsx, scripts/measure.mjs |
 | 2026-08-11 | `사내시스템`을 백오피스형으로 완성 — 사이드바(회사현황·업체정보) + `.window--wide` 실제 동작 | src/programs/Company.tsx, src/index.css, project-context |
 | 2026-08-11 | `사내시스템`·`브라우저` 창 추가 — 평판 게이지가 위기선까지의 거리를 보여준다 | src/programs/, src/data/, src/index.css |

@@ -17,7 +17,7 @@ description: 웹디(웹디자이너 회사 운영 게임) 프로젝트의 압축
 
 ## 현재 상태
 **스택(Vite + React + TS + zustand) + OS 셸(바탕화면·작업 표시줄 HUD·공용 창) + `일정` 창까지 있다(2026-08-10).**
-게임 시스템(업무·직원·정산·세이브)은 아직 없다 — `src/systems/`도 없다. 셸 상세는 `references/shell.md`.
+게임 시스템(업무·직원·정산·세이브)은 아직 없다(`src/systems/`에는 달력 환산뿐). 셸 상세는 `references/shell.md`.
 코어 설계 정본: [docs/superpowers/specs/2026-08-10-webdi-core-design.md](../../../docs/superpowers/specs/2026-08-10-webdi-core-design.md)
 
 ## 게임 컨셉

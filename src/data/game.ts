@@ -25,6 +25,11 @@ export const REPUTATION_MAX = 100
 export const WEEKS_PER_MONTH = 4
 export const MONTHS_PER_YEAR = 12
 
+/** 한 주의 요일. ⚠️ **뒤 `WEEKEND_COUNT`개가 주말**이다 — 주말 근무는 선택이라
+ *  달력이 그 이틀을 따로 칠한다. 순서를 바꾸면 주말 칸이 엉뚱한 요일로 간다. */
+export const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'] as const
+export const WEEKEND_COUNT = 2
+
 /** 창을 처음 열 때의 위치와, 겹치지 않게 계단식으로 밀어내는 간격(px). */
 export const WINDOW_SPAWN = { x: 160, y: 80, cascade: 28 } as const
 
