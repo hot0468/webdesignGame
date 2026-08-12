@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { INITIAL_GAME, POPUP_UPLOAD_AP, WINDOW_DRAG } from './data/game'
+import { INITIAL_GAME, WINDOW_DRAG } from './data/game'
 import { MESSAGES } from './data/inbox'
 import type { ProgramId } from './data/programs'
 import { focusedWindowId, useGame } from './store'
@@ -128,19 +128,18 @@ describe('업무 수주', () => {
 })
 
 describe('팝업 등록', () => {
-  it('행동력을 실제로 소모하고 업체별로 센다', () => {
+  it('업체별로 센다', () => {
     const { uploadPopup } = useGame.getState()
     uploadPopup('dalbit')
     uploadPopup('dalbit')
     uploadPopup('hanbit')
-    const s = useGame.getState()
-    expect(s.popups).toEqual({ dalbit: 2, hanbit: 1 })
-    expect(s.ap).toBe(INITIAL_GAME.ap - POPUP_UPLOAD_AP * 3)
+    expect(useGame.getState().popups).toEqual({ dalbit: 2, hanbit: 1 })
   })
 
-  it('행동력이 모자라면 아무 일도 일어나지 않는다 — 음수로 내려가지 않고 수도 안 는다', () => {
-    // 규칙을 뒤집어 확인한다: 스토어가 막지 않으면 ap가 음수가 되어 무한 등록이 열린다.
-    useGame.setState({ ap: 0, popups: { dalbit: 1 } })
+  // ⚠️ 등록은 **값을 물리지 않는다.** 여기에 비용이 되살아나면 팝업을 만드는 공정과
+  //    합쳐 한 팝업에 두 번 값을 물리게 된다.
+  it('행동력을 먹지 않는다 — 0이어도 등록된다', () => {
+    useGame.setState({ ap: 0 })
     useGame.getState().uploadPopup('dalbit')
     const s = useGame.getState()
     expect(s.ap).toBe(0)

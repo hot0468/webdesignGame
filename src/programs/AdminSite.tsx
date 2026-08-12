@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { BROWSER_ICONS } from '../data/icons'
 import { CLIENTS } from '../data/company'
-import { POPUP_UPLOAD_AP } from '../data/game'
 import { checkLogin } from '../systems/url'
 import { useGame } from '../store'
 
@@ -25,7 +24,6 @@ export function AdminSite({ clientId }: { clientId: string }) {
   const [failed, setFailed] = useState(false)
   const [me, setMe] = useState<string | null>(null)
 
-  const ap = useGame((s) => s.ap)
   const count = useGame((s) => s.popups[clientId] ?? 0)
   const uploadPopup = useGame((s) => s.uploadPopup)
 
@@ -88,8 +86,6 @@ export function AdminSite({ clientId }: { clientId: string }) {
     )
   }
 
-  const enough = ap >= POPUP_UPLOAD_AP
-
   return (
     <div className="nv-site">
       <header className="nv-site__bar">
@@ -107,26 +103,12 @@ export function AdminSite({ clientId }: { clientId: string }) {
             <AppIcon name={BROWSER_ICONS.popup} size={18} />
             팝업 등록
           </h4>
-          <p className="nv-site__desc">
-            홈페이지 첫화면에 뜰 팝업을 올립니다. 등록 1건당 행동력 {POPUP_UPLOAD_AP} 소모.
-          </p>
+          {/* ⚠️ 행동력을 적지 않는다 — 등록은 값을 물리지 않는다(비용은 만드는 공정의 몫). */}
+          <p className="nv-site__desc">홈페이지 첫화면에 뜰 팝업을 올립니다.</p>
 
-          <button
-            type="button"
-            className="nv-site__go"
-            disabled={!enough}
-            onClick={() => uploadPopup(clientId)}
-          >
+          <button type="button" className="nv-site__go" onClick={() => uploadPopup(clientId)}>
             팝업 등록
           </button>
-
-          {/* ⚠️ 못 누르는 이유를 **글자로** 말한다. 흐린 버튼만 두면 고장으로 읽힌다. */}
-          {!enough && (
-            <p className="nv-site__fail" role="alert">
-              <AppIcon name={BROWSER_ICONS.warn} size={16} />
-              행동력이 모자랍니다(필요 {POPUP_UPLOAD_AP} / 남은 {ap}). 다음 주에 회복됩니다.
-            </p>
-          )}
 
           <p className="nv-site__count">
             등록된 팝업 <strong>{count}</strong>개

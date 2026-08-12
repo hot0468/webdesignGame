@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { INITIAL_GAME, POPUP_UPLOAD_AP, WINDOW_DRAG, WINDOW_SPAWN } from './data/game'
+import { INITIAL_GAME, WINDOW_DRAG, WINDOW_SPAWN } from './data/game'
 import type { Request } from './data/inbox'
 import type { ProgramId } from './data/programs'
 
@@ -52,7 +52,8 @@ type Store = {
   acceptJob: (request: Request) => void
   rejectJob: (id: string) => void
   completeJob: (id: string) => void
-  /** 팝업 등록. 행동력이 모자라면 **아무 일도 일어나지 않는다**(부분 소모 없음). */
+  /** 팝업 등록. ⚠️ **행동력을 먹지 않는다** — 등록 자체는 공정이 아니라 그 결과를
+   *  올리는 손짓이다. 비용은 팝업을 **만드는** 공정(포토샵)이 진다. */
   uploadPopup: (clientId: string) => void
 }
 
@@ -140,15 +141,8 @@ export const useGame = create<Store>((set) => ({
   completeJob: (id) =>
     set((s) => ({ jobs: s.jobs.map((j) => (j.id === id ? { ...j, done: true } : j)) })),
 
-  // ⚠️ 행동력은 **여기서만** 준다 — 화면이 미리 막아도(버튼 disabled) 스토어가 다시 막지
-  //    않으면 행동력이 음수로 내려가는 길이 남는다. 모자라면 등록도 없다(반만 처리 금지).
+  // ⚠️ 행동력을 깎지 않는다. 비용은 팝업을 **만드는** 공정이 지고, 여기는 만든 것을
+  //    올리는 자리다 — 등록에까지 값을 매기면 한 팝업에 두 번 값을 물린다.
   uploadPopup: (clientId) =>
-    set((s) =>
-      s.ap < POPUP_UPLOAD_AP
-        ? {}
-        : {
-            ap: s.ap - POPUP_UPLOAD_AP,
-            popups: { ...s.popups, [clientId]: (s.popups[clientId] ?? 0) + 1 },
-          },
-    ),
+    set((s) => ({ popups: { ...s.popups, [clientId]: (s.popups[clientId] ?? 0) + 1 } })),
 }))
