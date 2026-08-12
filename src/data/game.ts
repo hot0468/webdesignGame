@@ -44,3 +44,9 @@ export const WINDOW_SPAWN = { x: 160, y: 24, cascade: 28 } as const
  *  ⚠️ 세로 96은 index.css의 `--os-taskbar-h`(56) + `--os-titlebar-h`(40)와 같은 값이다 —
  *  타이틀바가 작업 표시줄 **위에** 온전히 남아야 다시 잡을 수 있다. 그 토큰을 바꾸면 여기도 바꾼다. */
 export const WINDOW_DRAG = { keepVisible: 96 } as const
+
+/** 업체 관리자 페이지에 팝업 하나를 올리는 데 드는 행동력.
+ *  ⚠️ **업로드 공정은 퀄리티가 없다** — 스탯이 개입하지 않는 고정 비용이라 1이다
+ *  (코어 설계의 "업로드 공정은 퀄리티 없이 행동력 1 고정"이 그대로 온다).
+ *  퀄리티를 고르는 제작 공정과 섞지 말 것. */
+export const POPUP_UPLOAD_AP = 1

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { INITIAL_GAME, WINDOW_DRAG } from './data/game'
+import { INITIAL_GAME, POPUP_UPLOAD_AP, WINDOW_DRAG } from './data/game'
 import { MESSAGES } from './data/inbox'
 import type { ProgramId } from './data/programs'
 import { focusedWindowId, useGame } from './store'
 
 beforeEach(() => {
-  useGame.setState({ ...INITIAL_GAME, windows: [] })
+  useGame.setState({ ...INITIAL_GAME, windows: [], jobs: [], readIds: [], rejectedIds: [], popups: {} })
 })
 
 describe('초기 수치', () => {
@@ -124,5 +124,26 @@ describe('업무 수주', () => {
       [first.id]: true,
       [second.id]: false,
     })
+  })
+})
+
+describe('팝업 등록', () => {
+  it('행동력을 실제로 소모하고 업체별로 센다', () => {
+    const { uploadPopup } = useGame.getState()
+    uploadPopup('dalbit')
+    uploadPopup('dalbit')
+    uploadPopup('hanbit')
+    const s = useGame.getState()
+    expect(s.popups).toEqual({ dalbit: 2, hanbit: 1 })
+    expect(s.ap).toBe(INITIAL_GAME.ap - POPUP_UPLOAD_AP * 3)
+  })
+
+  it('행동력이 모자라면 아무 일도 일어나지 않는다 — 음수로 내려가지 않고 수도 안 는다', () => {
+    // 규칙을 뒤집어 확인한다: 스토어가 막지 않으면 ap가 음수가 되어 무한 등록이 열린다.
+    useGame.setState({ ap: 0, popups: { dalbit: 1 } })
+    useGame.getState().uploadPopup('dalbit')
+    const s = useGame.getState()
+    expect(s.ap).toBe(0)
+    expect(s.popups.dalbit).toBe(1)
   })
 })

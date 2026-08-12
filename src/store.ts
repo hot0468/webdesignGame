@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { INITIAL_GAME, WINDOW_DRAG, WINDOW_SPAWN } from './data/game'
+import { INITIAL_GAME, POPUP_UPLOAD_AP, WINDOW_DRAG, WINDOW_SPAWN } from './data/game'
 import type { Request } from './data/inbox'
 import type { ProgramId } from './data/programs'
 
@@ -36,6 +36,11 @@ type Store = {
   jobs: Job[]
   /** 거절한 의뢰의 id. ⚠️ 목록에서 지우지 않는다 — 지우면 같은 글이 다시 새 글로 보인다. */
   rejectedIds: string[]
+  /** 업체 id → 그 업체 관리자 페이지에 올린 팝업 수. **게임 상태라 스토어에 산다**
+   *  (관리자 로그인은 창을 보는 방식이라 컴포넌트 useState다 — 여기 넣지 말 것).
+   *  ⚠️ 올린 팝업과 업무(`jobs`)의 공정은 아직 이어져 있지 않다 — 팝업제작 공정이
+   *     생기면 그 마지막 공정이 이 수를 보고 `completeJob`을 부른다. */
+  popups: Record<string, number>
 
   windows: OpenWindow[]
 
@@ -47,6 +52,8 @@ type Store = {
   acceptJob: (request: Request) => void
   rejectJob: (id: string) => void
   completeJob: (id: string) => void
+  /** 팝업 등록. 행동력이 모자라면 **아무 일도 일어나지 않는다**(부분 소모 없음). */
+  uploadPopup: (clientId: string) => void
 }
 
 /** 드래그 clamp에 필요한 화면 크기. 스토어는 DOM을 모르므로 호출자가 준다. */
@@ -64,6 +71,7 @@ export const useGame = create<Store>((set) => ({
   readIds: [],
   jobs: [],
   rejectedIds: [],
+  popups: {},
   windows: [],
 
   openWindow: (id) =>
@@ -131,4 +139,16 @@ export const useGame = create<Store>((set) => ({
   //    지금은 부르는 곳이 없다 — 공정의 줄이 생기면 **마지막 공정이** 이것을 부른다.
   completeJob: (id) =>
     set((s) => ({ jobs: s.jobs.map((j) => (j.id === id ? { ...j, done: true } : j)) })),
+
+  // ⚠️ 행동력은 **여기서만** 준다 — 화면이 미리 막아도(버튼 disabled) 스토어가 다시 막지
+  //    않으면 행동력이 음수로 내려가는 길이 남는다. 모자라면 등록도 없다(반만 처리 금지).
+  uploadPopup: (clientId) =>
+    set((s) =>
+      s.ap < POPUP_UPLOAD_AP
+        ? {}
+        : {
+            ap: s.ap - POPUP_UPLOAD_AP,
+            popups: { ...s.popups, [clientId]: (s.popups[clientId] ?? 0) + 1 },
+          },
+    ),
 }))

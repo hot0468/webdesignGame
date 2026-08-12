@@ -311,8 +311,11 @@ function parseArgs(argv) {
     else if (a === '--dblclick') o.clicks.push({ sel: next(), dbl: true })
     // ⚠️ 클릭과 **같은 큐**에 넣는다 — 따로 두면 "치고 나서 누른다"는 순서를 잃는다.
     else if (a === '--type') {
-      const [sel, ...rest] = next().split('=')
-      o.clicks.push({ sel, text: rest.join('=') })
+      // ⚠️ **첫 `=`에서만** 가른다 — 값에 `=`가 들어갈 수 있다(비밀번호·쿼리스트링).
+      const arg = next()
+      const at = arg.indexOf('=')
+      if (at < 0) throw new Error(`--type은 "<셀렉터>=<값>" 꼴이어야 한다: ${arg}`)
+      o.clicks.push({ sel: arg.slice(0, at), text: arg.slice(at + 1) })
     }
     else if (a === '--wait') o.wait = Number(next())
     else if (a === '--shot') o.shot = next()

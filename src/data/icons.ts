@@ -45,6 +45,12 @@ export const BROWSER_ICONS = {
   reload: 'mdi:refresh',
   search: 'mdi:magnify',
   lock: 'mdi:lock-outline',
+  /** 업체 관리자 페이지 — 로그인 자물쇠와 팝업 등록. 크롬과 같은 단색 mdi다. */
+  account: 'mdi:account-outline',
+  key: 'mdi:key-outline',
+  popup: 'mdi:image-plus-outline',
+  logout: 'mdi:logout',
+  warn: 'mdi:alert-circle-outline',
 } as const
 
 /** 첫화면 바로가기 칸의 사이트 아이콘. 다색이므로 CSS color를 입히지 않는다. */
