@@ -1,4 +1,5 @@
 import type { Message } from '../data/inbox'
+import { formatWeek } from '../systems/calendar'
 import { useGame } from '../store'
 
 /** 의뢰 하나에 대한 결정. 어느 쪽이든 수주하면 **같은 업무목록**에 쌓인다.
@@ -13,6 +14,7 @@ import { useGame } from '../store'
 export function JobActions({ message }: { message: Message }) {
   const accepted = useGame((s) => s.jobs.some((j) => j.id === message.id))
   const rejected = useGame((s) => s.rejectedIds.includes(message.id))
+  const week = useGame((s) => s.week)
   const { acceptJob, rejectJob } = useGame.getState()
   const care = message.channel === 'board'
 
@@ -38,8 +40,10 @@ export function JobActions({ message }: { message: Message }) {
         {care ? '확인' : '견적보내기'}
       </button>
       {/* 기한을 받기 전에 보여 준다 — 받고 나서야 알면 고를 수가 없다. 여기서는 아직
-          경고가 아니므로 빨갛게 하지 않는다(임박 표시는 업무목록의 몫). */}
-      <span className="jobact__due">처리 기한 {message.dueWeeks}주</span>
+          경고가 아니므로 빨갛게 하지 않는다(임박 표시는 업무목록의 몫).
+          ⚠️ 수주하면 굳을 날짜(`store`의 `due`)와 **같은 식으로 계산해 같은 날을 적는다** —
+          여기만 "3주"로 적으면 수주 전후로 다른 것을 말하는 것처럼 보인다. */}
+      <span className="jobact__due">기한 {formatWeek(week + message.dueWeeks)}까지</span>
       {!care && (
         <button type="button" className="jobact__btn" onClick={() => rejectJob(message.id)}>
           거절하기

@@ -1,7 +1,7 @@
 import { AppIcon } from '../icons/AppIcon'
 import { STAT_ICONS } from '../data/icons'
 import { DEADLINE_URGENT_WEEKS, REPUTATION_CRISIS, REPUTATION_MAX } from '../data/game'
-import { toCalendar } from '../systems/calendar'
+import { formatWeek, toCalendar } from '../systems/calendar'
 import { useGame } from '../store'
 
 /** 오른쪽 위 계기판. **주차 판** 옆에 **스탯 판 + 업무목록 판**이 세로로 선다.
@@ -108,12 +108,14 @@ function Jobs() {
                 />
                 <span className="job__from">{j.from}</span>
                 <span className="job__title">{j.title}</span>
-                {/* 마감이 임박하면 빨갛게 선다. ⚠️ 색만으로 말하지 않게 숫자를 함께 준다. */}
+                {/* 마감은 **날짜로** 적는다 — 남은 주만 적으면 달력을 보며 계획을 세울 수
+                    없다. 임박하면 빨갛게 서고, ⚠️ 색만으로 말하지 않게 남은 주를 읽는
+                    이름에 함께 준다. */}
                 <span
                   className={`job__due${left <= DEADLINE_URGENT_WEEKS ? ' job__due--soon' : ''}`}
-                  aria-label={`마감 ${left}주 남음`}
+                  aria-label={`마감 ${formatWeek(j.due)} (${left}주 남음)`}
                 >
-                  {left}주
+                  {formatWeek(j.due)}
                 </span>
               </li>
             )

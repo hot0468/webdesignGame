@@ -27,6 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-12 | 마감을 남은 주가 아니라 **날짜**로 — `formatWeek`이 업무목록·수주 버튼 양쪽을 적는다 | src/systems/calendar.ts, src/components/Hud.tsx·JobActions.tsx |
 | 2026-08-12 | 모든 의뢰에 마감 — 수주 시점에 `job.due`로 굳고, 업무목록에서 임박하면 빨갛게 선다 | src/data/inbox.ts(Request/Ad 갈래), src/store.ts, src/components/Hud.tsx·JobActions.tsx |
 | 2026-08-12 | 업무목록을 스탯 판 아래 별도 판으로 · 완료 취소선은 `completeJob`이 붙인다 · 사내시스템도 `app` 크기 · 아이콘 두 줄(피그마·포토샵·메신저·에디터 추가) · 고객게시판은 확인 버튼 하나 | src/components/Hud.tsx·Desktop.tsx·JobActions.tsx, src/programs/Figma.tsx·Photoshop.tsx·Messenger.tsx·Editor.tsx(신규), src/data/programs.ts |
 | 2026-08-11 | 의뢰 수주 — 메일·고객게시판의 견적보내기/거절하기 + 계기판 맨 아래 업무목록(완료 취소선) | src/store.ts, src/components/JobActions.tsx(신규), src/components/Hud.tsx, src/index.css |
@@ -36,4 +37,3 @@
 | 2026-08-11 | `일정`을 달력 격자로 + 주차를 스탯 판 왼쪽의 별도 판으로 분리 + HUD 막대 3색(행동력 눈금 칸·주황 / 정신력 초록 / 평판 남보라) — 팔레트에 `--color-success` 추가 | src/programs/Schedule.tsx, src/components/Hud.tsx, src/systems/calendar.ts(신규) |
 | 2026-08-11 | 사내시스템에 업체 3곳 추가 — 사이드바는 화면만, 업체 목록은 본문 칩 + measure가 dev 서버 탭을 골라 붙는다 | src/data/company.ts, src/programs/Company.tsx, scripts/measure.mjs |
 | 2026-08-11 | `사내시스템`을 백오피스형으로 완성 — 사이드바(회사현황·업체정보) + `.window--wide` 실제 동작 | src/programs/Company.tsx, src/index.css, project-context |
-| 2026-08-11 | `사내시스템`·`브라우저` 창 추가 — 평판 게이지가 위기선까지의 거리를 보여준다 | src/programs/, src/data/, src/index.css |
