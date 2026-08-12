@@ -28,3 +28,22 @@ export function formatWeek(week: number) {
   const { month, weekOfMonth } = toCalendar(week)
   return `${month}월 ${weekOfMonth}째 주`
 }
+
+/** 통산 주차 → 날짜. 마감·게시 기간처럼 **언제인지를 말해야 하는 값**에 쓴다.
+ *
+ * 한 주 7일·한 달 `WEEKS_PER_MONTH`주 고정이라 달은 28일까지만 있다 — 실제 달력의
+ * 30·31일은 나오지 않는다. 월말 정산 주차를 고정하려고 택한 값이고(`toCalendar` 참고)
+ * 날짜 표기는 그 규칙을 그대로 따른다.
+ *
+ * ⚠️ 한 주는 날짜 하나가 아니라 이레다. `edge`가 그 주의 어느 끝을 적을지 정한다 —
+ *    "언제까지"(마감·기간 종료)는 마지막 날, "언제부터"(기간 시작)는 첫날이다.
+ *    기본값이 `end`인 이유: 이 함수를 부르는 자리는 대부분 마감이다. */
+export function formatDate(week: number, edge: 'start' | 'end' = 'end') {
+  const { month, weekOfMonth } = toCalendar(week)
+  return `${month}월 ${edge === 'end' ? weekOfMonth * 7 : weekOfMonth * 7 - 6}일`
+}
+
+/** 게시 기간 한 줄. 의뢰문·관리자 페이지·포토샵이 **같은 함수로 적어야** 플레이어가
+ *  두 곳을 눈으로 대조할 수 있다(어긋남을 알아채는 것이 팝업 고리의 전부다). */
+export const formatPeriod = (from: number, to: number) =>
+  `${formatDate(from, 'start')} ~ ${formatDate(to)}`

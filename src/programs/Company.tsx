@@ -4,7 +4,13 @@ import { MessageList } from '../components/MessageList'
 import { PROGRAM_ICONS } from '../data/icons'
 import { CLIENTS, type Client } from '../data/company'
 import { unreadCount } from '../data/inbox'
-import { CRISIS_WEEKS_TO_SHUTDOWN, REPUTATION_CRISIS, REPUTATION_MAX } from '../data/game'
+import {
+  CRISIS_WEEKS_TO_SHUTDOWN,
+  REPUTATION_CRISIS,
+  REPUTATION_MAX,
+  companyGrade,
+  nextGrade,
+} from '../data/game'
 import { useGame } from '../store'
 
 /** `사내시스템` 창. 왼쪽 메뉴로 화면을 가르는 백오피스형이다.
@@ -26,12 +32,14 @@ const MENU = [
 export function Company() {
   const [view, setView] = useState<(typeof MENU)[number]['id']>('status')
   const readIds = useGame((s) => s.readIds)
+  // ⚠️ 뱃지도 생겨난 글을 함께 센다(`MessageList`와 같은 목록을 봐야 숫자가 안 어긋난다).
+  const mails = useGame((s) => s.mails)
 
   return (
     <div className="company">
       <nav className="company__menu">
         {MENU.map((m) => {
-          const unread = 'badge' in m ? unreadCount(m.badge, readIds) : 0
+          const unread = 'badge' in m ? unreadCount(m.badge, readIds, mails) : 0
           return (
             <button
               key={m.id}
@@ -70,11 +78,24 @@ export function Company() {
 function Status() {
   const reputation = useGame((s) => s.reputation)
   const inCrisis = reputation < REPUTATION_CRISIS
+  const grade = companyGrade(reputation)
+  const next = nextGrade(grade)
 
   const pct = (v: number) => `${(v / REPUTATION_MAX) * 100}%`
 
   return (
     <div className="company__panel">
+      {/* 등급과 평판을 붙여 둔다 — 등급이 평판에서 나오므로 떨어뜨리면 무엇을 올려야
+          등급이 오르는지가 화면에서 끊긴다. */}
+      <div className="company__head">
+        <span className="company__label">회사등급</span>
+        <span className="company__value">{grade.label}</span>
+      </div>
+      <p className="company__note">
+        채용 가능 인원 {grade.hireMax}명
+        {next && ` · 평판 ${next.minReputation}부터 ${next.label}`}
+      </p>
+
       <div className="company__head">
         <span className="company__label">회사평판</span>
         <span className="company__value">

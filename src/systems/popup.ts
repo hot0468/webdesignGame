@@ -1,5 +1,6 @@
 import { formatWeek } from './calendar'
-import type { Message } from '../data/inbox'
+import type { Grade } from '../data/game'
+import type { Channel, Message } from '../data/inbox'
 
 /** 팝업 고리의 판정. **순수 함수다**(`src/systems/` 규칙 — React·mutation·Math.random 없음).
  *
@@ -18,6 +19,10 @@ export type PopupFile = {
   name: string
   /** 만든 주차. 목록에서 언제 만든 것인지 보여 준다. */
   madeWeek: number
+  /** 만들 때 고른 퀄리티와 디자인 스탯이 낸 등급(`systems/craft.ts`).
+   *  ⚠️ 판정(`judgePopups`)은 등급을 보지 않는다 — 어긋남은 **어느 파일을 언제 걸었나**의
+   *  문제이고 잘 만들었는지와 무관하다. 등급이 값을 하는 곳은 완료 보상이다. */
+  grade: Grade
 }
 
 /** 관리자 페이지에 실제로 걸린 팝업 하나. **플레이어가 적어 넣은 기간**을 진다 —
@@ -122,10 +127,17 @@ export const isFileOf = (fileId: string, jobId: string) => fileId.startsWith(`pf
  *
  * ⚠️ `id`에 주차가 들어간다 — 같은 업체가 다음 주에 또 항의하면 **다른 글**이어야
  *    안 읽은 뱃지가 다시 선다(같은 id면 이미 읽은 글로 묻힌다). */
-export function claimMail(claim: Claim, week: number, clientName: string): Message {
+export function claimMail(
+  claim: Claim,
+  week: number,
+  clientName: string,
+  /** ⚠️ **그 업무가 온 채널로 돌아간다.** 고객게시판 의뢰의 항의가 메일함에 서면
+   *  한 스레드가 두 창으로 갈린다(답장·완료 메일은 이미 `job.channel`을 따른다). */
+  channel: Channel = 'mail',
+): Message {
   return {
     id: `claim:${claim.clientId}:${week}`,
-    channel: 'mail',
+    channel,
     from: clientName,
     subject: '팝업 관련해서 확인 부탁드립니다',
     body: `${clientName}입니다. 홈페이지 팝업이 요청드린 것과 다릅니다.\n${claim.kinds

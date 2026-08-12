@@ -8,6 +8,7 @@
  *
  * 결정(견적보내기·확인·거절)은 `components/JobActions.tsx`가 진다. */
 
+import type { JobKind } from '../systems/pipeline'
 import { CLIENTS } from './company'
 
 export type Channel = 'mail' | 'board'
@@ -19,6 +20,10 @@ type Common = {
   from: string
   subject: string
   body: string
+  /** 이 글이 매여 있는 업무(`Job.id`). **의뢰 글에는 없다** — 수주하면 그 글의 id가
+   *  곧 업무 id가 되기 때문이다. 회신 뒤에 오는 답장·완료 메일만 이것을 진다
+   *  (그 글에서도 다음 회신을 보낼 수 있어야 스레드가 이어진다). */
+  jobId?: string
   /** 목록에 뜨는 도착 시각. ⚠️ 게임에는 아직 시계가 없다(주 단위 턴뿐) — 분위기용
    *  문자열이다. 주차 진행이 생기면 도착 주차에서 계산한다. */
   at: string
@@ -35,12 +40,24 @@ type Common = {
  * 검사해야 하는지 알 수 없다. */
 export type PopupSpec = { clientId: string; fromWeeks: number; toWeeks: number }
 
+/** ⚠️ 팝업 의뢰의 불변식: **`dueWeeks > toWeeks`**. 완료 회신은 게시 기간이 끝나야 보낼 수
+ *  있으므로(`systems/pipeline.ts`의 `canReply`) 마감이 기간 안에 있으면 **지킬 수 없는 기한**이
+ *  된다. `inbox.test.ts`가 이 줄을 지킨다 — 새 팝업 의뢰를 적을 때 여기부터 보라. */
+
 /** 진짜 의뢰. **모든 의뢰에는 기한이 있다** — `dueWeeks`는 수주한 주부터 세는 주 수이고,
  *  마감 주차는 수주 시점에 정해진다(`store.acceptJob`). 그래서 늦게 받을수록 늦게 끝내도 된다.
  *
  *  `popup`이 있으면 **팝업 업무**다 — 포토샵으로 만들고 관리자 페이지에 거는 두 공정을
  *  지고, 매주 넘어갈 때 어긋남을 검사받는다(클레임). */
-export type Request = Common & { ad?: undefined; dueWeeks: number; popup?: PopupSpec }
+export type Request = Common & {
+  ad?: undefined
+  dueWeeks: number
+  /** 어떤 공정의 줄을 타는 업무인가(`systems/pipeline.ts`의 `PIPELINE`).
+   *  ⚠️ **신규 사이트(`site`)는 세 공정, 유지보수 수정(`fix`)은 하나다** — 배너 한 장
+   *  바꾸는 일에 화면정의서를 요구하지 않는다. `popup`은 `popup` 칸도 함께 진다. */
+  kind: JobKind
+  popup?: PopupSpec
+}
 
 /** 의뢰가 아닌 글(광고·클레임 등). 고를 것도, 기한도 없다.
  *
@@ -61,6 +78,7 @@ export const MESSAGES: Message[] = [
     body: '안녕하세요, 동네에서 문구점 하는 사람입니다. 지금 홈페이지가 10년 전에 만든 거라 휴대폰에서 글씨가 다 깨져요. 신제품 사진 올릴 수 있는 페이지까지 포함해서 견적 부탁드립니다.',
     at: '오전 11:10',
     dueWeeks: 4,
+    kind: 'site',
   },
   // ⚠️ 팝업 의뢰의 `from`은 **CLIENTS의 업체여야 한다** — 관리자 페이지가 없는 곳에는
   //    팝업을 걸 수가 없다. 그래서 신규 의뢰라도 팝업은 계약 업체에서 온다.
@@ -71,7 +89,9 @@ export const MESSAGES: Message[] = [
     subject: '여름 신메뉴 팝업 하나만 급하게',
     body: '다음 주부터 2주간 메인 화면 뜨자마자 보이는 팝업 하나만 걸어 주세요. 기간 끝나면 꼭 내려 주셔야 합니다. 지난번처럼 남아 있으면 곤란해요.',
     at: '오전 9:16',
-    dueWeeks: 1,
+    // 게시가 2주차에 끝나므로 마감은 그 뒤여야 한다(위 불변식).
+    dueWeeks: 3,
+    kind: 'popup',
     popup: { clientId: CLIENTS[0].id, fromWeeks: 1, toWeeks: 2 },
   },
   {
@@ -82,6 +102,7 @@ export const MESSAGES: Message[] = [
     body: '주민센터에서 건강강좌를 맡게 됐는데 발표자료가 없습니다. 20장 내외 PPT로 만들어 주시면 좋겠어요. 내용 원고는 준비돼 있습니다.',
     at: '어제',
     dueWeeks: 3,
+    kind: 'ppt',
   },
   {
     id: 'm-ad',
@@ -100,6 +121,7 @@ export const MESSAGES: Message[] = [
     body: '가을 신상 나와서 메인 배너를 바꾸고 싶습니다. 새 이미지는 FTP에 올려 뒀어요.',
     at: '어제',
     dueWeeks: 2,
+    kind: 'fix',
   },
   {
     id: 'b-hanbit-hours',
@@ -109,6 +131,7 @@ export const MESSAGES: Message[] = [
     body: '이번 달부터 토요일은 오전 진료만 합니다. 사이트 하단과 진료안내 페이지 두 군데 다 수정 부탁드립니다.',
     at: '2일 전',
     dueWeeks: 1,
+    kind: 'fix',
   },
   {
     id: 'b-corner-popup',
@@ -117,7 +140,8 @@ export const MESSAGES: Message[] = [
     subject: '이번 주부터 휴무 안내 팝업 부탁드려요',
     body: '이번 주부터 3주간 휴무 안내 팝업을 첫화면에 걸어 주세요. 3주 지나면 내려 주시면 됩니다.',
     at: '오늘',
-    dueWeeks: 1,
+    dueWeeks: 3,
+    kind: 'popup',
     popup: { clientId: CLIENTS[2].id, fromWeeks: 0, toWeeks: 2 },
   },
   {
@@ -128,6 +152,7 @@ export const MESSAGES: Message[] = [
     body: '신메뉴 사진 3장 추가하고 품절된 빵 2개는 내려 주세요. 급하진 않습니다.',
     at: '3일 전',
     dueWeeks: 3,
+    kind: 'fix',
   },
 ]
 

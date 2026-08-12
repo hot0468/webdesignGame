@@ -15,6 +15,7 @@ import { Figma } from './programs/Figma'
 import { Mail } from './programs/Mail'
 import { Messenger } from './programs/Messenger'
 import { Photoshop } from './programs/Photoshop'
+import { Ppt } from './programs/Ppt'
 import { Schedule } from './programs/Schedule'
 import { useGame } from './store'
 
@@ -23,6 +24,7 @@ import { useGame } from './store'
 const VIEWS: Record<ProgramId, () => React.JSX.Element> = {
   figma: Figma,
   photoshop: Photoshop,
+  ppt: Ppt,
   messenger: Messenger,
   editor: Editor,
   mail: Mail,

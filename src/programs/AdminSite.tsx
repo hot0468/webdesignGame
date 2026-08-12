@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { BROWSER_ICONS } from '../data/icons'
 import { CLIENTS } from '../data/company'
-import { formatWeek } from '../systems/calendar'
+import { formatDate, formatPeriod, formatWeek } from '../systems/calendar'
+import { isWaitingReply } from '../systems/pipeline'
+import { isFileOf } from '../systems/popup'
 import { checkLogin } from '../systems/url'
-import { useGame } from '../store'
+import { asStep, useGame } from '../store'
 
 /** 업체별 관리자 페이지. 브라우저 주소창에 그 업체의 관리자 주소를 쳐야 닿는다
  * (`systems/url.ts`의 `resolveUrl`이 주소를 업체로 푼다).
@@ -114,8 +116,17 @@ function PopupManager({ clientId }: { clientId: string }) {
   //    목록은 통째로 받아 렌더 중에 거른다.
   const allPopups = useGame((s) => s.popups)
   const popups = allPopups.filter((p) => p.clientId === clientId)
+  const jobs = useGame((s) => s.jobs)
   const uploadPopup = useGame((s) => s.uploadPopup)
   const [adding, setAdding] = useState(false)
+
+  // 제작은 끝냈지만 아직 회신하지 않은 파일 — 등록 폼에서 잠긴다(그 이유는 `PopupForm` 주석).
+  const waiting = files
+    .filter((f) => {
+      const job = jobs.find((j) => isFileOf(f.id, j.id))
+      return job ? isWaitingReply(asStep(job), 'photoshop') : false
+    })
+    .map((f) => f.id)
 
   return (
     <>
@@ -152,6 +163,7 @@ function PopupManager({ clientId }: { clientId: string }) {
       {adding && (
         <PopupForm
           files={files}
+          waiting={waiting}
           week={week}
           onCancel={() => setAdding(false)}
           onSubmit={(fileId, from, to) => {
@@ -167,8 +179,8 @@ function PopupManager({ clientId }: { clientId: string }) {
 /** 목록의 한 줄. **게시 기간을 여기서 고칠 수 있다** — 잘못 넣은 기간을 되돌릴 길이
  *  없으면 한 번의 오타가 영구 클레임이 된다.
  *
- * ⚠️ 기간은 `formatWeek`으로 읽는다(마감·의뢰문과 같은 표기라야 두 날짜를 비교할 수 있다).
- *    입력은 주차 숫자로 받되 **옆에 그 날짜를 되뇐다** — 숫자만으로는 몇 월 몇째 주인지 모른다. */
+ * ⚠️ 기간은 `formatPeriod`로 읽는다(마감·의뢰문과 같은 표기라야 두 날짜를 비교할 수 있다).
+ *    입력은 주차 숫자로 받되 **옆에 그 날짜를 되뇐다** — 숫자만으로는 며칠인지 모른다. */
 function PopupRow({
   popupId,
   fileName,
@@ -195,7 +207,7 @@ function PopupRow({
       </p>
       {/* 지금 걸려 있는지는 **글자로** 말한다 — 이 팔레트에는 상태를 칠할 색이 없다. */}
       <p className="nv-pop__meta">
-        게시 {formatWeek(from)} ~ {formatWeek(to)} · {live ? '게시 중' : '게시 기간 아님'}
+        게시 {formatPeriod(from, to)} · {live ? '게시 중' : '게시 기간 아님'}
       </p>
 
       {editing ? (
@@ -222,21 +234,29 @@ function PopupRow({
  *  컨트롤이다. 대신 무엇을 먼저 해야 하는지 말한다.
  *
  * ⚠️ 파일 목록을 이 업체 것으로 걸러 주지 않는다. 전부 보이는 것이 이 고리의 핵심이다
- *    (틀린 파일을 고를 수 있어야 클레임이 성립한다). */
+ *    (틀린 파일을 고를 수 있어야 클레임이 성립한다).
+ *
+ * ⚠️ 다만 **제작을 아직 회신하지 않은 파일은 고를 수 없다**(`waiting`). 그것까지 올릴 수
+ *    있으면 팝업은 실제로 걸리는데 업무 단계는 안 올라(`store.uploadPopup`의 차례 가드)
+ *    같은 팝업을 두 번 걸게 된다. **감추지 않고 잠근 이유**는, 사라지면 왜 없는지 알 수
+ *    없고 잠겨 있으면 무엇을 먼저 해야 하는지가 그 줄에 적히기 때문이다. */
 function PopupForm({
   files,
+  waiting,
   week,
   onSubmit,
   onCancel,
 }: {
   files: { id: string; name: string; madeWeek: number }[]
+  waiting: string[]
   week: number
   onSubmit: (fileId: string, from: number, to: number) => void
   onCancel: () => void
 }) {
-  const [fileId, setFileId] = useState(files[0]?.id ?? '')
+  const usable = files.filter((f) => !waiting.includes(f.id))
+  const [fileId, setFileId] = useState(usable[0]?.id ?? '')
 
-  if (files.length === 0) {
+  if (usable.length === 0) {
     return (
       <section className="nv-site__panel">
         <h4 className="nv-site__title">
@@ -245,7 +265,9 @@ function PopupForm({
         </h4>
         <p className="nv-site__fail">
           <AppIcon name={BROWSER_ICONS.warn} size={16} />
-          올릴 이미지가 없습니다. 포토샵에서 팝업 이미지를 먼저 만드세요.
+          {files.length === 0
+            ? '올릴 이미지가 없습니다. 포토샵에서 팝업 이미지를 먼저 만드세요.'
+            : '올릴 수 있는 이미지가 없습니다. 만든 이미지를 의뢰 글에 회신해야 등록할 수 있습니다.'}
         </p>
         <button type="button" className="nv-site__out" onClick={onCancel}>
           닫기
@@ -271,11 +293,14 @@ function PopupForm({
         value={fileId}
         onChange={(e) => setFileId(e.target.value)}
       >
-        {files.map((f) => (
-          <option key={f.id} value={f.id}>
-            {f.name} ({formatWeek(f.madeWeek)} 제작)
-          </option>
-        ))}
+        {files.map((f) => {
+          const locked = waiting.includes(f.id)
+          return (
+            <option key={f.id} value={f.id} disabled={locked}>
+              {f.name} ({formatWeek(f.madeWeek)} 제작){locked ? ' — 회신 대기' : ''}
+            </option>
+          )
+        })}
       </select>
 
       <PeriodFields
@@ -326,8 +351,11 @@ function PeriodFields({
         value={from}
         onChange={(e) => setFrom(e.target.value)}
       />
-      {/* 숫자 옆에 날짜를 되뇐다 — "5"만으로는 몇 월 몇째 주인지 알 수 없다. */}
-      <span className="nv-pop__when">{Number.isInteger(f) && f >= 1 ? formatWeek(f) : '—'}</span>
+      {/* 숫자 옆에 날짜를 되뇐다 — "5"만으로는 며칠인지 알 수 없다. ⚠️ 시작 칸은 그 주의
+          **첫날**, 종료 칸은 **마지막 날**이다(의뢰문에 적힌 기간과 같은 끝을 봐야 대조가 된다). */}
+      <span className="nv-pop__when">
+        {Number.isInteger(f) && f >= 1 ? formatDate(f, 'start') : '—'}
+      </span>
 
       <label className="nv-pop__label" htmlFor="popup-to">
         종료 주차
@@ -339,7 +367,7 @@ function PeriodFields({
         value={to}
         onChange={(e) => setTo(e.target.value)}
       />
-      <span className="nv-pop__when">{Number.isInteger(t) && t >= 1 ? formatWeek(t) : '—'}</span>
+      <span className="nv-pop__when">{Number.isInteger(t) && t >= 1 ? formatDate(t) : '—'}</span>
 
       <div className="nv-pop__actions">
         <button

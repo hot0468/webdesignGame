@@ -59,4 +59,24 @@ export const CLIENTS = [
       { label: '비밀번호', value: 'oven-1102' },
     ],
   },
+  {
+    // ⚠️ 신규 사이트 의뢰(`m-byeolbit`)의 업체다. **퍼블리싱 공정이 FTP를 요구하므로**
+    //    접속 정보가 없으면 그 사이트 업무는 끝낼 길이 없다 — 그래서 여기 있다.
+    //    (수주가 업체를 만드는 고리가 생기면 이 항목은 그쪽으로 옮겨 간다.)
+    // ⚠️ **맨 뒤에 둔다** — `inbox.ts`가 `CLIENTS[0]`·`[2]`로 팝업 의뢰의 업체를 집는다.
+    id: 'byeolbit',
+    name: '별빛문구',
+    ftp: [
+      { label: '호스트', value: 'ftp.byeolbit.example' },
+      { label: '포트', value: '21' },
+      { label: '계정', value: 'byeolbit' },
+      { label: '비밀번호', value: 'star-7788' },
+      { label: '기본 경로', value: '/home/www' },
+    ],
+    admin: [
+      { label: '주소', value: 'byeolbit.example/admin' },
+      { label: '아이디', value: 'byeolbit_admin' },
+      { label: '비밀번호', value: 'pencil-2024' },
+    ],
+  },
 ] as const

@@ -1,10 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import { CLIENTS } from '../data/company'
 import { SEARCH_HOME } from '../data/sites'
-import { adminUrl, checkLogin, resolveUrl } from './url'
+import { adminUrl, checkLogin, normalizeUrl, resolveUrl, siteTitle } from './url'
 
 const dalbit = CLIENTS.find((c) => c.id === 'dalbit')!
 const hanbit = CLIENTS.find((c) => c.id === 'hanbit')!
+
+// 즐겨찾기가 기대는 두 가지: **한 곳은 한 줄로만 쌓인다**(normalizeUrl) ·
+// **이름은 주소에서 나온다**(siteTitle — 즐겨찾기가 업체 이름을 따로 지고 있지 않다).
+describe('즐겨찾기가 쓰는 것', () => {
+  it('같은 곳을 가리키는 여러 표기가 한 값으로 접힌다', () => {
+    const bare = adminUrl(dalbit)!
+    for (const typed of [`https://${bare}/`, `WWW.${bare}`, ` ${bare} `]) {
+      expect(normalizeUrl(typed)).toBe(normalizeUrl(bare))
+    }
+  })
+
+  it('이름은 CLIENTS에서 나온다', () => {
+    expect(siteTitle(`https://${adminUrl(dalbit)!}`)).toBe(`${dalbit.name} 관리자`)
+    expect(siteTitle(SEARCH_HOME.url)).toBe(SEARCH_HOME.name)
+  })
+})
 
 describe('resolveUrl', () => {
   it('업체의 관리자 주소를 그 업체로 푼다 — 주소의 정본은 CLIENTS다', () => {

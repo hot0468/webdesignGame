@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatWeek, toCalendar } from './calendar'
+import { formatDate, formatPeriod, formatWeek, toCalendar } from './calendar'
 
 describe('달력 환산', () => {
   // 주차 진행은 월말 정산이 올라탈 축이라 경계에서 한 칸 밀리면 정산이 통째로 밀린다.
@@ -19,5 +19,13 @@ describe('마감 날짜 표기', () => {
     expect(formatWeek(5)).toBe('2월 1째 주')
     // 해가 넘어가도 해는 붙지 않는다 — 마감은 늘 코앞이라 달·주만으로 갈린다.
     expect(formatWeek(49)).toBe('1월 1째 주')
+  })
+
+  // 마감은 그 주가 끝나기 전까지다 — 첫날을 적으면 엿새 이르게 읽힌다.
+  it('날짜는 그 주의 끝을, 기간의 시작만 첫날을 적는다', () => {
+    expect(formatDate(1)).toBe('1월 7일')
+    expect(formatDate(1, 'start')).toBe('1월 1일')
+    expect(formatDate(5)).toBe('2월 7일')
+    expect(formatPeriod(1, 2)).toBe('1월 1일 ~ 1월 14일')
   })
 })

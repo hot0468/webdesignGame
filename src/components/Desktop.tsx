@@ -15,7 +15,7 @@ export function Desktop({ children }: { children: ReactNode }) {
   const openWindow = useGame((s) => s.openWindow)
   const readIds = useGame((s) => s.readIds)
   // 클레임 메일도 안 읽은 수에 든다 — 뱃지의 단일 출처가 갈리지 않게 여기도 넘긴다.
-  const claims = useGame((s) => s.claims)
+  const mails = useGame((s) => s.mails)
 
   return (
     <div className="desktop">
@@ -23,7 +23,7 @@ export function Desktop({ children }: { children: ReactNode }) {
         {(['left', 'right'] as const).map((col) => (
           <div key={col} className="desktop__col">
             {PROGRAMS.filter((p) => p.col === col).map((p) => {
-              const unread = 'badge' in p ? unreadCount(p.badge, readIds, claims) : 0
+              const unread = 'badge' in p ? unreadCount(p.badge, readIds, mails) : 0
               return (
                 <button
                   key={p.id}

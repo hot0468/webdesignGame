@@ -25,6 +25,53 @@ export const MAIL_ICONS = {
   blank: 'mdi:email-open-outline',
 } as const
 
+/** `메신저` 창 전용 글리프. 메일과 같은 이유로 단색 `mdi` 한 세트다. */
+export const MESSENGER_ICONS = {
+  chat: 'mdi:chat-outline',
+  blank: 'mdi:chat-processing-outline',
+} as const
+
+/** `피그마` 창 전용 글리프. 사이드바 메뉴 표식이다 — 메일·메신저와 같은 이유로 단색
+ *  `mdi` 한 세트다(파일 카드에 서는 피그마 마크만 devicon 다색 그대로다). */
+export const FIGMA_ICONS = {
+  recent: 'mdi:clock-outline',
+  community: 'mdi:account-group-outline',
+  drafts: 'mdi:file-outline',
+  projects: 'mdi:folder-multiple-outline',
+  resources: 'mdi:puzzle-outline',
+  trash: 'mdi:trash-can-outline',
+} as const
+
+/** `포토샵` 창 전용 글리프. 왼쪽 도구 막대와 레이어 패널이 쓴다.
+ *  ⚠️ 어두운 창이라 다색을 들이지 않는다(에디터와 같은 이유) — 단색 `mdi` 한 세트다. */
+export const PHOTOSHOP_ICONS = {
+  move: 'mdi:cursor-move',
+  marquee: 'mdi:selection',
+  lasso: 'mdi:lasso',
+  crop: 'mdi:crop',
+  brush: 'mdi:brush',
+  eraser: 'mdi:eraser',
+  text: 'mdi:format-text',
+  shape: 'mdi:shape-outline',
+  layers: 'mdi:layers-outline',
+} as const
+
+/** `에디터`(VS코드) 창 전용 글리프. ⚠️ **어두운 창**이라 currentColor가 밝은 쪽으로
+ *  물든다 — 다색을 들이면 그 자리만 색이 뜬다. 메일·메신저와 같은 단색 `mdi` 한 세트다. */
+export const EDITOR_ICONS = {
+  explorer: 'mdi:file-multiple-outline',
+  search: 'mdi:magnify',
+  git: 'mdi:source-branch',
+  run: 'mdi:play-circle-outline',
+  extensions: 'mdi:puzzle-outline',
+  folder: 'mdi:folder-outline',
+  file: 'mdi:file-code-outline',
+  /** FTP 연결 · 실패 알림 · 퍼블리싱 실행. 같은 단색 세트라 창 색에 물든다. */
+  connect: 'mdi:lan-connect',
+  warn: 'mdi:alert-circle-outline',
+  publish: 'mdi:cloud-upload-outline',
+} as const
+
 /** 계기판(주차)과 `스탯` 창이 함께 쓰는 단색 묶음. 한 세트여야 currentColor로 물든다. */
 export const STAT_ICONS = {
   week: 'mdi:calendar-week-outline',
@@ -53,6 +100,9 @@ export const BROWSER_ICONS = {
   popup: 'mdi:image-plus-outline',
   logout: 'mdi:logout',
   warn: 'mdi:alert-circle-outline',
+  /** 즐겨찾기. ⚠️ 켜짐만 **꽉 찬 별**이다 — 같은 자리에서 윤곽↔채움이 갈려야 상태가 보인다. */
+  star: 'mdi:star-outline',
+  starOn: 'mdi:star',
 } as const
 
 /** 첫화면 바로가기 칸의 사이트 아이콘. 다색이므로 CSS color를 입히지 않는다. */
@@ -60,5 +110,4 @@ export const SITE_ICONS = {
   work: 'fluent-color:briefcase-24',
   hire: 'fluent-color:people-team-24',
   shop: 'fluent-color:building-store-24',
-  company: 'fluent-color:building-24',
 } as const

@@ -1,7 +1,9 @@
+import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { AppIcon } from '../icons/AppIcon'
-import { STAT_ICONS } from '../data/icons'
+import { PROGRAM_ICONS, STAT_ICONS } from '../data/icons'
 import { DEADLINE_URGENT_WEEKS, REPUTATION_CRISIS, REPUTATION_MAX } from '../data/game'
-import { formatWeek, toCalendar } from '../systems/calendar'
+import { formatDate, toCalendar } from '../systems/calendar'
 import { useGame } from '../store'
 
 /** 오른쪽 위 계기판. **주차 판** 옆에 **스탯 판 + 업무목록 판**이 세로로 선다.
@@ -25,19 +27,31 @@ import { useGame } from '../store'
 export function Hud() {
   const g = useGame()
   const { year, month, weekOfMonth } = toCalendar(g.week)
+  /** 넘기기 전에 묻는 창을 띄웠는가. ⚠️ 창을 보는 방식이라 `useState`다(세이브 밖). */
+  const [asking, setAsking] = useState(false)
 
   return (
     <div className="hud">
-      {/* ⚠️ 주차를 미는 유일한 자리다. 시간이 적힌 판에 붙어야 "이걸 누르면 저 숫자가
-          는다"가 보인다 — 바탕화면 아이콘이나 창으로 빼면 닫아 버릴 수 있는 자리가 된다.
-          넘어가는 순간 행동력이 회복되고 팝업 클레임이 판정된다(`store.advanceWeek`). */}
+      {/* 주차를 미는 자리는 **여기 하나뿐이다** — 시간이 적힌 판에 있어야 무엇이 움직이는지가
+          보인다. 행동력을 다 써도 그 주에 머물 수 있으므로, 넘기는 것은 늘 사람의 선택이다. */}
       <p className="hud__panel hud__week">
         <AppIcon name={STAT_ICONS.week} />
         {year}년 {month}월 {weekOfMonth}째 주
-        <button type="button" className="hud__next" onClick={g.advanceWeek}>
+        <button type="button" className="hud__next" onClick={() => setAsking(true)}>
           다음 주
         </button>
       </p>
+
+      {asking && (
+        <Confirm
+          ap={g.ap}
+          onGo={() => {
+            g.advanceWeek()
+            setAsking(false)
+          }}
+          onCancel={() => setAsking(false)}
+        />
+      )}
 
       <div className="hud__col">
         <dl className="hud__panel stats" aria-label="회사 현황">
@@ -105,11 +119,19 @@ function Jobs() {
               <li
                 key={j.id}
                 className={`job${j.done ? ' job--done' : ''}`}
-                title={`${j.from} · ${j.title}`}
+                title={`${j.from} · ${j.title}${j.breached ? ' (기한 초과로 파기)' : ''}`}
               >
-                {/* 취소선만으로는 색맹·저시력에서 약하다 — 표식과 색이 함께 상태를 말한다. */}
+                {/* 취소선만으로는 색맹·저시력에서 약하다 — 표식과 색이 함께 상태를 말한다.
+                    ⚠️ **깨진 계약과 납품 완료는 다른 표식이다** — 둘 다 취소선이라 표식까지
+                    같으면 목록에서 성공과 실패가 구분되지 않는다. */}
                 <AppIcon
-                  name={j.done ? STAT_ICONS.jobDone : STAT_ICONS.jobOpen}
+                  name={
+                    j.breached
+                      ? PROGRAM_ICONS.crisis
+                      : j.done
+                        ? STAT_ICONS.jobDone
+                        : STAT_ICONS.jobOpen
+                  }
                   className="job__mark"
                 />
                 <span className="job__from">{j.from}</span>
@@ -119,9 +141,9 @@ function Jobs() {
                     이름에 함께 준다. */}
                 <span
                   className={`job__due${left <= DEADLINE_URGENT_WEEKS ? ' job__due--soon' : ''}`}
-                  aria-label={`마감 ${formatWeek(j.due)} (${left}주 남음)`}
+                  aria-label={`마감 ${formatDate(j.due)} (${left}주 남음)`}
                 >
-                  {formatWeek(j.due)}
+                  {formatDate(j.due)}
                 </span>
               </li>
             )
@@ -129,6 +151,39 @@ function Jobs() {
         </ul>
       )}
     </section>
+  )
+}
+
+/** 주차를 넘기기 전에 묻는 창. **되돌릴 수 없는 일이라 한 번 묻는다** — 남은 행동력은
+ *  이월되지 않고, 어긋난 팝업이 있으면 그 자리에서 클레임이 들어온다.
+ *
+ * ⚠️ `window.confirm`을 쓰지 않는다. 브라우저 기본 대화상자는 이 가짜 OS의 시각 언어를
+ *    깨고, **JS를 멈춰 세워** 실측 하네스(CDP)가 클릭도 스크린샷도 못 하게 만든다.
+ *
+ * ⚠️ `body`로 **포털**한다. 계기판은 `--z-desktop`(창이 덮는 층)이라 그 안에 그리면
+ *    열린 창 뒤로 들어간다 — 물어보는 창이 창 뒤에 숨으면 아무것도 못 한다. */
+function Confirm({ ap, onGo, onCancel }: { ap: number; onGo: () => void; onCancel: () => void }) {
+  return createPortal(
+    <div className="confirm" role="dialog" aria-modal="true" aria-label="다음 주로">
+      <div className="confirm__panel">
+        <p className="confirm__title">다음 주로 넘어가시겠습니까?</p>
+        <p className="confirm__note">
+          {ap > 0
+            ? `남은 행동력 ${ap}은 이월되지 않는다.`
+            : '이번 주에 쓸 행동력을 다 썼다.'}{' '}
+          걸어 둔 팝업이 요청과 어긋나면 항의가 들어온다.
+        </p>
+        <div className="confirm__buttons">
+          <button type="button" className="confirm__btn confirm__btn--go" onClick={onGo}>
+            넘어가기
+          </button>
+          <button type="button" className="confirm__btn" onClick={onCancel}>
+            취소
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 

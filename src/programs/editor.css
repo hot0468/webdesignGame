@@ -1,0 +1,360 @@
+/* `에디터`(VS코드) 창의 시각 언어. **셸(게임) 팔레트와 섞지 않는다** — 프로그램 창은
+ * 자기 팔레트를 자기 CSS 안에 가둔다(`mail.css`와 같은 규칙).
+ *
+ * 출처: VS Code **Dark+ 테마의 확정값**을 그대로 옮겨 적는다(mail.css가 Fluent theme
+ * resource를 옮겨 적은 것과 같은 방식이다 — hex를 지어내지 않는다).
+ *   editor.background #1E1E1E · sideBar.background #252526 · activityBar.background #333333
+ *   statusBar.background #007ACC · foreground #CCCCCC · descriptionForeground #9D9D9D
+ *   textLink.foreground #3794FF · list.hoverBackground #2A2D2E · panel.border #3C3C3C
+ *   list.activeSelectionBackground #04395E · input.background #3C3C3C · focusBorder #007FD4
+ *   button.background #0E639C(hover #1177BB) · editorError.foreground #F48771
+ *
+ * ⚠️ 이 창은 **어둡다**(포토샵과 둘뿐이다). 대비 방향이 반대이므로 값을 다른 창에서
+ *    가져오거나 다른 창으로 내보내지 말 것. 실측값:
+ *      #CCCCCC on #1E1E1E = 10.4:1 · #9D9D9D on #1E1E1E = 6.2:1
+ *      #3794FF on #1E1E1E = 5.4:1 · #FFFFFF on #007ACC = 4.5:1(상태 표시줄, 아슬하게 통과)
+ *
+ * 간격·모서리는 셸의 --sp- 토큰을 그대로 쓴다(값 중복 금지).
+ * 글꼴은 UI가 시스템 스택, 코드 자리만 등폭이다 — 실제 VS Code가 그렇다. */
+
+.ed {
+  --ed-bg: #1e1e1e;
+  --ed-side: #252526;
+  --ed-rail: #333333;
+  --ed-status: #007acc;
+  --ed-text: #cccccc;
+  --ed-text-2: #9d9d9d;
+  --ed-link: #3794ff;
+  --ed-hover: #2a2d2e;
+  --ed-stroke: #3c3c3c;
+  --ed-selected: #04395e;
+  --ed-input: #3c3c3c;
+  --ed-focus: #007fd4;
+  --ed-accent: #0e639c;
+  --ed-accent-hover: #1177bb;
+  --ed-error: #f48771;
+
+  display: grid;
+  grid-template-columns: 48px 240px 1fr;
+  grid-template-rows: 1fr auto;
+  grid-template-areas:
+    'rail side main'
+    'status status status';
+  height: 100%;
+  min-height: 0;
+  background: var(--ed-bg);
+  color: var(--ed-text);
+  /* 셸의 Jua를 상속받지 않게 여기서 끊는다. */
+  font-family: 'Segoe UI', system-ui, 'Malgun Gothic', sans-serif;
+  font-size: var(--fs-sm);
+}
+
+/* ── 활동 표시줄 ──────────────────────────────────────
+   ⚠️ 버튼이 아니다 — 보여 줄 화면이 탐색기 하나뿐이라 나머지는 갈 곳이 없다
+   (`Figma.tsx`의 사이드바와 같은 판단). 화면이 늘면 그때 button이 된다. */
+.ed__rail {
+  grid-area: rail;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  background: var(--ed-rail);
+  color: var(--ed-text-2);
+}
+
+/* 지금 보고 있는 곳. VS Code는 **왼쪽 흰 막대 + 밝은 글리프**로 이것을 말한다. */
+.ed__rail-on {
+  color: #ffffff;
+  box-shadow: inset 2px 0 0 #ffffff;
+}
+
+/* ── 탐색기 ───────────────────────────────────────────── */
+.ed__side {
+  grid-area: side;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  background: var(--ed-side);
+}
+
+.ed__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-3) var(--sp-2) var(--sp-4);
+}
+
+.ed__title {
+  color: var(--ed-text-2);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* 탐색기 제목줄의 유일한 버튼. VS Code의 제목줄 액션과 같은 자리다. */
+.ed__connect {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--ed-stroke);
+  border-radius: var(--sp-1);
+  background: none;
+  color: var(--ed-text);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: background var(--dur-fast) ease;
+}
+
+.ed__connect:hover {
+  background: var(--ed-hover);
+}
+
+.ed__tree {
+  min-height: 0;
+  padding-bottom: var(--sp-2);
+  overflow-y: auto;
+}
+
+/* 폴더 줄은 버튼이다 — 눌러 그 업체의 남은 업무를 연다. */
+.ed__folder {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: 2px var(--sp-4);
+  border: 0;
+  background: none;
+  color: var(--ed-text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease;
+}
+
+.ed__folder:hover {
+  background: var(--ed-hover);
+}
+
+/* 지금 연 폴더. ⚠️ 색이 아니라 **면**이 말한다(어두운 창에서 색만으로는 안 보인다). */
+.ed__folder--on {
+  background: var(--ed-selected);
+}
+
+/* 업무 제목은 길다 — 트리에서 줄바꿈하면 파일 줄과의 들여쓰기 관계가 무너진다.
+   실제 탐색기처럼 한 줄로 자르고, 전체는 title 속성이 진다. */
+.ed__label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 파일 줄. 트리의 한 단 안쪽이다 — 들여쓰기가 폴더와의 관계를 말한다. */
+.ed__file {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 2px var(--sp-4) 2px var(--sp-8);
+  color: var(--ed-text);
+}
+
+.ed__file:hover {
+  background: var(--ed-hover);
+}
+
+.ed__blank {
+  padding: var(--sp-2) var(--sp-4);
+  color: var(--ed-text-2);
+  line-height: 1.6;
+}
+
+/* ── 편집기 자리 ──────────────────────────────────────
+   세 가지가 번갈아 선다: FTP 연결 폼 · 연 업체의 남은 업무 · 아무것도 안 연 시작 화면.
+   ⚠️ 코드를 지어내 채우지 않는다 — 파일을 여는 기능이 없으므로 편집기 자리는
+   **지금 할 수 있는 일**을 보여 주는 자리다. */
+.ed__main {
+  grid-area: main;
+  display: grid;
+  align-content: start;
+  gap: var(--sp-4);
+  min-height: 0;
+  padding: var(--sp-8);
+  overflow-y: auto;
+}
+
+/* 아무것도 안 연 상태만 가운데로 내려온다(실제 VS Code의 시작 화면과 같은 자리). */
+.ed__welcome-pane {
+  display: grid;
+  align-content: center;
+  gap: var(--sp-2);
+  min-height: 100%;
+}
+
+.ed__welcome {
+  font-family: 'Consolas', 'Cascadia Mono', monospace;
+  font-size: var(--fs-2xl);
+  font-weight: 400;
+}
+
+.ed__note {
+  max-width: 52ch;
+  color: var(--ed-text-2);
+  line-height: 1.7;
+}
+
+/* ── FTP 연결 폼 ─────────────────────────────────────── */
+.ed__form,
+.ed__jobs {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-3);
+  width: 100%;
+  max-width: 420px;
+}
+
+/* 업무 목록은 폼보다 넓다 — 제목·마감·비용이 한 줄에 선다. */
+.ed__jobs {
+  max-width: 560px;
+}
+
+.ed__form-title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.ed__field {
+  display: grid;
+  gap: var(--sp-1);
+}
+
+/* ⚠️ 자리표시자 대신 **보이는 라벨**을 준다 — 어두운 면 위의 흐린 자리표시자는
+   대비가 떨어지고, 글자를 넣는 순간 무엇을 넣는 칸이었는지가 사라진다. */
+.ed__field-label {
+  color: var(--ed-text-2);
+  font-size: var(--fs-xs);
+}
+
+.ed__input {
+  padding: var(--sp-2);
+  border: 1px solid var(--ed-stroke);
+  border-radius: var(--sp-1);
+  background: var(--ed-input);
+  color: var(--ed-text);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+
+.ed__input:focus-visible {
+  outline: 1px solid var(--ed-focus);
+  outline-offset: -1px;
+}
+
+.ed__error {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--ed-error);
+  line-height: 1.5;
+}
+
+.ed__form-buttons {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.ed__btn {
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--ed-stroke);
+  border-radius: var(--sp-1);
+  background: none;
+  color: var(--ed-text);
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease;
+}
+
+.ed__btn:hover {
+  background: var(--ed-hover);
+}
+
+.ed__btn--go {
+  border-color: var(--ed-accent);
+  background: var(--ed-accent);
+  color: #ffffff;
+}
+
+.ed__btn--go:hover {
+  background: var(--ed-accent-hover);
+}
+
+/* ── 남은 업무 ────────────────────────────────────────
+   ⚠️ 줄 전체가 버튼이고 **누르면 바로 실행된다**(행동력을 문다) — 그래서 비용을
+   줄 안에 적는다. 되돌릴 수 없는 일에 값이 안 보이면 그건 함정이다. */
+.ed__job-list {
+  display: grid;
+  gap: var(--sp-2);
+  list-style: none;
+}
+
+.ed__job {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--ed-stroke);
+  border-radius: var(--sp-1);
+  background: var(--ed-side);
+  color: var(--ed-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) ease,
+    border-color var(--dur-fast) ease;
+}
+
+.ed__job:hover:not(:disabled) {
+  border-color: var(--ed-accent);
+  background: var(--ed-hover);
+}
+
+.ed__job:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ed__job-meta {
+  color: var(--ed-text-2);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+/* 비용은 둘째 줄에서 제목 아래에 선다(아이콘 칸을 건너뛴다). */
+.ed__job-cost {
+  grid-column: 2 / -1;
+  color: var(--ed-link);
+  font-size: var(--fs-xs);
+}
+
+/* ── 상태 표시줄 ─────────────────────────────────────── */
+.ed__status {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-1) var(--sp-3);
+  background: var(--ed-status);
+  color: #ffffff;
+  font-size: var(--fs-xs);
+}
+
+.ed__status-right {
+  margin-left: auto;
+}

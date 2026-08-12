@@ -1,0 +1,265 @@
+/* `포토샵` 창의 시각 언어. **셸(게임) 팔레트와 섞지 않는다** — 프로그램 창은 자기 팔레트를
+ * 자기 CSS 안에 가둔다(`mail.css`와 같은 규칙).
+ *
+ * 출처: Photoshop CC **Dark 인터페이스의 확정값**을 그대로 옮겨 적는다(editor.css가 VS Code
+ * Dark+를, mail.css가 Fluent를 옮겨 적은 것과 같은 방식이다 — hex를 지어내지 않는다).
+ *   패널 #323232 · 캔버스 바깥 #282828 · 탭/헤더 #454545 · 경계 #1E1E1E
+ *   글자 #D9D9D9 · 보조 #A0A0A0 · 강조(Adobe blue) #1473E6
+ *
+ * ⚠️ **어두운 창이다.** 대비 방향이 밝은 창들과 반대이므로 값을 주고받지 말 것. 실측값:
+ *     #D9D9D9 on #323232 = 8.9:1 · #A0A0A0 on #323232 = 4.8:1 · #A0A0A0 on #282828 = 5.6:1
+ *     #D9D9D9 on #454545 = 6.8:1 · #FFFFFF on #1473E6 = 4.5:1(아슬하게 통과)
+ * ⚠️ 보조 글자를 #9A9A9A로 낮추지 마라 — 실제 포토샵의 값이지만 #323232 위에서 4.3:1로
+ *    AA에 미달한다(한 칸 밝은 #A0A0A0이 이 창의 보조색이다).
+ *
+ * 간격·모서리·글자 크기는 셸의 --sp-·--fs- 토큰을 그대로 쓴다(값 중복 금지).
+ * 글꼴은 시스템 스택이다 — 셸의 Jua가 상속되면 그 순간 게임 UI로 보인다. */
+
+.ps {
+  --ps-panel: #323232;
+  --ps-canvas: #282828;
+  --ps-head: #454545;
+  --ps-stroke: #1e1e1e;
+  --ps-text: #d9d9d9;
+  --ps-text-2: #a0a0a0;
+  --ps-accent: #1473e6;
+
+  display: grid;
+  grid-template-columns: 44px 1fr 244px;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'tools tabs panels'
+    'tools canvas panels';
+  height: 100%;
+  min-height: 0;
+  background: var(--ps-canvas);
+  color: var(--ps-text);
+  font-family: 'Segoe UI', system-ui, 'Malgun Gothic', sans-serif;
+  font-size: var(--fs-sm);
+}
+
+/* ── 도구 막대 ────────────────────────────────────────
+   ⚠️ 버튼이 아니다 — 이 게임에서 그리는 일은 "제작" 한 번으로 끝나므로 도구를 누를 곳이
+   없다(`figma.css`의 사이드바와 같은 판단). 공정이 늘면 그때 button이 된다. */
+.ps__tools {
+  grid-area: tools;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-2) 0;
+  border-right: 1px solid var(--ps-stroke);
+  background: var(--ps-panel);
+  color: var(--ps-text-2);
+}
+
+.ps__tool {
+  display: grid;
+  place-items: center;
+  width: var(--sp-8);
+  height: var(--sp-8);
+  border-radius: var(--sp-1);
+}
+
+/* 지금 쓰는 도구. 팝업 제작은 이미지 편집이라 브러시가 눌려 있다 —
+   ⚠️ 실제로 도구를 바꾸는 화면이 아니므로 이 표시는 고정이다. */
+.ps__tool--on {
+  background: var(--ps-head);
+  color: var(--ps-text);
+}
+
+/* ── 문서 탭 ─────────────────────────────────────────
+   실제로 캔버스를 바꾸는 **진짜 컨트롤**이다(업무 하나 = 열린 문서 하나). */
+.ps__tabs {
+  grid-area: tabs;
+  display: flex;
+  gap: 1px;
+  border-bottom: 1px solid var(--ps-stroke);
+  background: var(--ps-stroke);
+  overflow-x: auto;
+}
+
+.ps__tab {
+  flex: 0 0 auto;
+  max-width: 200px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-top: 2px solid transparent;
+  background: var(--ps-head);
+  color: var(--ps-text-2);
+  font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+/* ⚠️ 고른 탭은 **색 + 윗선 + 배경**이 함께 말한다 — 색만으로 말하지 않는다. */
+.ps__tab--on {
+  border-top-color: var(--ps-accent);
+  background: var(--ps-canvas);
+  color: var(--ps-text);
+}
+
+/* ── 캔버스 ──────────────────────────────────────── */
+.ps__canvas {
+  grid-area: canvas;
+  display: grid;
+  place-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  overflow: auto;
+}
+
+/* 아트보드. 어두운 창에서 **유일하게 흰 면**이라 시선이 여기로 온다 —
+   실제 포토샵에서 문서가 그렇게 뜬다. 안의 글자는 흰 바탕 기준으로 셸의 값을 쓰지 않고
+   여기서 직접 어둡게 잡는다(--ps-stroke, 15:1). */
+.ps__art {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--sp-2);
+  width: min(100%, 320px);
+  aspect-ratio: 4 / 3;
+  padding: var(--sp-4);
+  background: #ffffff;
+  color: var(--ps-stroke);
+  box-shadow: 0 0 0 1px var(--ps-stroke);
+  text-align: center;
+}
+
+.ps__art-client {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+}
+
+.ps__art-period {
+  font-size: var(--fs-xs);
+}
+
+/* 아직 만들지 않은 문서. 빈 아트보드는 **격자**로 그린다 — 포토샵의 투명 영역 표시이고,
+   흰 아트보드와 한눈에 갈린다. */
+.ps__art--empty {
+  background:
+    repeating-conic-gradient(#ffffff 0% 25%, #d9d9d9 0% 50%) 0 0 / var(--sp-4) var(--sp-4);
+  color: var(--ps-stroke);
+}
+
+.ps__size {
+  color: var(--ps-text-2);
+  font-size: var(--fs-xs);
+}
+
+/* ── 오른쪽 패널(레이어) ──────────────────────────── */
+.ps__panels {
+  grid-area: panels;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-left: 1px solid var(--ps-stroke);
+  background: var(--ps-panel);
+  overflow-y: auto;
+}
+
+.ps__panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--ps-head);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.ps__layers {
+  display: grid;
+  gap: 1px;
+  list-style: none;
+  padding: 0;
+}
+
+.ps__layer {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: var(--sp-2);
+  background: var(--ps-canvas);
+}
+
+.ps__layer-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ps__none {
+  padding: var(--sp-2);
+  color: var(--ps-text-2);
+  font-size: var(--fs-xs);
+}
+
+/* 등급 뱃지. 글자 그대로가 값이라 색을 입히지 않는다 —
+   ⚠️ 등급마다 색을 주면 팔레트가 여덟 갈래로 늘어난다(F~SSS). */
+.ps__grade {
+  margin-left: auto;
+  padding-inline: var(--sp-1);
+  background: var(--ps-head);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+/* 제작 묶음. **패널 맨 아래에 붙는다** — 목록이 길어져도 고르는 자리는 늘 같은 곳이다. */
+.ps__makes {
+  display: grid;
+  gap: var(--sp-1);
+  margin-top: auto;
+}
+
+/* 제작 버튼 셋. 이 창에서 **행동력을 무는 유일한 자리**라 강조색은 여기에만 선다
+   (셋은 같은 일의 세기 차이라 색을 나누지 않는다 — 나누면 어느 것이 주된 길인지 흐려진다). */
+.ps__make {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--sp-1);
+  background: var(--ps-accent);
+  color: #ffffff;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ⚠️ 못 누르는 버튼도 읽혀야 한다. 패널 헤더색(#454545) 위에서는 보조 글자가 3.7:1로
+   미달이라 **캔버스색까지 어두워진다**(#A0A0A0 on #282828 = 5.6:1). */
+.ps__make:disabled {
+  background: var(--ps-canvas);
+  color: var(--ps-text-2);
+  cursor: not-allowed;
+}
+
+/* 값과 결과. ⚠️ 흰 글자 그대로 둔다 — 파랑 위에서 한 칸만 어두워져도 AA가 깨진다
+   (#FFFFFF on #1473E6이 이미 4.5:1이다). 작게만 만든다. */
+.ps__cost {
+  font-size: var(--fs-xs);
+}
+
+/* ⚠️ 못 누르는 이유를 **글자로** 말한다 — 흐린 버튼만 두면 왜 안 되는지 모른다.
+   이 팔레트에 빨강이 없으므로 경고도 글자가 진다. */
+.ps__short {
+  color: var(--ps-text-2);
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
+/* 열린 문서가 없을 때. 셸의 `.empty` 카드를 얹지 않는다 — 두 시각 언어가 겹친다. */
+.ps__blank {
+  grid-area: canvas;
+  align-self: center;
+  padding: var(--sp-6);
+  color: var(--ps-text-2);
+  text-align: center;
+}

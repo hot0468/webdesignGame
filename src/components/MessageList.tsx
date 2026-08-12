@@ -15,10 +15,13 @@ export function MessageList({ channel }: { channel: Channel }) {
   const [openId, setOpenId] = useState<string | null>(null)
   const readIds = useGame((s) => s.readIds)
   const markRead = useGame((s) => s.markRead)
+  // ⚠️ 게임 중에 생겨난 글(회신에 대한 답장·완료 메일·클레임)도 **같은 목록에** 선다 —
+  //    빠뜨리면 고객게시판 업무의 답장이 어디에도 안 보여 다음 공정이 열리지 않는다.
+  const mails = useGame((s) => s.mails)
 
   return (
     <div className="msgs">
-      {inbox(channel).map((m) => {
+      {inbox(channel, mails).map((m) => {
         const unread = !readIds.includes(m.id)
         const open = openId === m.id
         return (

@@ -17,7 +17,7 @@ export type Destination =
 /** 비교 전에 벗기는 껍데기: 앞뒤 공백 · `https?://` · `www.` · 끝 슬래시 · 대소문자.
  *  ⚠️ 관대함은 여기까지다. 경로(`/manage`)는 **주소의 일부**라 벗기지 않는다 —
  *     한빛치과 관리자는 도메인이 아니라 경로로 갈린다. */
-function normalize(raw: string): string {
+export function normalizeUrl(raw: string): string {
   return raw
     .trim()
     .toLowerCase()
@@ -32,16 +32,29 @@ export function adminUrl(client: (typeof CLIENTS)[number]): string | undefined {
 }
 
 export function resolveUrl(input: string): Destination {
-  const url = normalize(input)
+  const url = normalizeUrl(input)
   if (!url) return { kind: 'unknown' }
 
-  if (url === normalize(SEARCH_HOME.url)) return { kind: 'home' }
+  if (url === normalizeUrl(SEARCH_HOME.url)) return { kind: 'home' }
 
   const hit = CLIENTS.find((c) => {
     const admin = adminUrl(c)
-    return admin !== undefined && normalize(admin) === url
+    return admin !== undefined && normalizeUrl(admin) === url
   })
   return hit ? { kind: 'admin', clientId: hit.id } : { kind: 'unknown' }
+}
+
+/** 즐겨찾기 줄에 적을 이름. **주소에서 뽑는다** — 즐겨찾기가 이름을 따로 지고 있으면
+ *  업체 이름을 고쳤을 때 옛 이름이 브라우저에 남는다(관계는 한 방향으로만 적는다).
+ *  갈 곳이 없는 주소는 즐겨찾기가 되지 않으므로 그 경우는 주소를 그대로 돌려준다. */
+export function siteTitle(input: string): string {
+  const dest = resolveUrl(input)
+  if (dest.kind === 'home') return SEARCH_HOME.name
+  if (dest.kind === 'admin') {
+    const client = CLIENTS.find((c) => c.id === dest.clientId)
+    if (client) return `${client.name} 관리자`
+  }
+  return normalizeUrl(input)
 }
 
 /** 아이디·비밀번호가 그 업체의 것과 맞는지. **계정의 정본도 `CLIENTS`다.**

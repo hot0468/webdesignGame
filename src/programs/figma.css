@@ -1,0 +1,271 @@
+/* `피그마` 창의 시각 언어. **셸(게임) 팔레트와 섞지 않는다** — 프로그램 창은 자기 팔레트를
+ * 자기 CSS 안에 가둔다(`mail.css`가 이 예외의 첫 사례다).
+ *
+ * 출처: ui-ux-pro-max colors.csv **"Generative Art Platform — Canvas neutral + creative pink"**.
+ * 이 한 줄로 피그마 파일 브라우저가 그대로 나온다: 크롬은 흰 면과 뉴트럴 테두리로 물러나고
+ * **가장 진한 값(#18181B)은 오직 썸네일 캔버스**가 가져간다 — 실제 피그마에서 시안이
+ * 어두운 캔버스 위에 뜨는 그 대비가 이 화면의 정체성이다.
+ *   #18181B primary(캔버스) · #FAFAFA bg · #FFFFFF card · #09090B fg
+ *   #64748B muted-fg · #E4E4E7 border · #E8ECF0 muted(선택 행)
+ * ⚠️ 액센트(#EC4899)는 **쓰지 않는다.** 이 화면에는 누를 것이 없어 강조할 자리가 없고,
+ *    분홍이 서면 게임 셸의 보라와 싸운다. 선택 행은 색이 아니라 면(muted)으로 말한다.
+ *
+ * ⚠️ **--fig-text-2(#64748B)는 흰 면에서만 쓴다.** 선택 행(#E8ECF0) 위에서는 4.1:1로
+ *    AA에 미달한다 — 그 행의 글자는 --fig-text(#09090B)다.
+ *
+ * ⚠️ 이 블록 밖에서 새 값을 만들지 말 것. 간격·모서리·글자 크기는 셸의 --sp-*·--fs-*를
+ *    그대로 쓴다(값 중복 금지).
+ * 글꼴은 시스템 스택이다 — 셸의 Jua를 들이면 그 순간 프로그램이 아니라 게임 UI가 된다. */
+
+.fig {
+  --fig-canvas: #18181b;
+  --fig-bg: #fafafa;
+  --fig-surface: #ffffff;
+  --fig-stroke: #e4e4e7;
+  --fig-muted: #e8ecf0;
+  --fig-text: #09090b;
+  --fig-text-2: #64748b;
+
+  display: grid;
+  grid-template-columns: 232px 1fr 244px;
+  height: 100%;
+  min-height: 0;
+  background: var(--fig-bg);
+  color: var(--fig-text);
+  font-family: 'Segoe UI', system-ui, -apple-system, 'Malgun Gothic', sans-serif;
+  font-size: var(--fs-sm);
+}
+
+/* ── 사이드바 ─────────────────────────────────────────
+   ⚠️ 버튼이 아니다 — 이 창에는 화면이 하나뿐이라 누를 곳을 그리면 죽은 컨트롤이 된다
+   (`messenger.css`의 레일과 같은 판단). 화면이 늘어나면 그때 button으로 바꾼다. */
+.fig__side {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border-right: 1px solid var(--fig-stroke);
+  background: var(--fig-surface);
+  overflow-y: auto;
+}
+
+.fig__group {
+  margin-top: var(--sp-3);
+  padding-inline: var(--sp-2);
+  color: var(--fig-text-2);
+  font-size: var(--fs-xs);
+}
+
+.fig__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-radius: var(--sp-1);
+  color: var(--fig-text-2);
+}
+
+/* 지금 보고 있는 곳. 색이 아니라 **면**으로 말한다 — 그래서 글자는 본문색으로 돌아온다. */
+.fig__nav--on {
+  background: var(--fig-muted);
+  color: var(--fig-text);
+  font-weight: 600;
+}
+
+/* ── 본문 ─────────────────────────────────────────── */
+.fig__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.fig__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-6);
+}
+
+.fig__crumb {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+.fig__count {
+  color: var(--fig-text-2);
+  font-size: var(--fs-xs);
+}
+
+.fig__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--sp-6) var(--sp-4);
+  /* ⚠️ 목록 표식을 끈다 — 카드가 button을 감싸는 li가 되면서 점이 다시 살아난다. */
+  list-style: none;
+  padding: 0 var(--sp-6) var(--sp-6);
+}
+
+/* ── 파일 카드 ──────────────────────────────────────
+   ⚠️ 이제 **누르는 것**이다(고른 파일이 오른쪽 패널의 대상이 된다). 그래서 button이다 —
+   div에 onClick을 걸면 키보드로 닿지 않는다. */
+.fig__file {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: var(--sp-2);
+  border: 0;
+  border-radius: var(--sp-2);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* 고른 카드. ⚠️ **회색 면(--fig-muted)으로 칠하지 않는다** — 그 위에서 부제(--fig-text-2)가
+   4.0:1로 미달한다(실측). 흰 면 + 진한 테두리로 말하면 글자값이 그대로 산다. */
+.fig__file--on {
+  background: var(--fig-surface);
+  box-shadow: inset 0 0 0 2px var(--fig-canvas);
+}
+
+/* 썸네일. 실제 피그마와 같이 **어두운 캔버스 위에 시안이 뜬다.**
+   ⚠️ 안의 도형은 장식이 아니라 "무엇이 들어 있는 파일인가"의 표시다 —
+   가로줄 셋이 곧 페이지 뼈대라서, 빈 회색 사각형보다 파일처럼 읽힌다. */
+.fig__thumb {
+  display: grid;
+  align-content: center;
+  gap: var(--sp-1);
+  aspect-ratio: 4 / 3;
+  padding: var(--sp-6);
+  border-radius: var(--sp-2);
+  background: var(--fig-canvas);
+}
+
+.fig__bar {
+  height: var(--sp-2);
+  border-radius: var(--sp-1);
+  background: var(--fig-muted);
+}
+
+.fig__bar:first-child {
+  height: var(--sp-4);
+  background: var(--fig-surface);
+}
+
+.fig__bar:last-child {
+  width: 60%;
+}
+
+.fig__name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  font-weight: 600;
+}
+
+/* ⚠️ 자르기 전에 줄이 아니라 **한 줄 안에서** 끝낸다 — 카드 폭이 제각각이라
+   두 줄이 되면 그리드의 밑선이 어긋난다. 전체 제목은 title 속성이 준다. */
+.fig__label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fig__meta {
+  color: var(--fig-text-2);
+  font-size: var(--fs-xs);
+}
+
+/* ── 오른쪽 패널(속성) ─────────────────────────────
+   실제 피그마의 속성 패널 자리다. 여기서 **고른 파일의 시안을 만든다**. */
+.fig__right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-left: 1px solid var(--fig-stroke);
+  background: var(--fig-surface);
+  overflow-y: auto;
+}
+
+.fig__prop {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.fig__drafts {
+  display: grid;
+  gap: var(--sp-1);
+  list-style: none;
+  padding: 0;
+}
+
+.fig__draft {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  font-size: var(--fs-xs);
+}
+
+/* 등급 뱃지. ⚠️ 색을 입히지 않는다 — 여덟 등급(F~SSS)에 색을 주면 팔레트가 그만큼 늘어난다. */
+.fig__grade {
+  margin-left: auto;
+  padding-inline: var(--sp-1);
+  border-radius: var(--sp-1);
+  background: var(--fig-muted);
+  font-weight: 700;
+}
+
+.fig__makes {
+  display: grid;
+  gap: var(--sp-1);
+  margin-top: auto;
+}
+
+/* 제작 버튼 셋. **이 창에서 유일하게 값을 무는 자리**라 유일하게 채워진 면이다.
+   ⚠️ 채움색은 썸네일 캔버스와 같은 값이다(팔레트의 primary) — 액센트를 새로 들이지 않는다. */
+.fig__make {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--sp-1);
+  background: var(--fig-canvas);
+  color: var(--fig-surface);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+/* ⚠️ 못 누르는 버튼도 읽혀야 한다. 회색 면(--fig-muted) 위에 --fig-text-2를 얹으면
+   4.1:1로 미달이므로(파일 머리말 참고) **흰 면 + 테두리**로 물러난다(4.76:1). */
+.fig__make:disabled {
+  background: var(--fig-surface);
+  box-shadow: inset 0 0 0 1px var(--fig-stroke);
+  color: var(--fig-text-2);
+  cursor: not-allowed;
+}
+
+.fig__cost {
+  font-size: var(--fs-xs);
+}
+
+.fig__short {
+  color: var(--fig-text-2);
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
+/* 빈 상태는 셸의 `.empty`가 아니라 여기서 그린다 — 창 전체가 피그마의 면이라
+   가운데에 셸 카드가 뜨면 두 시각 언어가 겹친다. */
+.fig__blank {
+  padding: var(--sp-12) var(--sp-6);
+  color: var(--fig-text-2);
+  text-align: center;
+}

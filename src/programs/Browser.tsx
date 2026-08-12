@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { BROWSER_ICONS, PROGRAM_ICONS, SITE_ICONS } from '../data/icons'
 import { SHORTCUTS, SEARCH_HOME } from '../data/sites'
-import { resolveUrl, type Destination } from '../systems/url'
+import { normalizeUrl, resolveUrl, siteTitle, type Destination } from '../systems/url'
+import { useGame } from '../store'
 import { AdminSite } from './AdminSite'
 import './browser.css'
 
@@ -11,9 +12,11 @@ import './browser.css'
  * 시각 언어는 `browser.css`가 자기 팔레트로 가둔다(셸 인디고를 쓰지 않는다).
  *
  * ⚠️ **주소 표시줄은 이제 입력칸이다.** 읽는 자리였던 것을 바꾼 이유는 갈 곳이 생겼기
- *    때문이다 — 업체 관리자 페이지는 **주소를 쳐야만** 닿는다. 플레이어가
- *    `사내시스템 > 업체정보`에서 주소와 계정을 찾아 여기 옮겨 적는 왕복이 의도된 동선이라
- *    바로가기로 질러가는 길을 만들지 않는다.
+ *    때문이다 — 업체 관리자 페이지는 **처음 한 번은 주소를 쳐야만** 닿는다. 플레이어가
+ *    `사내시스템 > 업체정보`에서 주소와 계정을 찾아 여기 옮겨 적는 왕복이 의도된 동선이다.
+ *    ⚠️ 첫화면 바로가기 칸(`SHORTCUTS`)에 업체를 넣지 말 것 — 그 왕복이 통째로 사라진다.
+ *    **즐겨찾기는 그 왕복을 겪은 뒤에만** 생긴다(별은 도착한 주소에만 뜬다). 그래서
+ *    반복 방문만 짧아지고 처음 찾아가는 일은 그대로 남는다.
  *
  * 주소 → 화면의 해석은 **`systems/url.ts`의 순수 함수**가 진다. 이 컴포넌트는 그 답을
  * 그리기만 한다(주소 문자열을 여기서 비교하지 말 것). */
@@ -24,13 +27,26 @@ export function Browser() {
   /** 주소창에 **치는 중인** 글자. 실제로 간 곳(`at`)과 다르다 — 엔터를 쳐야 옮겨 간다. */
   const [typed, setTyped] = useState<string>(SEARCH_HOME.url)
   const [at, setAt] = useState<Destination>({ kind: 'home' })
+  /** 지금 **와 있는** 주소. `typed`는 치는 중이라 별이 엉뚱한 곳을 가리킬 수 있다. */
+  const [atUrl, setAtUrl] = useState<string>(SEARCH_HOME.url)
   /** 못 찾은 주소를 그대로 되뇌어 준다(오타를 눈으로 잡게). */
   const [badUrl, setBadUrl] = useState('')
+
+  const bookmarks = useGame((s) => s.bookmarks)
+  const toggleBookmark = useGame((s) => s.toggleBookmark)
+  const starred = bookmarks.includes(normalizeUrl(atUrl))
 
   const go = (raw: string) => {
     const dest = resolveUrl(raw)
     setAt(dest)
+    setAtUrl(raw)
     setBadUrl(dest.kind === 'unknown' ? raw.trim() : '')
+  }
+
+  /** 즐겨찾기에서 간다 — 주소창 글자도 같이 옮겨야 별과 주소가 어긋나지 않는다. */
+  const goTo = (url: string) => {
+    setTyped(url)
+    go(url)
   }
 
   return (
@@ -74,7 +90,32 @@ export function Browser() {
             <AppIcon name={BROWSER_ICONS.forward} size={16} />
           </button>
         </form>
+        {/* ⚠️ 별은 **도착한 곳이 갈 수 있는 주소일 때만** 뜬다 — 없는 주소를 즐겨찾기에
+            담으면 나중에 눌러도 "연결할 수 없음"만 나오는 줄이 남는다. */}
+        {at.kind !== 'unknown' && (
+          <button
+            type="button"
+            className={`nv__nav${starred ? ' nv__nav--on' : ''}`}
+            aria-pressed={starred}
+            aria-label={starred ? '즐겨찾기에서 빼기' : '즐겨찾기에 넣기'}
+            onClick={() => toggleBookmark(atUrl)}
+          >
+            <AppIcon name={starred ? BROWSER_ICONS.starOn : BROWSER_ICONS.star} size={18} />
+          </button>
+        )}
       </div>
+
+      {/* 즐겨찾기 줄. 비었으면 줄 자체가 없다 — 빈 띠는 자리만 먹는다. */}
+      {bookmarks.length > 0 && (
+        <div className="nv__marks">
+          {bookmarks.map((url) => (
+            <button key={url} type="button" className="nv__mark" onClick={() => goTo(url)}>
+              <AppIcon name={BROWSER_ICONS.starOn} size={14} />
+              {siteTitle(url)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {at.kind === 'admin' ? (
         // key로 업체를 갈라 준다 — 다른 업체로 옮기면 로그인이 따라가지 않는다.

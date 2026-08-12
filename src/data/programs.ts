@@ -24,10 +24,13 @@ export const PROGRAMS = [
   // ⚠️ globe는 fluent-color에 32가 없다(20·24뿐). -NN은 디자인 크기라 렌더 크기와 무관하다.
   { id: 'browser', title: '브라우저', icon: 'fluent-color:globe-24', col: 'left', size: 'app' },
   // 프로그램 로고는 devicon 그대로다(다색 — CSS color를 입히지 않는다).
-  { id: 'figma', title: '피그마', icon: 'devicon:figma', col: 'right' },
-  { id: 'photoshop', title: '포토샵', icon: 'devicon:photoshop', col: 'right' },
-  { id: 'messenger', title: '메신저', icon: 'fluent-color:chat-32', col: 'right' },
-  { id: 'editor', title: '에디터', icon: 'devicon:vscode', col: 'right' },
+  { id: 'figma', title: '피그마', icon: 'devicon:figma', col: 'right', size: 'app' },
+  { id: 'photoshop', title: '포토샵', icon: 'devicon:photoshop', col: 'right', size: 'app' },
+  // ⚠️ devicon에 파워포인트 로고가 없다(office 계열이 통째로 없다) — 다색 규칙을 지키려고
+  //    fluent-color의 슬라이드 글리프를 쓴다. 로고를 지어내거나 CDN에서 받아 오지 말 것.
+  { id: 'ppt', title: 'PPT', icon: 'fluent-color:slide-text-sparkle-32', col: 'right' },
+  { id: 'messenger', title: '메신저', icon: 'fluent-color:chat-32', col: 'right', size: 'app' },
+  { id: 'editor', title: '에디터', icon: 'devicon:vscode', col: 'right', size: 'app' },
   // ⚠️ `satisfies`가 **줄을 빼먹은 항목에서 빌드를 실패시킨다** — 없으면 그 아이콘이
   //    화면에서 조용히 사라진다(어느 줄에도 안 걸려서).
 ] as const satisfies readonly {

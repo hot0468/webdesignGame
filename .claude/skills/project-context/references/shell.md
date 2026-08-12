@@ -16,6 +16,7 @@
 ## 셸 구조
 - `Desktop`이 배경 + 아이콘 그리드 + 창 레이어 + `Taskbar` + `Hud`를 담는다
 - **작업 표시줄은 열린 창 목록만** 진다. 오른쪽 위 `Hud`가 **주차 판 + (스탯 판·업무목록 판)** 을 진다. ⚠️ 스탯·업무목록을 바탕화면 아이콘/창으로 빼지 말 것 — 항상 보여야 하는 계기판이다
+- 주차 판의 `다음 주`는 **묻는 창**(`.confirm`)을 띄운다. ⚠️ `window.confirm` 금지 — 가짜 OS의 시각 언어를 깨고 **JS를 멈춰 세워** 실측 하네스가 클릭도 스크린샷도 못 한다. ⚠️ 그 창은 `body`로 **포털**한다(계기판은 창이 덮는 층이라 안에 그리면 열린 창 뒤로 숨는다)
 - `Hud`는 **창이 아니다**(공용 `Window` 미사용). 닫거나 옮길 수 있으면 상태를 못 보는 판이 생기고 다시 여는 경로도 없다
 - ⚠️ 업무목록은 **스탯과 다른 판**이다(같은 칸에 세로로 선다) — 스탯은 늘 네 줄이고 업무는 늘어나는 목록이라, 한 판이면 스탯이 어디서 끝나는지가 흐려진다. 폭 상한은 `.hud__col`이 진다
 - ⚠️ **작업 표시줄과 `Hud`는 창 레이어 밖에 둔다.** 안에 넣으면 `--z-taskbar`가 창 레이어의 스택 컨텍스트에 갇혀 뜻을 잃는다
@@ -24,8 +25,9 @@
 - ⚠️ `Hud`가 글자를 실을 수 있는 것은 **판이 `--color-card`이기 때문**이다. 판을 없애고 바탕화면에 직접 얹으면 AA 미달이 된다
 - ⚠️ 창 레이어는 `inset:0` 오버레이다. `pointer-events:none`(자식만 `auto`)이 아니면 **바탕화면 아이콘 클릭을 삼킨다**
 - 바탕화면 아이콘은 **단일 클릭**으로 연다(터치·게임 친화). ⚠️ windowsGame은 더블클릭이라 `measure.mjs --dblclick`이 여기서는 아무 일도 안 하면서 `ok`를 찍는다 — `--click`을 쓴다
+- 바탕화면 바닥의 **물결은 `.desktop`의 `::before`/`::after`** 두 겹이다(커다란 원을 돌린다 — 이미지·JS·캔버스 없음). ⚠️ `isolation: isolate` + `z-index: -1`이 짝이다(빼면 배경 뒤로 숨거나 아이콘을 덮는다) · `pointer-events: none` · **`prefers-reduced-motion`에서 멈춘다** · 원이 화면 폭의 세 배를 넘으면 가장자리가 직선처럼 펴진다
 - 아이콘은 창이 실제로 열리는 프로그램만 그린다(`PROGRAMS`가 단일 출처). `VIEWS`가 `Record<ProgramId, ...>`라서 짝을 빼먹으면 타입 검사가 잡는다
-- 아이콘은 **두 줄**이다: 왼쪽 = 회사를 굴리는 창(메일·일정·사내시스템·브라우저), 오른쪽 = 손으로 만드는 프로그램(피그마·포토샵·메신저·에디터). ⚠️ 줄은 `PROGRAMS.col`이 정한다 — `Desktop`에서 id를 나열해 가르지 말 것. `satisfies`가 `col` 빠진 항목에서 빌드를 실패시킨다
+- 아이콘은 **두 줄**이다: 왼쪽 = 회사를 굴리는 창(메일·일정·사내시스템·브라우저), 오른쪽 = 손으로 만드는 프로그램(피그마·포토샵·PPT·메신저·에디터). ⚠️ 줄은 `PROGRAMS.col`이 정한다 — `Desktop`에서 id를 나열해 가르지 말 것. `satisfies`가 `col` 빠진 항목에서 빌드를 실패시킨다
 - 내용이 아직 없는 창은 **`.empty` 빈 상태**를 쓴다 — 갈 데 없는 주소창·링크·버튼을 그리는 대신 무엇이 생기면 여기 뜨는지 적는다(`Browser.tsx`가 예시)
 - 창 내용은 **계기판과 겹치는 숫자를 다시 늘어놓지 않는다.** 계기판의 평판 막대는 **양**만 보이고, **위기선까지의 거리는 `Company.tsx`만** 가진다
 - 계기판 막대는 둘로 갈린다: 연속량(정신력·평판)은 `Bar`, **정수 자원(행동력)은 칸으로 세는 `Ticks`** — 행동력을 연속 막대로 바꾸지 말 것
@@ -39,9 +41,11 @@
 - 모든 창 UI는 공용 `Window`를 쓴다. 이동은 **transform으로만**
 - **포커스는 별도 필드가 아니라 `z` 최대값에서 파생**한다(`focusedWindowId`). 관계를 한 방향으로만 적는다
 - `moveWindow`는 화면 크기를 **인자로 받는다** — 스토어는 DOM을 모른다. 상한 clamp(`WINDOW_DRAG.keepVisible`)가 없으면 창이 작업 표시줄 밑으로 들어가 타이틀바를 못 잡는다
-- 창 크기는 `PROGRAMS`의 `size`가 정한다 — 없으면 기본 440px(`일정`·`피그마`·`포토샵` 등), `app`은 큰 프로그램(`메일`·`사내시스템`). `app`은 `.window__body` 패딩을 걷으므로 **내용 쪽이 자기 패딩을 진다**
+- 창 크기는 `PROGRAMS`의 `size`가 정한다 — 없으면 기본 440px(지금은 `일정`뿐), `app`은 자기 화면을 가진 큰 프로그램(나머지 전부). `app`은 `.window__body` 패딩을 걷으므로 **내용 쪽이 자기 패딩을 진다**
 - ⚠️ `app`은 **높이도 고정**한다 — 내용은 `height:100%` + 안쪽 칸이 각자 `overflow-y:auto`로 구른다(창이 작업 표시줄을 뚫지 않게)
 - 프로그램 창이 **자기 팔레트를 가지는 예외**의 실례가 `Mail`이다(`src/programs/mail.css` — Fluent/WinUI 값 + Segoe UI). ⚠️ 그 안에서 셸 토큰(`.badge`·`.empty` 등)을 섞어 쓰지 않는다 — 두 팔레트가 한 창에 서면 둘 다 무너진다
+- `Photoshop`도 같은 예외다(`src/programs/photoshop.css` — Photoshop CC Dark). ⚠️ 강조색(Adobe 파랑)은 **행동력을 무는 제작 버튼 하나**에만 선다 — 어두운 창에서 색이 여러 곳에 서면 어디를 눌러야 하는지가 흐려진다
+- 셋째 사례가 `Figma`다(`src/programs/figma.css` — 캔버스 뉴트럴 + 시스템 글꼴). ⚠️ **액센트 색을 들이지 않는다** — 제작 버튼은 팔레트의 가장 진한 값(썸네일 캔버스와 같은 값)으로 채운다. 사이드바 메뉴는 button이 아니라 표시다(갈 화면이 하나뿐). ⚠️ 고른 카드를 회색 면으로 칠하지 말 것 — 그 위에서 부제가 4.0:1로 미달한다(흰 면 + 진한 테두리로 말한다)
 - 같은 예외의 둘째 사례가 `Browser`다(`src/programs/browser.css` — 뉴트럴 그레이 + 링크 블루 + 시스템 글꼴). ⚠️ **크롬(주소 표시줄)은 무채색으로 물러난다** — 브라우저 UI가 색을 가지면 그 안의 사이트가 색을 못 가진다. 파랑은 링크와 초점, 그리고 **사이트 안의 주된 버튼**(`.nv-site__go`)에만 선다
 - 브라우저 안의 **사이트**(업체 관리자 등)는 `.nv-site*`로 산다 — 자기 표면(흰 판)은 가지되 **색은 `--nv-*` 안에서 끝낸다**. ⚠️ 이 팔레트에 빨강이 없으므로 실패·경고는 색이 아니라 **아이콘 + 글자**가 말한다
 - 주소 표시줄은 **입력칸 + 이동 버튼**이다. ⚠️ 엔터만으로 끝내지 말 것 — 이 게임은 마우스로 굴러가고, 실측 하네스에도 Enter가 없다(`--click .nv__go`로 이동을 재현한다)
@@ -73,10 +77,21 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/components/MessageList.tsx` | 받은 글 목록(고객게시판이 쓴다 — 셸 언어). 메일은 자기 세 칸 화면을 따로 가진다 |
 | `src/programs/mail.css` | `메일` 창 전용 Fluent 팔레트. **이 파일 밖으로 새지 않는다** |
 | `src/programs/browser.css` | `브라우저` 창 전용 검색 포털 팔레트. **이 파일 밖으로 새지 않는다** |
+| `src/programs/messenger.css` | `메신저` 창 전용 카카오톡 팔레트. **이 파일 밖으로 새지 않는다** |
+| `src/programs/editor.css` | `에디터` 창 전용 VS Code Dark+ 팔레트. ⚠️ **어두운 창**이라 대비 방향이 반대다 — 값을 다른 창과 주고받지 말 것 |
+| `src/programs/photoshop.css` | `포토샵` 창 전용 Photoshop CC Dark 팔레트. ⚠️ 어두운 창(에디터와 둘뿐). 보조 글자는 실제 포토샵의 #9A9A9A가 아니라 **#A0A0A0**이다 — 그 값이라야 패널 위에서 AA를 넘는다 |
+| `src/programs/figma.css` | `피그마` 창 전용 캔버스 뉴트럴 팔레트(액센트 없음 — 선택은 면으로 말한다). **이 파일 밖으로 새지 않는다** |
 | `src/data/sites.ts` | 가짜 포털 이름 + 첫화면 바로가기 목록. 사이트가 생기면 여는 대상이 여기 붙는다 |
 | `src/systems/url.ts` | 주소창 글자 → 갈 곳(`resolveUrl`) + 관리자 로그인 대조(`checkLogin`). **주소·계정의 정본은 `CLIENTS`다** — 여기 다시 적지 않는다 |
 | `src/programs/AdminSite.tsx` | 업체별 관리자 페이지(로그인 + 팝업 목록 + 등록 폼). 로그인은 `useState`(창 닫으면 풀림), 걸린 팝업은 스토어 `popups`. ⚠️ 셀렉터 안에서 `filter`를 돌리지 말 것 — 새 배열이 나와 zustand가 무한 렌더로 화면을 하얗게 만든다(겪었다) |
-| `src/programs/Photoshop.tsx` | 팝업 이미지 제작. **행동력을 여기서만 쓴다**(`POPUP_MAKE_AP`). 셸 언어(`.ps*`) |
+| `src/programs/Photoshop.tsx` | 팝업 이미지 제작(도구 막대 · 문서 탭 · 캔버스 · 레이어 패널). 팝업 제작이 행동력을 문다(고른 퀄리티 — 퍼블리싱은 에디터가 진다). 실제로 동작하는 것은 **탭과 제작 버튼 셋뿐**이고 도구 막대는 표시다 |
+| `src/systems/craft.ts` | 제작 결과의 등급(`gradeOf`) + 시안 파일 타입. **퀄리티가 밴드, 스탯이 칸**이고 무작위는 없다 |
+| `src/programs/Editor.tsx` | 퍼블리싱 공정(FTP 연결 → 업체 폴더 → 남은 업무 → 줄 클릭 = 실행). **행동력을 무는 둘째 자리다**(`PUBLISH_AP`) |
+| `src/systems/money.ts` | 대금·평판 변화(`reward`) · 파기(`breach`) · 월말 정산(`isSettleWeek`·`monthlyCost`) + 파기·정산 메일 문안. ⚠️ 수치는 전부 `data/game.ts`에서 온다 |
+| `src/systems/pipeline.ts` | **공정의 줄과 회신 규칙의 정본**(`PIPELINE`·`openStep`·`canReply`·`satisfaction` + 답장/완료 메일 문안). 창들은 `isTurnOf(job, 자기 프로그램)` 한 줄로 목록을 가른다 — 종류별 조건을 컴포넌트에 다시 적지 말 것 |
+| `src/programs/Ppt.tsx` | 화면정의서(사이트 첫 공정)와 발표자료(PPT 업무)를 **같은 손으로** 만든다(`makeSlides`). 셸 언어 그대로인 작은 창이다 |
+| `src/systems/ftp.ts` | FTP 접속 정보 대조(`checkFtp`). **정본은 `CLIENTS[].ftp`** — 여기 값을 다시 적지 않는다. `ftp://`만 여기서 벗긴다(`normalizeUrl`은 http(s)만 안다) |
+| `src/programs/Figma.tsx` | 피그마 파일 브라우저(사이드바 + 파일 그리드 + 속성 패널). 카드를 고르면 오른쪽에서 **시안을 만든다**(행동력을 무는 셋째 자리). 만든 시안은 스토어 `drafts` — 팝업 `files`와 **다른 목록**이다(등록 화면에 .fig가 뜨면 안 된다) |
 | `src/systems/popup.ts` | 팝업 판정의 순수 함수(`judgePopups`) + 파일 id 규약(`popupFileId`/`isFileOf`) + 클레임 메일 문안 |
 | `src/components/JobActions.tsx` | 견적보내기/거절하기. ⚠️ **색이 없다** — 감싸는 창이 `--jobact-*`를 준다(그래서 메일과 사내시스템에서 각자 팔레트로 선다) |
 | `src/data/icons.ts` | 아이콘 이름 단일 출처 |
@@ -84,5 +99,5 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/systems/` | 순수 함수(React·Math.random 금지). 지금은 `calendar.ts` — 주차 → 몇 년 몇 월 몇째 주 |
 | `src/store.ts` | zustand — 게임 5축 + 창 목록(x·y·z) |
 | `src/components/` | `Window` · `Desktop` · `Taskbar`(창 목록) · `Hud`(오른쪽 위 주차·스탯·업무목록 판) |
-| `src/programs/` | 창 내용(`Figma`·`Photoshop`은 공정 시스템이 생길 자리라 아직 `.empty`다). `ProgramId` → 컴포넌트 짝은 `App.tsx`의 `VIEWS` |
+| `src/programs/` | 창 내용. `ProgramId` → 컴포넌트 짝은 `App.tsx`의 `VIEWS` |
 | `scripts/build-icon-subset.mjs` | `src/`를 훑어 `src/icons/generated.ts` 생성(`npm run icons`) |

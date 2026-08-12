@@ -1,0 +1,114 @@
+/* `메신저` 창의 시각 언어. **셸(게임) 팔레트와 섞지 않는다** — 프로그램 창은 자기 팔레트를
+ * 자기 CSS 안에 가둔다(`mail.css`와 같은 규칙).
+ *
+ * 출처: 카카오톡 PC 화면 그대로다 — 왼쪽 인디고 레일 · 흰 목록 · 회색 대화 칸.
+ * ⚠️ 아래 블록 밖에서 새 색을 만들지 말 것. 대비는 다음과 같이 확인했다:
+ *   #fff on #4655c8 = 7.0:1 · #191919 on #ebebeb = 14:1
+ * ⚠️ 보조 글자는 카카오톡의 #767676이 아니라 **#666666**이다 — 회색 대화 칸(#ebebeb) 위에서
+ *    #767676은 3.8:1로 AA에 미달한다. 가장 어두운 바탕을 기준으로 잡아야 한 값으로 끝난다
+ *    (#666 on #ebebeb = 4.8:1 · on #fff = 5.7:1).
+ * 간격·모서리·글자 크기는 셸의 --sp-, --fs- 토큰을 그대로 쓴다(값 중복 금지).
+ * 글꼴만 한글 메신저의 모습대로 맑은 고딕 계열로 떨어뜨린다. */
+
+.msgr {
+  --msgr-rail: #4655c8;
+  /* 레일 위 글리프. #c9cff2는 4.0:1로 AA에 못 미쳐 한 단 밝힌다(#dfe3fa = 4.8:1). */
+  --msgr-rail-ink: #dfe3fa;
+  --msgr-surface: #ffffff;
+  --msgr-chat-bg: #ebebeb;
+  --msgr-stroke: #e8e8e8;
+  --msgr-text: #191919;
+  --msgr-text-2: #666666;
+
+  display: grid;
+  grid-template-columns: 56px 260px 1fr;
+  height: 100%;
+  min-height: 0;
+  background: var(--msgr-chat-bg);
+  color: var(--msgr-text);
+  font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  font-size: var(--fs-sm);
+}
+
+/* ── 레일 ─────────────────────────────────────────────── */
+/* ⚠️ 버튼이 아니다 — 지금 창에는 화면이 하나뿐이라 누를 곳을 그리면 죽은 컨트롤이 된다.
+   화면이 늘어나면 그때 button으로 바꾼다. */
+.msgr__rail {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  background: var(--msgr-rail);
+  color: var(--msgr-rail-ink);
+}
+
+.msgr__me {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  background: var(--msgr-surface);
+  color: var(--msgr-rail);
+  font-weight: 700;
+}
+
+.msgr__rail-on {
+  color: var(--msgr-surface);
+}
+
+/* ── 대화 목록 ────────────────────────────────────────── */
+.msgr__list {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  background: var(--msgr-surface);
+  border-right: 1px solid var(--msgr-stroke);
+}
+
+.msgr__list-head {
+  padding: var(--sp-4) var(--sp-4) var(--sp-2);
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+
+/* ⚠️ 방 목록(직원 한 명 = 방 하나)의 줄 스타일은 **채용이 생길 때** 여기 붙인다.
+   지금 쓰지 않는 규칙을 미리 적어 두면 붙일 때 이미 어긋나 있다. */
+
+/* ── 대화 칸 ──────────────────────────────────────────── */
+.msgr__chat {
+  display: grid;
+  min-height: 0;
+}
+
+/* ⚠️ 셸의 `.empty`를 쓰지 않는다 — 그쪽은 게임 팔레트다. */
+.msgr__blank {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--sp-2);
+  min-height: 0;
+  padding: var(--sp-6);
+  overflow-y: auto;
+  color: var(--msgr-text-2);
+  text-align: center;
+}
+
+/* 목록 칸의 빈 상태는 위쪽에 붙는다 — 좁은 칸에서 가운데 정렬은 제목과 멀어져 떠 보인다. */
+.msgr__blank--list {
+  place-content: start center;
+  padding-top: var(--sp-4);
+  font-size: var(--fs-sm);
+}
+
+.msgr__blank-title {
+  color: var(--msgr-text);
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+
+.msgr__blank-note {
+  max-width: 40ch;
+  line-height: 1.6;
+}

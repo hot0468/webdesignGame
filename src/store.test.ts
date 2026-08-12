@@ -1,5 +1,15 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { CLAIM_REPUTATION_LOSS, INITIAL_GAME, POPUP_MAKE_AP, WINDOW_DRAG } from './data/game'
+﻿import { beforeEach, describe, expect, it } from 'vitest'
+import {
+  BASE_FEE,
+  BREACH_REPUTATION_LOSS,
+  CLAIM_REPUTATION_LOSS,
+  findQuality,
+  GRADE_REWARD,
+  INITIAL_GAME,
+  WEEKS_PER_MONTH,
+  WINDOW_DRAG,
+} from './data/game'
+import { monthlyCost } from './systems/money'
 import { MESSAGES, type Request } from './data/inbox'
 import type { ProgramId } from './data/programs'
 import { focusedWindowId, useGame } from './store'
@@ -12,8 +22,10 @@ beforeEach(() => {
     readIds: [],
     rejectedIds: [],
     files: [],
+    drafts: [],
+    slides: [],
     popups: [],
-    claims: [],
+    mails: [],
   })
 })
 
@@ -28,6 +40,7 @@ describe('초기 수치', () => {
       mentalMax: s.mentalMax,
       money: s.money,
       reputation: s.reputation,
+      design: s.design,
     }).toEqual({ ...INITIAL_GAME })
   })
 })
@@ -136,6 +149,172 @@ describe('업무 수주', () => {
   })
 })
 
+// 공정 → 회신 → 다음 공정의 고리. **업무를 끝내는 것은 회신 하나뿐이다.**
+describe('공정과 회신', () => {
+  const site = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'site')!
+  const fix = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'fix')!
+
+  it('사이트 업무는 화면정의서 → 시안 → 퍼블리싱 순으로만 진행된다', () => {
+    const g = () => useGame.getState()
+    g().acceptJob(site)
+
+    // 앞 공정을 건너뛰려 해도 아무 일이 없다 — 창의 필터가 아니라 스토어가 막는다.
+    g().makeDraft(site.id, 'light')
+    g().publishJob(site.id)
+    expect(g().drafts).toEqual([])
+    expect(g().jobs[0]!.step).toBe(0)
+
+    g().makeSlides(site.id, 'light')
+    expect(g().jobs[0]!.step).toBe(1)
+    // 회신하기 전에는 다음 공정도 막힌다.
+    g().makeDraft(site.id, 'light')
+    expect(g().drafts).toEqual([])
+
+    g().replyJob(site.id)
+    useGame.setState({ ap: 3 })
+    g().makeDraft(site.id, 'light')
+    g().replyJob(site.id)
+    useGame.setState({ ap: 3 })
+    g().publishJob(site.id)
+    expect(g().jobs[0]!.done).toBe(false) // ⚠️ 만든 것으로는 끝나지 않는다
+    g().replyJob(site.id)
+    expect(g().jobs[0]!.done).toBe(true)
+  })
+
+  it('중간 회신에는 답장이, 완료 회신에는 만족도 메일이 온다', () => {
+    const g = () => useGame.getState()
+    g().acceptJob(site)
+    g().makeSlides(site.id, 'light')
+    g().replyJob(site.id)
+    // 답장은 그 업무에 매인 글이라 `jobId`를 진다(그 글에서도 다음 회신을 보낼 수 있다).
+    expect(g().mails[0]!.jobId).toBe(site.id)
+    expect(g().mails[0]!.channel).toBe(site.channel)
+
+    useGame.setState({ ap: 3 })
+    g().makeDraft(site.id, 'light')
+    g().replyJob(site.id)
+    useGame.setState({ ap: 3 })
+    g().publishJob(site.id)
+    g().replyJob(site.id)
+    // 만족도는 산출물 등급 중 가장 낮은 것이다(약한 고리) — 여기서는 전부 '간단하게'다.
+    expect(g().mails[0]!.body).toContain('만족도')
+  })
+
+  // ⚠️ 남의 관리자 페이지에 올려 놓고 등록 공정을 통과하면, 화면은 진행됐다고 하는데
+  //    그 업체 사이트에는 아무것도 안 걸린 상태가 된다.
+  it('팝업 등록은 그 업무의 업체에 올려야 공정이 오른다', () => {
+    const g = () => useGame.getState()
+    const popupJob = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'popup')!
+    g().acceptJob(popupJob)
+    g().makePopup(popupJob.id, 'light')
+    g().replyJob(popupJob.id)
+    const fileId = g().files[0]!.id
+    const step = g().jobs[0]!.step
+
+    g().uploadPopup('hanbit', fileId, 2, 3) // 남의 업체
+    expect(g().jobs[0]!.step).toBe(step)
+
+    g().uploadPopup(popupJob.popup!.clientId, fileId, 2, 3)
+    expect(g().jobs[0]!.step).toBe(step + 1)
+  })
+
+  // ⚠️ 회신하기 전에 올리면 팝업은 걸리는데 **공정은 오르지 않는다**(차례가 아니라서).
+  //    관리자 페이지가 그 파일을 잠그는 이유가 이것이다 — 안 잠그면 같은 팝업을 두 번 건다.
+  it('제작을 회신하기 전에는 등록해도 공정이 오르지 않는다', () => {
+    const g = () => useGame.getState()
+    const popupJob = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'popup')!
+    g().acceptJob(popupJob)
+    g().makePopup(popupJob.id, 'light')
+    g().uploadPopup(popupJob.popup!.clientId, g().files[0]!.id, 2, 3)
+
+    expect(g().popups).toHaveLength(1) // 사이트에는 실제로 걸린다
+    expect(g().jobs[0]!.step).toBe(1) // 하지만 업무는 제자리다
+  })
+
+  it('회신은 행동력을 먹지 않는다', () => {
+    const g = () => useGame.getState()
+    g().acceptJob(fix)
+    g().publishJob(fix.id)
+    const before = g().ap
+    g().replyJob(fix.id)
+    expect(g().ap).toBe(before)
+    expect(g().jobs[0]!.done).toBe(true)
+  })
+})
+
+// 돈·주차·정산을 만드는 불변식이라 **규칙을 뒤집어** 확인한다(CLAUDE.md의 검증 규칙).
+describe('대금·파기·정산', () => {
+  const fix = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'fix')!
+
+  it('완료 회신이 대금을 넣고 평판을 움직인다', () => {
+    const g = () => useGame.getState()
+    const money = g().money
+    const rep = g().reputation
+    g().acceptJob(fix)
+    g().publishJob(fix.id)
+    g().replyJob(fix.id)
+
+    // 퍼블리싱만 있는 업무는 등급이 없어 기준선(C)이다 — 대금은 정가, 평판은 그대로.
+    expect(g().money).toBe(money + BASE_FEE.fix)
+    expect(g().reputation).toBe(rep)
+    expect(g().mails[0]!.body).toContain('대금')
+  })
+
+  it('공들인 만큼 더 받는다 — 등급이 대금을 정한다', () => {
+    const g = () => useGame.getState()
+    const ppt = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'ppt')!
+    const money = g().money
+    g().acceptJob(ppt)
+    g().makeSlides(ppt.id, 'care') // 행동력 3 — 등급 S대
+    g().replyJob(ppt.id)
+    const grade = g().slides[0]!.grade
+    expect(g().money).toBe(money + Math.round(BASE_FEE.ppt * GRADE_REWARD[grade].fee))
+    expect(g().money).toBeGreaterThan(money + BASE_FEE.ppt)
+  })
+
+  // ⚠️ 만들어 놓고 **보내지 않은** 것은 지킨 것이 아니다 — 납품은 보내는 일이다.
+  it('마감을 넘기면 대금 0에 평판이 깎인다 — 회신 안 한 완성품도 깨진다', () => {
+    const g = () => useGame.getState()
+    g().acceptJob(fix)
+    g().publishJob(fix.id) // 만들었지만 회신하지 않는다
+    const money = g().money
+    const rep = g().reputation
+
+    // ⚠️ 월말(4의 배수)에 걸리지 않는 주로 민다 — 정산까지 겹치면 무엇이 돈을 움직였는지 흐려진다.
+    useGame.setState({ week: g().jobs[0]!.due + 1 })
+    g().advanceWeek()
+
+    const job = g().jobs[0]!
+    expect({ done: job.done, breached: job.breached }).toEqual({ done: true, breached: true })
+    expect(g().money).toBe(money)
+    expect(g().reputation).toBe(rep - BREACH_REPUTATION_LOSS)
+    expect(g().mails.some((m) => m.id === `breach:${fix.id}`)).toBe(true)
+  })
+
+  it('월말에 고정 지출이 빠지고 정산 메일이 온다', () => {
+    const g = () => useGame.getState()
+    const money = g().money
+    useGame.setState({ week: WEEKS_PER_MONTH - 1 })
+    g().advanceWeek() // 4주차 = 월말
+
+    expect(g().money).toBe(money - monthlyCost())
+    expect(g().mails[0]!.subject).toContain('월말 정산')
+
+    // 월말이 아닌 주에는 빠지지 않는다(규칙을 뒤집어 확인).
+    const after = g().money
+    g().advanceWeek()
+    expect(g().money).toBe(after)
+  })
+
+  it('평판은 0~100 밖으로 나가지 않는다', () => {
+    const g = () => useGame.getState()
+    g().acceptJob(fix)
+    useGame.setState({ reputation: 2, week: g().jobs[0]!.due })
+    g().advanceWeek()
+    expect(g().reputation).toBe(0)
+  })
+})
+
 describe('팝업 제작·등록', () => {
   const popupJob = MESSAGES.find((m): m is Request => !m.ad && m.popup !== undefined)!
 
@@ -157,22 +336,31 @@ describe('팝업 제작·등록', () => {
   // 제작이 비용을 진다. ⚠️ 이 값이 등록 쪽으로 옮겨 가면 한 팝업에 두 번 값을 물린다.
   it('제작은 행동력을 쓴다', () => {
     const before = useGame.getState().ap
-    useGame.getState().makePopup(popupJob.id)
-    expect(useGame.getState().ap).toBe(before - POPUP_MAKE_AP)
+    useGame.getState().makePopup(popupJob.id, 'light')
+    expect(useGame.getState().ap).toBe(before - findQuality('light').ap)
     expect(useGame.getState().files).toHaveLength(1)
+  })
+
+  // 퀄리티가 비용과 등급을 **함께** 정한다 — 한쪽만 따라가면 "비싼데 결과가 같다"가 된다.
+  it('공들일수록 행동력을 더 쓰고 등급이 올라간다', () => {
+    useGame.setState({ ap: 3, files: [] })
+    useGame.getState().makePopup(popupJob.id, 'care')
+    const [file] = useGame.getState().files
+    expect(useGame.getState().ap).toBe(3 - findQuality('care').ap)
+    expect(findQuality('care').grades).toContain(file!.grade)
   })
 
   // 규칙을 뒤집어 본다: 행동력이 없으면 파일도 생기지 않아야 한다(음수 행동력 금지).
   it('행동력이 모자라면 만들어지지 않는다', () => {
     useGame.setState({ ap: 0 })
-    useGame.getState().makePopup(popupJob.id)
+    useGame.getState().makePopup(popupJob.id, 'light')
     expect(useGame.getState().files).toEqual([])
     expect(useGame.getState().ap).toBe(0)
   })
 
   // ⚠️ 등록은 **값을 물리지 않는다.** 여기에 비용이 되살아나면 제작과 합쳐 두 번 문다.
   it('등록은 행동력을 먹지 않는다 — 0이어도 등록된다', () => {
-    useGame.getState().makePopup(popupJob.id)
+    useGame.getState().makePopup(popupJob.id, 'light')
     const fileId = useGame.getState().files[0]!.id
     useGame.setState({ ap: 0 })
     useGame.getState().uploadPopup('dalbit', fileId, 2, 3)
@@ -183,7 +371,7 @@ describe('팝업 제작·등록', () => {
   })
 
   it('게시 기간은 나중에 고칠 수 있다', () => {
-    useGame.getState().makePopup(popupJob.id)
+    useGame.getState().makePopup(popupJob.id, 'light')
     useGame.getState().uploadPopup('dalbit', useGame.getState().files[0]!.id, 2, 3)
     const id = useGame.getState().popups[0]!.id
     useGame.getState().updatePopupPeriod(id, 4, 9)
@@ -208,7 +396,7 @@ describe('주차 진행', () => {
   // 규칙을 뒤집어 확인한다: **맞게 걸어 두면 아무 일도 일어나지 않아야 한다.**
   it('기간이 맞으면 클레임도 평판 하락도 없다', () => {
     useGame.getState().acceptJob(popupJob)
-    useGame.getState().makePopup(popupJob.id)
+    useGame.getState().makePopup(popupJob.id, 'light')
     const job = useGame.getState().jobs[0]!
     useGame
       .getState()
@@ -216,7 +404,7 @@ describe('주차 진행', () => {
 
     const rep = useGame.getState().reputation
     useGame.getState().advanceWeek()
-    expect(useGame.getState().claims).toEqual([])
+    expect(useGame.getState().mails).toEqual([])
     expect(useGame.getState().reputation).toBe(rep)
   })
 
@@ -226,10 +414,10 @@ describe('주차 진행', () => {
     useGame.getState().advanceWeek()
 
     const s = useGame.getState()
-    expect(s.claims).toHaveLength(1)
-    expect(s.claims[0]!.channel).toBe('mail')
+    expect(s.mails).toHaveLength(1)
+    expect(s.mails[0]!.channel).toBe('mail')
     // ⚠️ 클레임은 `ad` 갈래여야 한다 — 아니면 항의에 견적보내기가 붙는다.
-    expect(s.claims[0]!.ad).toBe(true)
+    expect(s.mails[0]!.ad).toBe(true)
     expect(s.reputation).toBe(rep - CLAIM_REPUTATION_LOSS)
   })
 
@@ -246,7 +434,7 @@ describe('주차 진행', () => {
     useGame.getState().acceptJob(popupJob)
     useGame.getState().advanceWeek()
     useGame.getState().advanceWeek()
-    const ids = useGame.getState().claims.map((c) => c.id)
+    const ids = useGame.getState().mails.map((c) => c.id)
     expect(new Set(ids).size).toBe(ids.length)
   })
 })

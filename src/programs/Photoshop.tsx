@@ -1,84 +1,153 @@
+import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
-import { PROGRAM_ICONS } from '../data/icons'
-import { POPUP_MAKE_AP } from '../data/game'
-import { formatWeek } from '../systems/calendar'
-import { useGame } from '../store'
+import { PHOTOSHOP_ICONS, PROGRAM_ICONS } from '../data/icons'
+import { QUALITY } from '../data/game'
+import { gradeOf } from '../systems/craft'
+import { formatPeriod } from '../systems/calendar'
+import { isTurnOf, showsIn } from '../systems/pipeline'
+import { asStep, useGame } from '../store'
+import './photoshop.css'
 
 /** `포토샵` 창. 팝업 업무의 **제작 공정**이 여기서 돈다(그다음이 브라우저에서의 등록).
  *
- * ⚠️ **비용을 지는 쪽은 여기다**(`POPUP_MAKE_AP`). 등록(관리자 페이지)은 값을 물리지
+ * 실제 포토샵의 네 칸(도구 막대 · 문서 탭 · 캔버스 · 오른쪽 패널)이다. 시각 언어는 셸이
+ * 아니라 `photoshop.css`가 진다 — 프로그램 창은 자기 팔레트를 가둔다(`mail.css`와 같은 규칙).
+ *
+ * ⚠️ **비용을 지는 쪽은 여기다**(고른 퀄리티의 행동력). 등록(관리자 페이지)은 값을 물리지
  *    않는다 — 한 팝업에 두 번 값을 물리지 않으려는 구분이라 되돌리지 말 것.
  *
  * ⚠️ 만든 파일은 **어느 업무 것이든 전부 등록 화면에 뜬다**. 여기서 업체별로 갈라
  *    "맞는 것만" 보이게 하면 이 고리의 실수(틀린 파일)가 성립하지 않는다.
  *
- * ⚠️ 셸 언어로 산다(`.empty`·`.job*` 등). 자기 팔레트를 가지는 것은 메일·브라우저처럼
- *    **화면 전체가 다른 프로그램인** 창의 예외이고, 여기는 아직 목록 하나뿐이다. */
+ * ⚠️ 포토샵의 겉모습 중 **실제로 동작하는 것은 문서 탭과 제작 버튼뿐**이다. 도구 막대는
+ *    표시고(`photoshop.css` 참고), 메뉴·옵션바는 아예 그리지 않는다 — 눌러도 아무 일 없는
+ *    컨트롤은 이 프로젝트가 금지한다.
+ *
+ * ⚠️ 고른 문서는 `useState`다. 스토어에 넣으면 세이브에 들어가고, 창을 보는 방식 때문에
+ *    세이브 버전을 올리게 된다. */
 export function Photoshop() {
   const jobs = useGame((s) => s.jobs)
   const files = useGame((s) => s.files)
   const ap = useGame((s) => s.ap)
+  const design = useGame((s) => s.design)
   const makePopup = useGame((s) => s.makePopup)
+  const [openId, setOpenId] = useState<string | null>(null)
 
-  // 완료된 업무는 만들 것이 없다 — 끝난 일의 버튼을 살려 두면 행동력만 새어 나간다.
-  const popupJobs = jobs.filter((j) => j.popup && !j.done)
-
-  if (popupJobs.length === 0) {
-    return (
-      <div className="empty">
-        <p className="empty__title">작업 중인 파일이 없다</p>
-        <p className="empty__note">
-          팝업 업무를 수주하면 여기서 이미지를 만든다. 만든 파일은 업체 관리자 페이지에서
-          등록한다.
-        </p>
-      </div>
-    )
-  }
+  // **제작 차례인 팝업 업무만** 선다(`systems/pipeline.ts`) — 끝난 업무도, 이미 만들어 놓고
+  // 아직 회신하지 않은 업무도 빠진다. 끝난 일의 버튼을 살려 두면 행동력만 새어 나간다.
+  const popupJobs = jobs.filter((j) => showsIn(asStep(j), 'photoshop'))
+  // 탭을 아직 안 골랐거나 고른 업무가 사라졌으면 첫 문서를 연다(빈 캔버스를 보여 주지 않는다).
+  const open = popupJobs.find((j) => j.id === openId) ?? popupJobs[0]
+  const mine = open ? files.filter((f) => f.jobId === open.id) : []
 
   return (
     <div className="ps">
-      <p className="ps__note">
-        만든 파일은 업체 관리자 페이지의 팝업 등록에서 고른다. 제작에 행동력 {POPUP_MAKE_AP}
-        을 쓴다.
-      </p>
+      {/* 도구 막대. ⚠️ 표시다 — 브러시만 켜져 있고 나머지는 갈 곳이 없다. */}
+      <div className="ps__tools" aria-hidden="true">
+        {TOOLS.map((t) => (
+          <span key={t.name} className={`ps__tool${t.on ? ' ps__tool--on' : ''}`}>
+            <AppIcon name={t.name} size={18} />
+          </span>
+        ))}
+      </div>
 
-      <ul className="ps__jobs">
-        {popupJobs.map((j) => {
-          const mine = files.filter((f) => f.jobId === j.id)
-          return (
-            <li key={j.id} className="ps__job">
-              <p className="ps__from">{j.from}</p>
-              <p className="ps__title">{j.title}</p>
-              {/* 요청 기간은 마감과 **같은 표기**다 — 두 날짜를 나란히 비교할 수 있어야 한다. */}
-              <p className="ps__period">
-                게시 {formatWeek(j.popup!.from)} ~ {formatWeek(j.popup!.to)}
-              </p>
+      <div className="ps__tabs" role="tablist" aria-label="열린 문서">
+        {popupJobs.map((j) => (
+          <button
+            key={j.id}
+            type="button"
+            role="tab"
+            aria-selected={j.id === open?.id}
+            className={`ps__tab${j.id === open?.id ? ' ps__tab--on' : ''}`}
+            onClick={() => setOpenId(j.id)}
+          >
+            {j.from}_팝업.psd
+          </button>
+        ))}
+      </div>
 
-              {mine.length > 0 && (
-                <ul className="ps__files">
-                  {mine.map((f) => (
-                    <li key={f.id} className="ps__file">
-                      <AppIcon name={PROGRAM_ICONS.file} />
-                      {f.name}
-                    </li>
-                  ))}
-                </ul>
-              )}
+      {!open ? (
+        <p className="ps__blank">
+          열린 문서가 없다. 팝업 업무를 수주하면 여기서 이미지를 만든다.
+        </p>
+      ) : (
+        <div className="ps__canvas">
+          {/* 아트보드가 곧 만들 팝업이다. 만들기 전에는 투명 격자(빈 문서)로 선다. */}
+          <div className={`ps__art${mine.length === 0 ? ' ps__art--empty' : ''}`}>
+            <p className="ps__art-client">{open.from}</p>
+            <p className="ps__art-period">게시 {formatPeriod(open.popup!.from, open.popup!.to)}</p>
+          </div>
+          <p className="ps__size">{open.title}</p>
+        </div>
+      )}
 
-              {/* ⚠️ 못 누르는 이유를 **글자로** 말한다 — 흐린 버튼만 두면 왜 안 되는지 모른다. */}
+      <div className="ps__panels">
+        {/* 레이어 패널이 곧 **만든 파일 목록**이다 — 관리자 페이지의 등록 화면에서 고를 것들. */}
+        <p className="ps__panel-head">
+          <AppIcon name={PHOTOSHOP_ICONS.layers} size={16} />
+          레이어
+        </p>
+        {mine.length === 0 ? (
+          <p className="ps__none">
+            {open ? '아직 만든 이미지가 없다.' : '문서를 열면 레이어가 선다.'}
+          </p>
+        ) : (
+          <ul className="ps__layers">
+            {mine.map((f) => (
+              <li key={f.id} className="ps__layer" title={f.name}>
+                <AppIcon name={PROGRAM_ICONS.file} size={16} />
+                <span className="ps__layer-name">{f.name}</span>
+                {/* 등급은 만든 순간 굳는다 — 같은 업무의 두 파일이 서로 다른 등급일 수 있다. */}
+                <span className="ps__grade">{f.grade}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* 만들고 나면 회신 전까지 다시 만들 수 없다(공정 하나에 한 번) — 그때는 버튼 대신
+            다음에 할 일을 적는다. */}
+        {open && !isTurnOf(asStep(open), 'photoshop') && (
+          <p className="ps__short">
+            만들었다. {open.channel === 'board' ? '고객게시판' : '메일'}의 그 글에서 회신해야 등록
+            공정이 열린다.
+          </p>
+        )}
+        {open && isTurnOf(asStep(open), 'photoshop') && (
+          <div className="ps__makes">
+            {/* ⚠️ 얼마나 공들일지를 **누르기 전에** 알 수 있어야 고를 수 있다 —
+                버튼마다 무는 행동력과 지금 스탯이면 나올 등급을 함께 적는다. */}
+            <p className="ps__panel-head">팝업 만들기</p>
+            {QUALITY.map((q) => (
               <button
+                key={q.id}
                 type="button"
                 className="ps__make"
-                disabled={ap < POPUP_MAKE_AP}
-                onClick={() => makePopup(j.id)}
+                disabled={ap < q.ap}
+                onClick={() => makePopup(open.id, q.id)}
               >
-                팝업 이미지 만들기
+                {q.label}
+                <span className="ps__cost">
+                  행동력 {q.ap} · {gradeOf(q.id, design)}
+                </span>
               </button>
-              {ap < POPUP_MAKE_AP && <p className="ps__short">행동력이 모자란다.</p>}
-            </li>
-          )
-        })}
-      </ul>
+            ))}
+            {ap < QUALITY[0].ap && <p className="ps__short">행동력이 모자란다.</p>}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
+
+/** 도구 막대의 글리프 순서. 실제 포토샵의 위에서부터 순서다(이동 → 선택 → 자르기 → 그리기 →
+ *  글자 → 도형). ⚠️ 브러시만 켜져 있다 — 이 게임의 제작은 이미지를 그리는 일이다. */
+const TOOLS = [
+  { name: PHOTOSHOP_ICONS.move },
+  { name: PHOTOSHOP_ICONS.marquee },
+  { name: PHOTOSHOP_ICONS.lasso },
+  { name: PHOTOSHOP_ICONS.crop },
+  { name: PHOTOSHOP_ICONS.brush, on: true },
+  { name: PHOTOSHOP_ICONS.eraser },
+  { name: PHOTOSHOP_ICONS.text },
+  { name: PHOTOSHOP_ICONS.shape },
+]
