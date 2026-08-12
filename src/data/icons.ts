@@ -35,3 +35,22 @@ export const STAT_ICONS = {
   jobOpen: 'mdi:circle-outline',
   jobDone: 'mdi:check-circle-outline',
 } as const
+
+/** `브라우저` 창 전용 글리프. ⚠️ 크롬(주소창·검색창)은 단색 `mdi`다 — 브라우저 자체의
+ *  UI는 색을 쓰지 않아야 그 안의 사이트가 색을 가질 수 있다. 바로가기 칸의 사이트
+ *  아이콘만 다색 `fluent-color`로, 바탕화면 아이콘과 같은 규칙이다. */
+export const BROWSER_ICONS = {
+  back: 'mdi:arrow-left',
+  forward: 'mdi:arrow-right',
+  reload: 'mdi:refresh',
+  search: 'mdi:magnify',
+  lock: 'mdi:lock-outline',
+} as const
+
+/** 첫화면 바로가기 칸의 사이트 아이콘. 다색이므로 CSS color를 입히지 않는다. */
+export const SITE_ICONS = {
+  work: 'fluent-color:briefcase-24',
+  hire: 'fluent-color:people-team-24',
+  shop: 'fluent-color:building-store-24',
+  company: 'fluent-color:building-24',
+} as const

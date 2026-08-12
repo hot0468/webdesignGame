@@ -161,6 +161,22 @@ const dblClickJs = (sel) => `(() => {
   return true
 })()`
 
+/**
+ * 입력칸에 글자를 넣는다(`--type "<셀렉터>=<값>"`).
+ *
+ * ⚠️ **`el.value = x`는 React가 무시한다.** 제어 컴포넌트는 자기가 아는 값만 그리므로
+ *    네이티브 setter로 쓴 뒤 `input` 이벤트를 직접 쏴야 onChange가 돈다.
+ *    이 배선이 `login()`에도 그대로 있었다 — 폼이 생길 때마다 다시 알아내지 않으려고 뺐다.
+ */
+const typeJs = (sel, value) => `(() => {
+  const i = document.querySelector(${JSON.stringify(sel)})
+  if (!i) return false
+  const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+  set.call(i, ${JSON.stringify(value)})
+  i.dispatchEvent(new Event('input', { bubbles: true }))
+  return true
+})()`
+
 /** 잠금화면을 통과해 바탕화면까지 간다. 새 판이면 이름을 넣고, 세이브가 있으면 그대로 들어간다. */
 async function login(d, name) {
   if (!(await d.evalJs(`!!document.querySelector('.lock')`))) return
@@ -264,6 +280,8 @@ CDP 실측 하네스 — 헤드리스 크롬으로 찍고 합성 픽셀로 대�
   --click <셀렉터>   요소를 누른다. 여러 번 줄 수 있고 준 순서대로 실행된다
   --dblclick <셀>    더블클릭한다. ⚠️ 이 리포의 바탕화면 아이콘은 **단일 클릭**으로 열린다 —
                      --dblclick은 아무 일도 안 하면서 ok를 찍는다. --click을 써라
+  --type <셀>=<값>   입력칸에 글자를 넣는다. --click과 **같은 순서 큐**에 들어간다
+                     (예: --type ".nv__input=팝업" --click ".nv__btn")
   --wait <ms>        --click 사이 대기(기본 400)
   --shot <파일>      스크린샷을 저장한다
   --contrast <셀>    그 셀렉터에 걸리는 요소의 합성 대비를 잰다(기본 검사 대상 없음)
@@ -291,6 +309,11 @@ function parseArgs(argv) {
     if (a === '--help' || a === '-h') o.help = true
     else if (a === '--click') o.clicks.push({ sel: next(), dbl: false })
     else if (a === '--dblclick') o.clicks.push({ sel: next(), dbl: true })
+    // ⚠️ 클릭과 **같은 큐**에 넣는다 — 따로 두면 "치고 나서 누른다"는 순서를 잃는다.
+    else if (a === '--type') {
+      const [sel, ...rest] = next().split('=')
+      o.clicks.push({ sel, text: rest.join('=') })
+    }
     else if (a === '--wait') o.wait = Number(next())
     else if (a === '--shot') o.shot = next()
     else if (a === '--contrast') o.contrast = next()
@@ -344,9 +367,11 @@ async function main() {
     await sleep(500)
     await login(d, o.name)
 
-    for (const { sel, dbl } of o.clicks) {
-      const ok = await d.evalJs(dbl ? dblClickJs(sel) : clickJs(sel))
-      console.log(`${dbl ? '더블클릭' : '클릭'} ${sel}: ${ok ? 'ok' : '없음'}`)
+    for (const { sel, dbl, text } of o.clicks) {
+      const isType = text !== undefined
+      const ok = await d.evalJs(isType ? typeJs(sel, text) : dbl ? dblClickJs(sel) : clickJs(sel))
+      const what = isType ? `입력 ${sel}="${text}"` : `${dbl ? '더블클릭' : '클릭'} ${sel}`
+      console.log(`${what}: ${ok ? 'ok' : '없음'}`)
       await sleep(o.wait)
     }
 

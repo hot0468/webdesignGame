@@ -42,6 +42,8 @@
 - 창 크기는 `PROGRAMS`의 `size`가 정한다 — 없으면 기본 440px(`일정`·`피그마`·`포토샵` 등), `app`은 큰 프로그램(`메일`·`사내시스템`). `app`은 `.window__body` 패딩을 걷으므로 **내용 쪽이 자기 패딩을 진다**
 - ⚠️ `app`은 **높이도 고정**한다 — 내용은 `height:100%` + 안쪽 칸이 각자 `overflow-y:auto`로 구른다(창이 작업 표시줄을 뚫지 않게)
 - 프로그램 창이 **자기 팔레트를 가지는 예외**의 실례가 `Mail`이다(`src/programs/mail.css` — Fluent/WinUI 값 + Segoe UI). ⚠️ 그 안에서 셸 토큰(`.badge`·`.empty` 등)을 섞어 쓰지 않는다 — 두 팔레트가 한 창에 서면 둘 다 무너진다
+- 같은 예외의 둘째 사례가 `Browser`다(`src/programs/browser.css` — 뉴트럴 그레이 + 링크 블루 + 시스템 글꼴). ⚠️ **크롬(주소 표시줄)은 무채색으로 물러난다** — 브라우저 UI가 색을 가지면 그 안의 사이트가 색을 못 가진다. 파랑은 링크와 초점에만 선다
+- ⚠️ 두 창 모두 **글꼴을 자기 CSS에서 끊는다.** 셸의 Jua(디스플레이)가 상속되면 그 순간 게임 UI로 보인다
 - ⚠️ 사이드바는 **화면만** 진다. 개수가 늘어나는 목록(업체 등)은 본문 안에 둔다 — 사이드바에 쌓으면 메뉴가 창 높이를 민다
 - ⚠️ 창 안에서 **고른 메뉴는 `useState`**다. 스토어에 넣으면 세이브에 들어가고, 창을 보는 방식 때문에 세이브 버전을 올리게 된다
 
@@ -50,6 +52,7 @@
 node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 ```
 - `--scan`은 **AA 미달만** 보고한다. 함정은 전부 그 파일 주석에 있다 — **다시 알아내지 말 것**
+- 폼은 `--type "<셀렉터>=<값>"`으로 채운다(클릭과 **같은 순서 큐**). ⚠️ React 제어 input이라 `el.value=x`는 무시된다 — 그 배선은 스크립트가 이미 진다
 - ⚠️ `--scan`은 **가림을 모른다.** 창이 `Hud`를 덮으면 보이지도 않는 주차 글자를 창 타이틀바 색(primary)에 합성해 미달로 보고한다 — 그 건은 허보다. 스크린샷에서 그 글자가 보이는지부터 확인하라
 - ⚠️ 측정용 크롬은 **시작 페이지(zum.com)를 같이 연다.** 그 탭에 붙으면 출력 없이 매달리므로 `connect()`가 dev 서버 탭을 골라 붙는다 — **첫 `page` 타깃을 집는 코드로 되돌리지 말 것**
 - 그래도 크롬을 죽여야 하면 측정용만 골라 죽인다 — ⚠️ `Stop-Process -Name chrome`은 **사용자의 진짜 브라우저까지 죽이므로 금지**:
@@ -66,6 +69,8 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/data/inbox.ts` | 받은 의뢰 글(메일·고객게시판 공용) + `inbox()`·`unreadCount()`. 뱃지 숫자의 단일 출처 |
 | `src/components/MessageList.tsx` | 받은 글 목록(고객게시판이 쓴다 — 셸 언어). 메일은 자기 세 칸 화면을 따로 가진다 |
 | `src/programs/mail.css` | `메일` 창 전용 Fluent 팔레트. **이 파일 밖으로 새지 않는다** |
+| `src/programs/browser.css` | `브라우저` 창 전용 검색 포털 팔레트. **이 파일 밖으로 새지 않는다** |
+| `src/data/sites.ts` | 가짜 포털 이름 + 첫화면 바로가기 목록. 사이트가 생기면 여는 대상이 여기 붙는다 |
 | `src/components/JobActions.tsx` | 견적보내기/거절하기. ⚠️ **색이 없다** — 감싸는 창이 `--jobact-*`를 준다(그래서 메일과 사내시스템에서 각자 팔레트로 선다) |
 | `src/data/icons.ts` | 아이콘 이름 단일 출처 |
 | `src/icons/AppIcon.tsx` | 유일한 아이콘 창구(`@iconify/react/offline`). 다른 곳에서 `@iconify/react`를 import하지 않는다 |

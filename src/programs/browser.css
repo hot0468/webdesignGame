@@ -1,0 +1,236 @@
+/* `브라우저` 창의 시각 언어. **셸(게임) 팔레트와 섞지 않는다** —
+ * 프로그램 창은 자기 팔레트를 자기 CSS 안에 가두는 것이 이 프로젝트의 예외 규칙이고
+ * (`mail.css`가 같은 예외의 첫 사례다), "가짜 OS 위에서 실제 프로그램을 쓴다"는
+ * 인상이 바로 그 대비에서 나온다.
+ *
+ * 출처: ui-ux-pro-max colors.csv **"Knowledge Base/Documentation — 뉴트럴 그레이 + 링크 블루"**
+ * (같은 값이 "Forum/Discussion Board"에도 쓰인다). 검색 엔진의 색 구성이 정확히 이것이다 —
+ * 크롬은 무채색으로 물러나고 **파랑은 오직 링크와 초점에만** 선다.
+ * 스타일은 styles.csv **"Minimal & Direct"**: 한 단 중앙 정렬 · 여백이 주인공 ·
+ * 장식 금지 · 애니메이션 최소.
+ *   #475569 primary · #2563EB accent(링크) · #F8FAFC bg · #1E293B fg
+ *   #FFFFFF card · #64748B muted-fg · #E2E8F0 border
+ *
+ * ⚠️ **--nv-text-2(#64748B)는 흰 면에서만 쓴다.** 회색 면(--nv-hover #EAEFF3) 위에서는
+ *    4.11:1로 AA에 미달한다(실측). 회색 알약 안의 글자는 --nv-chrome(#475569, 5.6:1)이다 —
+ *    팔레트 안에서 고른 값이지 새로 만든 값이 아니다.
+ *
+ * ⚠️ 이 블록 밖에서 새 값을 만들지 말 것. 간격과 모서리는 셸의 --sp-*를 그대로 쓴다
+ *    (이 리포는 모서리도 --sp-*로 준다 — 4pt 리듬이 같아 값을 중복 정의할 이유가 없다).
+ *
+ * 글꼴은 **시스템 스택**이다. Inter가 typography.csv의 답이지만 화면 하나 때문에
+ * 웹폰트를 더 받지 않는다 — Inter의 자리는 원래 "OS가 주는 UI 글꼴"이고,
+ * 한글 윈도우에서 맑은 고딕으로 떨어지는 모습이 실제 브라우저가 보이는 모습이다.
+ * ⚠️ 셸의 Jua(디스플레이)를 여기 들이지 말 것. 그 순간 게임 UI가 된다. */
+
+.nv {
+  --nv-bg: #f8fafc;
+  --nv-surface: #ffffff;
+  --nv-stroke: #e2e8f0;
+  --nv-text: #1e293b;
+  --nv-text-2: #64748b;
+  --nv-chrome: #475569;
+  --nv-link: #2563eb;
+  --nv-hover: #eaeff3;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--nv-bg);
+  color: var(--nv-text);
+  /* 셸의 Jua/Noto를 상속받지 않게 여기서 끊는다. */
+  font-family: 'Segoe UI', system-ui, -apple-system, 'Malgun Gothic', sans-serif;
+}
+
+/* ── 크롬(주소 표시줄) ────────────────────────────────
+   ⚠️ 무채색으로 물러나 있어야 한다. 크롬이 색을 가지면 그 안의 사이트가 색을 못 가진다. */
+.nv__chrome {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--nv-stroke);
+  background: var(--nv-surface);
+}
+
+.nv__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--nv-chrome);
+}
+
+/* ⚠️ 이 셋(뒤로·앞으로·새로고침)은 **갈 데가 없다.** 지금은 첫화면 하나뿐이라
+   눌러도 할 일이 없으므로 `disabled`로 둔다 — 동작하지 않는 컨트롤을 멀쩡한 얼굴로
+   그리지 않는다는 규칙이 그대로 적용된다. 사이트가 생기면 그때 살린다. */
+.nv__nav:disabled {
+  opacity: 0.38;
+}
+
+/* 주소 표시줄. 읽는 자리다(입력 아님) — 지금은 갈 주소를 칠 데가 없다. */
+.nv__url {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: 999px;
+  background: var(--nv-hover);
+  /* ⚠️ 회색 알약 위다 — text-2는 여기서 4.11:1로 미달이다. */
+  color: var(--nv-chrome);
+  font-size: var(--fs-sm);
+}
+
+.nv__url-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ── 첫화면 ──────────────────────────────────────────
+   "Minimal & Direct": 한 단 중앙 정렬 + 여백이 주인공.
+   ⚠️ 세로 **완전 중앙이 아니라 위쪽 1/3**에 앉힌다(`justify-content` 대신 위 여백을
+      아래보다 크게 잡는 `padding`). 검색 첫화면은 눈이 위에서 검색창을 찾고,
+      완전 중앙은 검색 결과 문구가 뜰 때 화면 전체가 위아래로 출렁인다. */
+.nv__home {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: clamp(var(--sp-8), 14vh, 132px) var(--sp-6) var(--sp-8);
+}
+
+/* 로고. 이 게임 안의 가짜 포털 이름이다.
+   ⚠️ 여기만 자간을 조인다(Minimal & Direct의 "oversized + tight"). 본문에는 쓰지 않는다. */
+.nv__logo {
+  margin: 0;
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--nv-chrome);
+}
+
+/* 로고의 가운데 글자만 링크 블루 — 포털 로고가 한 글자를 물들이는 그 관습이다.
+   ⚠️ 색은 여기서 끝이다. 파랑을 다른 곳으로 번지게 하지 말 것. */
+.nv__logo-mark {
+  color: var(--nv-link);
+}
+
+.nv__search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: min(560px, 100%);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--nv-stroke);
+  border-radius: 999px;
+  background: var(--nv-surface);
+  color: var(--nv-text-2);
+  /* 그림자는 초점에서만 자란다 — 평상시엔 테두리 하나로 충분하다. */
+  transition: box-shadow 200ms ease-out, border-color 200ms ease-out;
+}
+
+/* 초점 링을 없애지 않는다. 입력칸 자체는 outline을 끄고 **감싸는 알약**이 초점을 진다 —
+   둥근 모서리 밖으로 사각 링이 나가면 모양이 깨지기 때문이다. */
+.nv__search:focus-within {
+  border-color: var(--nv-link);
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.2);
+}
+
+.nv__search-icon {
+  flex: none;
+  color: var(--nv-text-2);
+}
+
+.nv__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--nv-text);
+  /* 16px 미만이면 브라우저가 확대한다. 본문 크기를 지킨다. */
+  font: inherit;
+  font-size: var(--fs-md);
+}
+
+.nv__input:focus {
+  outline: none;
+}
+
+.nv__input::placeholder {
+  color: var(--nv-text-2);
+}
+
+.nv__btn {
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--nv-stroke);
+  border-radius: var(--sp-2);
+  background: var(--nv-hover);
+  color: var(--nv-text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  transition: background-color 200ms ease-out;
+}
+
+.nv__btn:hover {
+  background: var(--nv-stroke);
+}
+
+/* 검색 결과 자리. 아직 갈 사이트가 없다는 것을 **누른 다음에** 말한다. */
+.nv__said {
+  margin: 0;
+  max-width: 560px;
+  text-align: center;
+  color: var(--nv-text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+/* ── 바로가기 칸 ─────────────────────────────────────
+   포털 첫화면의 자주 가는 사이트 격자. ⚠️ 여기 있는 것은 **아직 열리지 않는다** —
+   사이트가 생기는 커밋에서 링크가 된다. 그래서 누르는 button이 아니라 읽는 목록이고,
+   `.nv__soon` 꼬리표가 준비 중임을 **글자로** 말한다(흐린 색만으로 말하지 않는다). */
+.nv__shortcuts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-4);
+  width: min(560px, 100%);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nv__shortcut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-2);
+  border-radius: var(--sp-2);
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--nv-text-2);
+}
+
+.nv__shortcut-name {
+  color: var(--nv-text);
+  font-size: var(--fs-sm);
+}
+
+/* 준비 중 꼬리표. ⚠️ 흐리게만 두면 "왜 안 눌리지"가 되므로 글자로 말한다. */
+.nv__soon {
+  padding: 0 var(--sp-2);
+  border-radius: 999px;
+  background: var(--nv-hover);
+  /* ⚠️ 회색 알약 위다 — text-2는 여기서 4.11:1로 미달이다. */
+  color: var(--nv-chrome);
+  font-size: var(--fs-xs);
+}

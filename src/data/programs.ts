@@ -22,7 +22,7 @@ export const PROGRAMS = [
     badge: 'board',
   },
   // ⚠️ globe는 fluent-color에 32가 없다(20·24뿐). -NN은 디자인 크기라 렌더 크기와 무관하다.
-  { id: 'browser', title: '브라우저', icon: 'fluent-color:globe-24', col: 'left' },
+  { id: 'browser', title: '브라우저', icon: 'fluent-color:globe-24', col: 'left', size: 'app' },
   // 프로그램 로고는 devicon 그대로다(다색 — CSS color를 입히지 않는다).
   { id: 'figma', title: '피그마', icon: 'devicon:figma', col: 'right' },
   { id: 'photoshop', title: '포토샵', icon: 'devicon:photoshop', col: 'right' },
