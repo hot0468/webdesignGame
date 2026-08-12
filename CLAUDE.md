@@ -27,6 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-12 | 팝업 고리 완성 — 포토샵 제작 → 관리자 페이지 등록·기간수정 → 주차 넘김에 판정, 어긋나면 클레임 메일 + 평판 하락 | src/systems/popup.ts(신규), src/programs/Photoshop.tsx·AdminSite.tsx, src/store.ts(advanceWeek), src/components/Hud.tsx |
 | 2026-08-12 | 업체 관리자 페이지 — 주소창에 관리자 URL을 쳐서 들어가고, 로그인 뒤 팝업등록이 행동력을 먹는다 | src/systems/url.ts(신규), src/programs/AdminSite.tsx(신규)·Browser.tsx, src/store.ts, src/data/game.ts |
 | 2026-08-12 | `브라우저` 첫화면 — 가짜 포털(검색창 + 바로가기 칸), 자기 팔레트(뉴트럴+링크블루) · measure에 `--type` | src/programs/Browser.tsx·browser.css(신규), src/data/sites.ts(신규), scripts/measure.mjs |
 | 2026-08-12 | 마감을 남은 주가 아니라 **날짜**로 — `formatWeek`이 업무목록·수주 버튼 양쪽을 적는다 | src/systems/calendar.ts, src/components/Hud.tsx·JobActions.tsx |
@@ -36,4 +37,3 @@
 | 2026-08-11 | 창은 위쪽 기준(y 24)으로 뜨고, 주차·스탯 판은 창 **아래** 층으로 내렸다 | src/data/game.ts, src/index.css, project-context(shell.md) |
 | 2026-08-11 | `메일`을 실제 아웃룩처럼 — 세 칸(폴더·목록·읽는 칸) + 자기 Fluent 팔레트 + 창 크기 등급 `size: app` | src/programs/Mail.tsx, src/programs/mail.css(신규), src/components/Window.tsx, src/index.css |
 | 2026-08-11 | 의뢰 받는 곳 — `메일` 창(신규 의뢰) + 사내시스템 `고객게시판`(유지보수), 안 읽은 수는 아이콘 뱃지 | src/data/inbox.ts(신규), src/programs/Mail.tsx(신규), src/components/MessageList.tsx(신규), src/programs/Company.tsx |
-| 2026-08-11 | `일정`을 달력 격자로 + 주차를 스탯 판 왼쪽의 별도 판으로 분리 + HUD 막대 3색(행동력 눈금 칸·주황 / 정신력 초록 / 평판 남보라) — 팔레트에 `--color-success` 추가 | src/programs/Schedule.tsx, src/components/Hud.tsx, src/systems/calendar.ts(신규) |

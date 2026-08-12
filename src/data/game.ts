@@ -44,3 +44,13 @@ export const WINDOW_SPAWN = { x: 160, y: 24, cascade: 28 } as const
  *  ⚠️ 세로 96은 index.css의 `--os-taskbar-h`(56) + `--os-titlebar-h`(40)와 같은 값이다 —
  *  타이틀바가 작업 표시줄 **위에** 온전히 남아야 다시 잡을 수 있다. 그 토큰을 바꾸면 여기도 바꾼다. */
 export const WINDOW_DRAG = { keepVisible: 96 } as const
+
+/** 팝업 제작(포토샵) 1회 비용. ⚠️ **등록(관리자 페이지)은 값을 물리지 않는다** —
+ *  한 팝업에 두 번 값을 물리지 않으려고 비용을 **만드는 쪽**에 몰아 뒀다.
+ *  퀄리티 선택이 붙으면 이 값은 퀄리티 비용표로 바뀐다(지금은 고정 1). */
+export const POPUP_MAKE_AP = 1
+
+/** 팝업 클레임 한 건당 평판 하락. ⚠️ **업체·주 단위로 한 번만** 깎는다 —
+ *  한 업체가 같은 주에 세 갈래로 어긋나도 메일은 한 통, 하락도 한 번이다
+ *  (`systems/popup.ts`의 `judgePopups`가 묶는다). */
+export const CLAIM_REPUTATION_LOSS = 5

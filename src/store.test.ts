@@ -1,11 +1,20 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { INITIAL_GAME, WINDOW_DRAG } from './data/game'
-import { MESSAGES } from './data/inbox'
+import { CLAIM_REPUTATION_LOSS, INITIAL_GAME, POPUP_MAKE_AP, WINDOW_DRAG } from './data/game'
+import { MESSAGES, type Request } from './data/inbox'
 import type { ProgramId } from './data/programs'
 import { focusedWindowId, useGame } from './store'
 
 beforeEach(() => {
-  useGame.setState({ ...INITIAL_GAME, windows: [], jobs: [], readIds: [], rejectedIds: [], popups: {} })
+  useGame.setState({
+    ...INITIAL_GAME,
+    windows: [],
+    jobs: [],
+    readIds: [],
+    rejectedIds: [],
+    files: [],
+    popups: [],
+    claims: [],
+  })
 })
 
 describe('초기 수치', () => {
@@ -127,22 +136,117 @@ describe('업무 수주', () => {
   })
 })
 
-describe('팝업 등록', () => {
-  it('업체별로 센다', () => {
-    const { uploadPopup } = useGame.getState()
-    uploadPopup('dalbit')
-    uploadPopup('dalbit')
-    uploadPopup('hanbit')
-    expect(useGame.getState().popups).toEqual({ dalbit: 2, hanbit: 1 })
+describe('팝업 제작·등록', () => {
+  const popupJob = MESSAGES.find((m): m is Request => !m.ad && m.popup !== undefined)!
+
+  beforeEach(() => {
+    useGame.getState().acceptJob(popupJob)
   })
 
-  // ⚠️ 등록은 **값을 물리지 않는다.** 여기에 비용이 되살아나면 팝업을 만드는 공정과
-  //    합쳐 한 팝업에 두 번 값을 물리게 된다.
-  it('행동력을 먹지 않는다 — 0이어도 등록된다', () => {
+  // 수주 시점에 굳지 않으면 주가 지나도 늘 같은 주를 가리켜 판정이 뜻을 잃는다(마감과 같은 이유).
+  it('요청 기간은 수주한 주에 굳는다', () => {
+    useGame.setState({ jobs: [], week: 5 })
+    useGame.getState().acceptJob(popupJob)
+    expect(useGame.getState().jobs[0]!.popup).toEqual({
+      clientId: popupJob.popup!.clientId,
+      from: 5 + popupJob.popup!.fromWeeks,
+      to: 5 + popupJob.popup!.toWeeks,
+    })
+  })
+
+  // 제작이 비용을 진다. ⚠️ 이 값이 등록 쪽으로 옮겨 가면 한 팝업에 두 번 값을 물린다.
+  it('제작은 행동력을 쓴다', () => {
+    const before = useGame.getState().ap
+    useGame.getState().makePopup(popupJob.id)
+    expect(useGame.getState().ap).toBe(before - POPUP_MAKE_AP)
+    expect(useGame.getState().files).toHaveLength(1)
+  })
+
+  // 규칙을 뒤집어 본다: 행동력이 없으면 파일도 생기지 않아야 한다(음수 행동력 금지).
+  it('행동력이 모자라면 만들어지지 않는다', () => {
     useGame.setState({ ap: 0 })
-    useGame.getState().uploadPopup('dalbit')
+    useGame.getState().makePopup(popupJob.id)
+    expect(useGame.getState().files).toEqual([])
+    expect(useGame.getState().ap).toBe(0)
+  })
+
+  // ⚠️ 등록은 **값을 물리지 않는다.** 여기에 비용이 되살아나면 제작과 합쳐 두 번 문다.
+  it('등록은 행동력을 먹지 않는다 — 0이어도 등록된다', () => {
+    useGame.getState().makePopup(popupJob.id)
+    const fileId = useGame.getState().files[0]!.id
+    useGame.setState({ ap: 0 })
+    useGame.getState().uploadPopup('dalbit', fileId, 2, 3)
     const s = useGame.getState()
     expect(s.ap).toBe(0)
-    expect(s.popups.dalbit).toBe(1)
+    expect(s.popups).toHaveLength(1)
+    expect(s.popups[0]).toMatchObject({ clientId: 'dalbit', fileId, from: 2, to: 3 })
+  })
+
+  it('게시 기간은 나중에 고칠 수 있다', () => {
+    useGame.getState().makePopup(popupJob.id)
+    useGame.getState().uploadPopup('dalbit', useGame.getState().files[0]!.id, 2, 3)
+    const id = useGame.getState().popups[0]!.id
+    useGame.getState().updatePopupPeriod(id, 4, 9)
+    expect(useGame.getState().popups[0]).toMatchObject({ from: 4, to: 9 })
+  })
+})
+
+describe('주차 진행', () => {
+  const popupJob = MESSAGES.find((m): m is Request => !m.ad && m.popup !== undefined)!
+
+  it('행동력을 apMax로 회복시킨다 — 이월 없음', () => {
+    useGame.setState({ ap: 0, apMax: 3 })
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().ap).toBe(3)
+
+    // 남은 행동력을 넘기면 모았다 한 주에 쏟는 것이 최적이 된다.
+    useGame.setState({ ap: 3, apMax: 3 })
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().ap).toBe(3)
+  })
+
+  // 규칙을 뒤집어 확인한다: **맞게 걸어 두면 아무 일도 일어나지 않아야 한다.**
+  it('기간이 맞으면 클레임도 평판 하락도 없다', () => {
+    useGame.getState().acceptJob(popupJob)
+    useGame.getState().makePopup(popupJob.id)
+    const job = useGame.getState().jobs[0]!
+    useGame
+      .getState()
+      .uploadPopup(job.popup!.clientId, useGame.getState().files[0]!.id, job.popup!.from, job.popup!.to)
+
+    const rep = useGame.getState().reputation
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().claims).toEqual([])
+    expect(useGame.getState().reputation).toBe(rep)
+  })
+
+  it('요청 기간인데 안 걸려 있으면 클레임 메일이 오고 평판이 깎인다', () => {
+    useGame.getState().acceptJob(popupJob)
+    const rep = useGame.getState().reputation
+    useGame.getState().advanceWeek()
+
+    const s = useGame.getState()
+    expect(s.claims).toHaveLength(1)
+    expect(s.claims[0]!.channel).toBe('mail')
+    // ⚠️ 클레임은 `ad` 갈래여야 한다 — 아니면 항의에 견적보내기가 붙는다.
+    expect(s.claims[0]!.ad).toBe(true)
+    expect(s.reputation).toBe(rep - CLAIM_REPUTATION_LOSS)
+  })
+
+  // 평판이 바닥에 닿아도 음수로 가지 않는다 — 음수 평판에는 뜻이 없고 위기 판정만 흐려진다.
+  it('평판은 0 밑으로 내려가지 않는다', () => {
+    useGame.getState().acceptJob(popupJob)
+    useGame.setState({ reputation: 1 })
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().reputation).toBe(0)
+  })
+
+  // 같은 업체가 다음 주에 또 항의하면 **다른 글**이어야 뱃지가 다시 선다.
+  it('다음 주의 클레임은 다른 글이다', () => {
+    useGame.getState().acceptJob(popupJob)
+    useGame.getState().advanceWeek()
+    useGame.getState().advanceWeek()
+    const ids = useGame.getState().claims.map((c) => c.id)
+    expect(new Set(ids).size).toBe(ids.length)
   })
 })

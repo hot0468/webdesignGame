@@ -929,3 +929,117 @@ body {
 .empty__note {
   font-size: var(--fs-sm);
 }
+
+/* ── 포토샵(팝업 제작) ────────────────────────────────
+   셸 언어로 산다 — 메일·브라우저처럼 화면 전체가 다른 프로그램인 창만 자기 팔레트를 가진다.
+   ⚠️ 여기서 새 색·새 간격을 만들지 말 것. 위 :root 토큰 안에서 끝난다. */
+.ps {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.ps__note {
+  margin: 0;
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+.ps__jobs {
+  display: grid;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ps__job {
+  display: grid;
+  gap: var(--sp-2);
+  justify-items: start;
+  padding: var(--sp-4);
+  border: 2px solid var(--color-border);
+  border-radius: var(--os-window-radius);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+}
+
+.ps__from {
+  margin: 0;
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+}
+
+.ps__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+}
+
+.ps__period {
+  margin: 0;
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-sm);
+}
+
+.ps__files {
+  display: grid;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ps__file {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.ps__make {
+  padding: var(--sp-2) var(--sp-4);
+  border: 2px solid var(--color-border);
+  border-radius: var(--sp-2);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-size: var(--fs-sm);
+  transition: opacity 200ms ease-out;
+}
+
+.ps__make:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+/* ⚠️ 못 누르는 이유는 흐린 색이 아니라 아래 .ps__short가 말한다. */
+.ps__make:disabled {
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+}
+
+.ps__short {
+  margin: 0;
+  color: var(--color-destructive);
+  font-size: var(--fs-xs);
+}
+
+/* ── 주차 넘기기 버튼 ─────────────────────────────────
+   주차 판 안에 붙는다 — 시간을 미는 일이라 시간이 적힌 자리에 있어야 한다.
+   ⚠️ 계기판은 창이 아니다(닫히지 않는다). 그래서 이 버튼은 늘 닿는다. */
+.hud__next {
+  margin-left: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--sp-2);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-family: var(--font-display);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  transition: opacity 200ms ease-out;
+}
+
+.hud__next:hover {
+  opacity: 0.88;
+}

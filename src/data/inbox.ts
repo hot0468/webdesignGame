@@ -24,11 +24,28 @@ type Common = {
   at: string
 }
 
-/** 진짜 의뢰. **모든 의뢰에는 기한이 있다** — `dueWeeks`는 수주한 주부터 세는 주 수이고,
- *  마감 주차는 수주 시점에 정해진다(`store.acceptJob`). 그래서 늦게 받을수록 늦게 끝내도 된다. */
-export type Request = Common & { ad?: undefined; dueWeeks: number }
+/** 팝업 의뢰의 요청 내역. **요청 기간의 정본은 의뢰다** — 플레이어가 관리자 페이지에
+ *  적어 넣는 기간은 이것의 사본일 뿐이고, 판정(`systems/popup.ts`)은 늘 이쪽을 본다.
+ *
+ * ⚠️ `fromWeeks`/`toWeeks`는 **수주한 주부터 세는 상대값**이다(`dueWeeks`와 같은 이유 —
+ *    상대값으로 두면 늦게 받아도 의뢰 글이 그대로 말이 된다). 수주하는 순간
+ *    `store.acceptJob`이 통산 주차로 굳힌다.
+ *
+ * `clientId`는 그 팝업을 걸 업체(`CLIENTS`의 id)다. 이것이 없으면 어느 관리자 페이지를
+ * 검사해야 하는지 알 수 없다. */
+export type PopupSpec = { clientId: string; fromWeeks: number; toWeeks: number }
 
-/** 의뢰가 아닌 글(광고 등). 고를 것도, 기한도 없다. */
+/** 진짜 의뢰. **모든 의뢰에는 기한이 있다** — `dueWeeks`는 수주한 주부터 세는 주 수이고,
+ *  마감 주차는 수주 시점에 정해진다(`store.acceptJob`). 그래서 늦게 받을수록 늦게 끝내도 된다.
+ *
+ *  `popup`이 있으면 **팝업 업무**다 — 포토샵으로 만들고 관리자 페이지에 거는 두 공정을
+ *  지고, 매주 넘어갈 때 어긋남을 검사받는다(클레임). */
+export type Request = Common & { ad?: undefined; dueWeeks: number; popup?: PopupSpec }
+
+/** 의뢰가 아닌 글(광고·클레임 등). 고를 것도, 기한도 없다.
+ *
+ *  ⚠️ 클레임 메일이 **이 갈래**인 것이 중요하다 — 클레임에 견적보내기/거절하기가 붙으면
+ *     "항의를 수주한다"는, 게임에 없는 선택지가 생긴다(`JobActions`가 `ad`에서 null을 낸다). */
 export type Ad = Common & { ad: true }
 
 /** ⚠️ 갈래를 나눈 이유: 기한 없는 업무가 생기지 않게 하려고. 광고에 기한을 적는 것도,
@@ -45,14 +62,17 @@ export const MESSAGES: Message[] = [
     at: '오전 11:10',
     dueWeeks: 4,
   },
+  // ⚠️ 팝업 의뢰의 `from`은 **CLIENTS의 업체여야 한다** — 관리자 페이지가 없는 곳에는
+  //    팝업을 걸 수가 없다. 그래서 신규 의뢰라도 팝업은 계약 업체에서 온다.
   {
-    id: 'm-ongi',
+    id: 'm-dalbit-popup',
     channel: 'mail',
-    from: '온기카페',
+    from: CLIENTS[0].name,
     subject: '여름 신메뉴 팝업 하나만 급하게',
-    body: '다음 주 월요일에 신메뉴가 나갑니다. 메인 화면 뜨자마자 보이는 팝업 하나만 만들어서 올려 주실 수 있을까요? 이미지는 저희가 보내드립니다.',
+    body: '다음 주부터 2주간 메인 화면 뜨자마자 보이는 팝업 하나만 걸어 주세요. 기간 끝나면 꼭 내려 주셔야 합니다. 지난번처럼 남아 있으면 곤란해요.',
     at: '오전 9:16',
     dueWeeks: 1,
+    popup: { clientId: CLIENTS[0].id, fromWeeks: 1, toWeeks: 2 },
   },
   {
     id: 'm-chorok',
@@ -91,6 +111,16 @@ export const MESSAGES: Message[] = [
     dueWeeks: 1,
   },
   {
+    id: 'b-corner-popup',
+    channel: 'board',
+    from: CLIENTS[2].name,
+    subject: '이번 주부터 휴무 안내 팝업 부탁드려요',
+    body: '이번 주부터 3주간 휴무 안내 팝업을 첫화면에 걸어 주세요. 3주 지나면 내려 주시면 됩니다.',
+    at: '오늘',
+    dueWeeks: 1,
+    popup: { clientId: CLIENTS[2].id, fromWeeks: 0, toWeeks: 2 },
+  },
+  {
     id: 'b-corner-menu',
     channel: 'board',
     from: CLIENTS[2].name,
@@ -101,7 +131,14 @@ export const MESSAGES: Message[] = [
   },
 ]
 
-export const inbox = (channel: Channel) => MESSAGES.filter((m) => m.channel === channel)
+/** 그 채널에 온 글 전부. `extra`는 **게임 중에 생겨난 글**(클레임 메일 등, 스토어의
+ *  `claims`)이다 — 상수 목록과 같은 자리에 서야 메일 창이 하나의 받은편지함으로 보인다.
+ *
+ *  ⚠️ 새로 온 것이 **위**다. 클레임은 방금 일어난 일이라 아래로 밀리면 놓친다. */
+export const inbox = (channel: Channel, extra: Message[] = []) =>
+  [...extra, ...MESSAGES].filter((m) => m.channel === channel)
 
-export const unreadCount = (channel: Channel, readIds: string[]) =>
-  inbox(channel).filter((m) => !readIds.includes(m.id)).length
+/** 안 읽은 수 — **뱃지 숫자의 단일 출처다**. 읽음의 정본은 스토어 `readIds` 하나이므로
+ *  생겨난 글도 같은 규칙으로 세어진다(`extra`를 빼먹으면 뱃지만 조용히 어긋난다). */
+export const unreadCount = (channel: Channel, readIds: string[], extra: Message[] = []) =>
+  inbox(channel, extra).filter((m) => !readIds.includes(m.id)).length

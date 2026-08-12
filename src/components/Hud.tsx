@@ -28,9 +28,15 @@ export function Hud() {
 
   return (
     <div className="hud">
+      {/* ⚠️ 주차를 미는 유일한 자리다. 시간이 적힌 판에 붙어야 "이걸 누르면 저 숫자가
+          는다"가 보인다 — 바탕화면 아이콘이나 창으로 빼면 닫아 버릴 수 있는 자리가 된다.
+          넘어가는 순간 행동력이 회복되고 팝업 클레임이 판정된다(`store.advanceWeek`). */}
       <p className="hud__panel hud__week">
         <AppIcon name={STAT_ICONS.week} />
         {year}년 {month}월 {weekOfMonth}째 주
+        <button type="button" className="hud__next" onClick={g.advanceWeek}>
+          다음 주
+        </button>
       </p>
 
       <div className="hud__col">

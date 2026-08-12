@@ -476,3 +476,102 @@
   color: var(--nv-chrome);
   font-size: var(--fs-xs);
 }
+
+/* ── 팝업 목록·등록(업체 관리자) ──────────────────────
+   ⚠️ 여전히 --nv-* 안이다. 게시 중/아님 같은 상태는 **글자가** 말한다 —
+      이 팔레트에 빨강(또는 초록)이 없고, 색을 새로 만드는 순간 이 창이 두 팔레트를 진다.
+   ⚠️ 회색 면(--nv-hover) 위 글자는 --nv-chrome이다(text-2는 4.11:1로 미달). */
+.nv-pop {
+  display: grid;
+  gap: var(--sp-3);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nv-pop__row {
+  display: grid;
+  gap: var(--sp-2);
+  justify-items: start;
+  padding: var(--sp-3);
+  border: 1px solid var(--nv-stroke);
+  border-radius: var(--sp-2);
+  background: var(--nv-bg);
+}
+
+.nv-pop__file {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  color: var(--nv-text);
+  font-size: var(--fs-sm);
+}
+
+.nv-pop__meta {
+  margin: 0;
+  color: var(--nv-text-2);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+}
+
+/* 등록·수정 폼. 라벨 → 입력 → 그 주차의 날짜가 한 줄이다 —
+   ⚠️ 날짜를 빼지 말 것. 주차 숫자만으로는 의뢰문의 "몇 월 몇째 주"와 대조할 수 없다. */
+.nv-pop__period {
+  display: grid;
+  grid-template-columns: auto 72px 1fr;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  width: 100%;
+}
+
+.nv-pop__label {
+  color: var(--nv-text-2);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.nv-pop__num,
+.nv-pop__select {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--nv-stroke);
+  border-radius: var(--sp-2);
+  background: var(--nv-surface);
+  color: var(--nv-text);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+
+.nv-pop__select {
+  grid-column: 1 / -1;
+}
+
+.nv-pop__num:focus,
+.nv-pop__select:focus {
+  outline: none;
+  border-color: var(--nv-link);
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.2);
+}
+
+.nv-pop__when {
+  color: var(--nv-text-2);
+  font-size: var(--fs-xs);
+}
+
+.nv-pop__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: var(--sp-2);
+  padding-top: var(--sp-1);
+}
+
+.nv-pop__period .nv-site__fail {
+  grid-column: 1 / -1;
+}
+
+/* 폼이 붙는 판은 목록 판 아래에 같은 폭으로 선다(.nv-site__panel이 이미 그 폭이다). */
+.nv-site__body > .nv-site__panel + .nv-site__panel {
+  margin-top: var(--sp-4);
+}

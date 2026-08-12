@@ -13,6 +13,8 @@ export const SHELL_ICONS = {
 export const PROGRAM_ICONS = {
   crisis: 'mdi:alert-outline',
   noSite: 'mdi:link-variant-off',
+  /** 포토샵이 만들어 낸 팝업 이미지 파일. */
+  file: 'mdi:file-image-outline',
 } as const
 
 /** `메일` 창 전용 글리프. ⚠️ 다색을 들이지 않는다 — Fluent 팔레트가 currentColor로

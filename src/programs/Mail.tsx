@@ -31,9 +31,12 @@ export function Mail() {
   const [openId, setOpenId] = useState<string | null>(null)
   const readIds = useGame((s) => s.readIds)
   const markRead = useGame((s) => s.markRead)
+  // 게임 중에 들어온 글(클레임 메일). 상수 목록과 **같은 받은편지함**에 선다 —
+  // 따로 칸을 만들면 항의가 메일이 아닌 무언가로 보인다.
+  const claims = useGame((s) => s.claims)
 
   // 보낸 편지함은 아직 쌓일 것이 없다 — 답장 기능이 생기면 여기가 채워진다.
-  const items = folder === 'inbox' ? inbox('mail') : []
+  const items = folder === 'inbox' ? inbox('mail', claims) : []
   const shown = onlyUnread ? items.filter((m) => !readIds.includes(m.id)) : items
   const open = items.find((m) => m.id === openId) ?? null
 
@@ -41,7 +44,7 @@ export function Mail() {
     <div className="mail">
       <nav className="mail__rail" aria-label="메일 폴더">
         {FOLDERS.map((f) => {
-          const unread = f.id === 'inbox' ? unreadCount('mail', readIds) : 0
+          const unread = f.id === 'inbox' ? unreadCount('mail', readIds, claims) : 0
           return (
             <button
               key={f.id}
