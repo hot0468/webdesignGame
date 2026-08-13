@@ -27,6 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-13 | 주말 돌발 의뢰 — 확률로 급한 의뢰가 오고 일할지 선택. 대가는 정신력이고 낮으면 다음 주 행동력 상한이 깎인다 | src/systems/weekend.ts(신규), src/data/game.ts(apMaxOf), src/store.ts(+test), src/programs/Schedule.tsx, src/components/Hud.tsx |
 | 2026-08-13 | 파산 규칙 교체 — 잔액 음수가 아니라 **급여 3달 연속 밀림**(착수금·대출로 한 달은 버틴다). 정산 메일이 몇 달째인지 경고 | src/data/game.ts, src/systems/gameover.ts·money.ts, src/store.ts(+test) |
 | 2026-08-13 | 회사레벨 — 누적 매출에서 파생해 **행동력 상한**을 민다(평판이 지는 회사등급과 다른 축, 줄지 않는다) | src/data/game.ts, src/store.ts(+test), src/programs/Company.tsx |
 | 2026-08-13 | 게임 오버 둘 — 파산(정산 뒤 소지금 음수)·폐업(위기 4주). 판정은 순수 함수, 끝난 판은 주차가 안 흐른다 | src/systems/gameover.ts·components/GameOver.tsx(신규), src/store.ts(+test), src/App.tsx, src/index.css |
@@ -36,4 +37,3 @@
 | 2026-08-13 | 직원 교육 — 레벨을 올리는 유일한 길(돈 + 그 사람의 1주 점유), 레벨 +1과 세 스탯 +5가 한 자리에서 오른다 | src/data/employees.ts, src/systems/employee.ts(+test), src/store.ts(+test), src/programs/Messenger.tsx·messenger.css |
 | 2026-08-13 | 시안 키워드 — 미팅(행동력 1)에서 기획력만큼 알아내고, 적중 수가 시안 등급을 민다. 정답은 업무 id 시드로 파생(저장 안 함) | src/data/keywords.ts·systems/keywords.ts(신규), systems/craft.ts, programs/Figma.tsx, store.ts |
 | 2026-08-13 | 작업 표시줄 시작 버튼 — 이름 있는 세이브 슬롯 3칸(자동저장 위에 얹는다), 되돌릴 수 없는 일은 포털 확인창이 묻는다 | src/systems/save.ts·components/StartMenu.tsx(신규), Taskbar.tsx, store.ts, index.css |
-| 2026-08-13 | 돈이 도는 고리 — 완료 회신이 대금·평판을 주고, 마감 초과는 계약 파기, 월말엔 유지보수보고서로 고정 지출. 세이브(`webdi.save.v1`)까지 | src/systems/money.ts(신규)·pipeline.ts, src/data/game.ts, src/store.ts(+test, persist), src/components/Hud.tsx·JobActions.tsx |
