@@ -10,10 +10,23 @@ import {
   orderWeeks,
   salaryOf,
   statFor,
+  TRAIN_STAT_GAIN,
   type RoleId,
 } from '../data/employees'
 import { findQuality } from '../data/game'
-import { canOrder, orderDoneWeek, payroll, quitter, type Employee, type Order } from './employee'
+import {
+  busyUntil,
+  canOrder,
+  canTrain,
+  isBusy,
+  orderDoneWeek,
+  payroll,
+  quitter,
+  trainDoneWeek,
+  trained,
+  type Employee,
+  type Order,
+} from './employee'
 import { applicants } from './hire'
 
 const emp = (over: Partial<Employee> = {}): Employee => ({
@@ -158,5 +171,48 @@ describe('지원자는 시드를 받는 순수 함수가 낸다', () => {
   it('한 공고 안에서 id가 겹치지 않는다', () => {
     const ids = applicants(12).map((a) => a.id)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
+describe('교육', () => {
+  const at = (level: number, design = 50): Employee => ({
+    id: 'e1',
+    name: '테스트',
+    role: 'designer',
+    level,
+    stats: { design, publishing: 50, cs: 50 },
+    hiredWeek: 1,
+  })
+
+  it('레벨이 1 오르고 세 스탯이 함께 오른다', () => {
+    const before = at(2)
+    const after = trained(before)
+    expect(after.level).toBe(3)
+    expect(after.stats.design).toBe(before.stats.design + TRAIN_STAT_GAIN)
+    expect(after.stats.publishing).toBe(before.stats.publishing + TRAIN_STAT_GAIN)
+    expect(after.stats.cs).toBe(before.stats.cs + TRAIN_STAT_GAIN)
+  })
+
+  // 규칙을 뒤집어 확인한다: 상한이 없으면 교육을 반복해 레벨과 스탯이 무한히 오른다.
+  it('최고 레벨은 넘지 않고 스탯은 100에서 잘린다', () => {
+    const top = at(EMPLOYEE_LEVEL.max)
+    expect(trained(top)).toBe(top)
+
+    const nearCap = trained(at(1, 98))
+    expect(nearCap.stats.design).toBe(100)
+  })
+
+  it('교육 중인 직원은 잡혀 있다 — 지시를 겹쳐 받지 않는다', () => {
+    const e = at(1)
+    const training = [{ employeeId: e.id, from: 3, doneWeek: trainDoneWeek(3) }]
+    expect(isBusy(e.id, [], training)).toBe(true)
+    expect(canOrder(e, 'figma', [], training)).toBe(false)
+    expect(canTrain(e, [], training)).toBe(false)
+    expect(busyUntil(e.id, [], training)).toBe(trainDoneWeek(3))
+  })
+
+  it('최고 레벨이면 교육을 보낼 수 없다', () => {
+    expect(canTrain(at(EMPLOYEE_LEVEL.max), [], [])).toBe(false)
+    expect(canTrain(at(EMPLOYEE_LEVEL.max - 1), [], [])).toBe(true)
   })
 })

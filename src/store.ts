@@ -14,7 +14,7 @@ import { gradeOf, type Draft } from './systems/craft'
 import { MEETING_AP, type KeywordId } from './data/keywords'
 import { clientKeywords, hitCount, keywordShift, meetingMail, revealedKeywords } from './systems/keywords'
 import { CLIENTS } from './data/company'
-import { ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP } from './data/employees'
+import { ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP, TRAIN_COST } from './data/employees'
 import type { Applicant } from './systems/hire'
 import {
   canOrder,
@@ -28,6 +28,13 @@ import {
   type Chat,
   type Employee,
   type Order,
+  canTrain,
+  finishedTrainings,
+  trainDoneWeek,
+  trained,
+  trainReply,
+  trainedReply,
+  type Training,
 } from './systems/employee'
 import { companyGrade, REPUTATION_CRISIS } from './data/game'
 import type { Channel, Message, Request } from './data/inbox'
@@ -164,6 +171,9 @@ type Store = {
   /** 진행 중인 지시. **직원의 점유도 여기서 파생한다**(`systems/employee.ts`의 `isBusy`) —
    *  직원 쪽에 `busy` 플래그를 두면 지시를 지우고 플래그를 남기는 사고가 난다. */
   orders: Order[]
+  /** 진행 중인 교육. **`orders`와 같은 모양의 점유다** — 둘 다 그 직원을 N주간 잡는다.
+   *  ⚠️ 오른 레벨은 여기 없다 — 끝나는 순간 `employees`의 그 사람이 바뀐다. */
+  trainings: Training[]
   /** 채용 공고를 **마지막으로 올린 주차**. 지원자는 이 값 하나에서 파생한다
    *  (`systems/hire.ts`의 `applicants` — 같은 주차는 늘 같은 사람들이다).
    *  ⚠️ 지원자 목록을 저장하지 않는 이유: 저장하면 두 번째 출처가 생기고 세이브가 불어난다.
@@ -242,6 +252,9 @@ type Store = {
   /** 직원에게 그 업무의 열린 공정을 맡긴다(메신저). **행동력 `ORDER_AP` 고정**이고
    *  결과는 `N주 뒤`에 나온다 — 등급은 **그 직원의 스탯**이 정한다(내가 고르지 않는다). */
   orderJob: (employeeId: string, jobId: string) => void
+  /** 교육을 보낸다. **레벨을 올리는 유일한 길**이다(일을 시켜도 저절로 오르지 않는다).
+   *  ⚠️ 돈(`TRAIN_COST`)이 모자라거나 이미 잡혀 있거나 최고 레벨이면 아무 일도 없다. */
+  train: (employeeId: string) => void
   /** 다음 주로. **팝업 판정이 도는 유일한 자리다** — 행동력을 채우고, 어긋난 팝업이
    *  있으면 항의 메일이 들어오며 평판이 깎인다. */
   advanceWeek: () => void
@@ -344,6 +357,7 @@ const saveFields = (s: Store) => ({
   ftpClients: s.ftpClients,
   employees: s.employees,
   orders: s.orders,
+  trainings: s.trainings,
   hirePostWeek: s.hirePostWeek,
   hiredApplicantIds: s.hiredApplicantIds,
   chats: s.chats,
@@ -368,6 +382,7 @@ const emptyGame = () => ({
   ftpClients: [],
   employees: [],
   orders: [],
+  trainings: [],
   hirePostWeek: undefined,
   hiredApplicantIds: [],
   chats: [],
@@ -708,7 +723,7 @@ export const useGame = create<Store>()(
       const job = s.jobs.find((j) => j.id === jobId)
       if (!emp || !job || job.done) return {}
       const step = openStep(asStep(job))
-      if (!step || !canOrder(emp, step.program, s.orders)) return {}
+      if (!step || !canOrder(emp, step.program, s.orders, s.trainings)) return {}
       if (s.ap < ORDER_AP) return {}
       const order: Order = {
         employeeId,
@@ -725,6 +740,23 @@ export const useGame = create<Store>()(
         // 받았다는 대답이 그 방에 남는다 — 언제 끝나는지가 대화에 적혀야 메신저를
         // 다시 열었을 때 무엇을 기다리는 중인지 알 수 있다.
         chats: [...s.chats, { employeeId, week: s.week, text: orderReply(order) }],
+      }
+    }),
+
+  // ⚠️ 행동력이 아니라 **돈**을 문다. 교육은 내가 손을 쓰는 일이 아니라 사람을 보내는
+  //    일이고, 그 사람의 두 주(`TRAIN_WEEKS`)가 진짜 값이다.
+  // ⚠️ 여기서도 막는다 — 화면이 버튼을 잠가도 스토어가 다시 막지 않으면 소지금이
+  //    음수로 내려가는 길이 남는다(이 리포의 확립된 규칙).
+  train: (employeeId) =>
+    set((s) => {
+      const emp = s.employees.find((e) => e.id === employeeId)
+      if (!emp || !canTrain(emp, s.orders, s.trainings)) return {}
+      if (s.money < TRAIN_COST) return {}
+      const doneWeek = trainDoneWeek(s.week)
+      return {
+        money: s.money - TRAIN_COST,
+        trainings: [...s.trainings, { employeeId, from: s.week, doneWeek }],
+        chats: [...s.chats, { employeeId, week: s.week, text: trainReply(doneWeek) }],
       }
     }),
 
@@ -825,7 +857,27 @@ export const useGame = create<Store>()(
       const crisisWeeks = inCrisis ? s.crisisWeeks + 1 : 0
       // 위기면 매주 **한 명**이 나간다(레벨 높은 순 — 갈 곳 있는 사람부터).
       const leaving = inCrisis ? quitter(s.employees) : undefined
-      const employees = leaving ? s.employees.filter((e) => e.id !== leaving.id) : s.employees
+      const staying = leaving ? s.employees.filter((e) => e.id !== leaving.id) : s.employees
+
+      // ── 교육이 끝난다 ────────────────────────────────────────
+      // ⚠️ **레벨과 스탯이 함께** 오른다(`trained` 한 곳에서) — 여기서 따로 더하면
+      //    레벨만 오르고 스탯이 안 오르는 판이 생긴다.
+      // ⚠️ 오른 레벨은 **다음 달 급여부터** 반영된다(`monthlyCost`가 아래에서 이 목록을
+      //    본다) — 가르친 값이 곧바로 지출로 돌아온다.
+      const doneTraining = finishedTrainings(s.trainings, next).filter(
+        (t) => !leaving || t.employeeId !== leaving.id,
+      )
+      const grown = new Set(doneTraining.map((t) => t.employeeId))
+      const employees = staying.map((e) => (grown.has(e.id) ? trained(e) : e))
+      // 돌아왔다는 말도 그 방에 남는다 — 스탯은 늘 보이지만 무엇이 달라졌는지는
+      // 이 한 줄이 아니면 알아채기 어렵다.
+      const trainReports = employees
+        .filter((e) => grown.has(e.id))
+        .map((e) => ({ employeeId: e.id, week: next, text: trainedReply(e.level) }))
+      // 끝난 교육과 나간 사람의 교육은 목록에서 사라진다(`keptOrders`와 같은 규칙).
+      const keptTrainings = s.trainings
+        .filter((t) => !doneTraining.includes(t))
+        .filter((t) => !leaving || t.employeeId !== leaving.id)
       // 끝난 지시는 목록에서 사라진다 — 직원의 점유가 이 목록에서만 파생하므로
       // (`isBusy`) 지우는 것이 곧 "다시 일을 맡을 수 있다"이다.
       // ⚠️ 나간 사람이 들고 있던 지시도 함께 사라진다 — 맡을 사람이 없는 일은 끝나지 않는다.
@@ -847,7 +899,10 @@ export const useGame = create<Store>()(
         crisisWeeks,
         // 직원의 보고는 메신저 대화에 쌓인다. ⚠️ 나간 사람의 방은 통째로 사라지므로
         //    그 사람의 말도 함께 걷는다(없는 사람의 대화방을 열 자리가 없다).
-        chats: [...s.chats, ...reports].filter((c) => !leaving || c.employeeId !== leaving.id),
+        trainings: keptTrainings,
+        chats: [...s.chats, ...reports, ...trainReports].filter(
+          (c) => !leaving || c.employeeId !== leaving.id,
+        ),
         drafts: [...s.drafts, ...intoDrafts],
         slides: [...s.slides, ...intoSlides],
         files: [...s.files, ...intoFiles],

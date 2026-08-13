@@ -1,4 +1,8 @@
-import { canHandle, orderWeeks, salaryOf, statFor, type EmployeeStats, type RoleId } from '../data/employees'
+import { canHandle, orderWeeks, salaryOf, statFor, type EmployeeStats, type RoleId,
+  EMPLOYEE_LEVEL,
+  TRAIN_STAT_GAIN,
+  TRAIN_WEEKS,
+} from '../data/employees'
 import type { Grade } from '../data/game'
 import type { Message } from '../data/inbox'
 import type { ProgramId } from '../data/programs'
@@ -44,13 +48,76 @@ export type Order = {
   grade: Grade
 }
 
-/** 지금 지시 중인가. **`orders`가 정본이다**(직원 쪽에 플래그를 두지 않는다). */
-export const isBusy = (employeeId: string, orders: readonly Order[]): boolean =>
-  orders.some((o) => o.employeeId === employeeId)
+/** 진행 중인 교육 하나. **`Order`와 같은 모양이다** — 둘 다 "그 직원이 N주간 잡혀 있다"는
+ *  같은 사실을 말하므로 점유를 재는 규칙(`isBusy`)이 둘을 함께 본다.
+ *
+ * ⚠️ 오른 레벨을 여기 적지 않는다 — 끝나는 순간 `employee.level`이 오르고 이 줄은 사라진다.
+ *    두 곳에 적으면 하나만 지우는 사고가 난다(`Order`와 같은 이유). */
+export type Training = {
+  employeeId: string
+  from: number
+  /** **이 주차가 되면 끝난다**(`week >= doneWeek`). */
+  doneWeek: number
+}
 
-/** 언제 한가해지는가. 지시 중이 아니면 undefined. */
-export const busyUntil = (employeeId: string, orders: readonly Order[]): number | undefined =>
-  orders.find((o) => o.employeeId === employeeId)?.doneWeek
+/** 교육이 끝나는 주차. */
+export const trainDoneWeek = (week: number): number => week + TRAIN_WEEKS
+
+/** 지금 **잡혀 있는가** — 지시 중이거나 교육 중이면 그렇다.
+ *
+ * ⚠️ 교육을 점유로 세는 이유: 가르치는 동안 일도 시킬 수 있으면 교육의 값이 돈뿐이라
+ *    고민할 것이 없어진다. 그 사람의 한 주를 내는 것이 교육의 진짜 값이다. */
+export const isBusy = (
+  employeeId: string,
+  orders: readonly Order[],
+  trainings: readonly Training[] = [],
+): boolean =>
+  orders.some((o) => o.employeeId === employeeId) ||
+  trainings.some((t) => t.employeeId === employeeId)
+
+/** 교육을 시킬 수 있는가 — **한가하고 아직 최고 레벨이 아닐 때**다.
+ *  ⚠️ 돈이 되는지는 여기서 보지 않는다(스토어가 소지금을 안다) — 순수 함수는 규칙만 진다. */
+export const canTrain = (
+  employee: Employee,
+  orders: readonly Order[],
+  trainings: readonly Training[],
+): boolean => employee.level < EMPLOYEE_LEVEL.max && !isBusy(employee.id, orders, trainings)
+
+/** 이번 주에 끝난 교육들. `finishedOrders`와 같은 규칙(`>=`)이다. */
+export const finishedTrainings = (
+  trainings: readonly Training[],
+  week: number,
+): Training[] => trainings.filter((t) => week >= t.doneWeek)
+
+/** 교육을 마친 직원. **레벨 +1과 스탯 상승이 한 자리에서 일어난다** —
+ *  둘을 따로 적으면 레벨만 오르고 스탯이 안 오르는 판이 생긴다.
+ *
+ * ⚠️ 스탯은 **세 개가 함께** 오르고 100에서 잘린다. 종류를 가려 올리면 디블리셔만
+ *    교육 가치가 두 배가 된다. ⚠️ 최고 레벨이면 **그대로 돌려준다**(넘어가지 않는다). */
+export function trained(employee: Employee): Employee {
+  if (employee.level >= EMPLOYEE_LEVEL.max) return employee
+  const up = (v: number) => Math.min(100, v + TRAIN_STAT_GAIN)
+  return {
+    ...employee,
+    level: employee.level + 1,
+    stats: {
+      design: up(employee.stats.design),
+      publishing: up(employee.stats.publishing),
+      cs: up(employee.stats.cs),
+    },
+  }
+}
+
+/** 언제 한가해지는가. 지시도 교육도 아니면 undefined.
+ *  ⚠️ 교육도 함께 본다 — `isBusy`가 둘을 세는데 여기만 지시를 보면 "잡혀 있는데
+ *     언제까지인지는 모른다"는 화면이 나온다. */
+export const busyUntil = (
+  employeeId: string,
+  orders: readonly Order[],
+  trainings: readonly Training[] = [],
+): number | undefined =>
+  orders.find((o) => o.employeeId === employeeId)?.doneWeek ??
+  trainings.find((t) => t.employeeId === employeeId)?.doneWeek
 
 /** 이 직원에게 그 공정을 맡길 수 있는가 — **종류가 맞고 한가할 때**다.
  *  ⚠️ 컴포넌트에서 두 조건을 다시 적지 말 것(버튼도 스토어도 이 한 줄을 쓴다). */
@@ -58,7 +125,8 @@ export const canOrder = (
   employee: Employee,
   program: ProgramId,
   orders: readonly Order[],
-): boolean => canHandle(employee.role, program) && !isBusy(employee.id, orders)
+  trainings: readonly Training[] = [],
+): boolean => canHandle(employee.role, program) && !isBusy(employee.id, orders, trainings)
 
 /** 지시가 끝나는 주차. 레벨이 높을수록 빠르되 **하한 1주**다(`data/employees.ts`). */
 export const orderDoneWeek = (week: number, level: number): number => week + orderWeeks(level)
@@ -117,3 +185,12 @@ export const orderReply = (order: Order): string =>
  *  등급은 만든 파일에 굳어 있고, 그 파일을 회신하는 것은 여전히 사람의 손이다. */
 export const doneReply = (order: Order, week: number): string =>
   `${order.label} 끝냈습니다. (${formatWeek(week)}) 확인하시고 회신해 주세요.`
+
+/** 교육을 받으러 간다는 말. */
+export const trainReply = (doneWeek: number): string =>
+  `교육 다녀오겠습니다. ${formatWeek(doneWeek)}에 돌아옵니다.`
+
+/** 교육을 마치고 돌아온 말. **오른 레벨을 직접 말한다** — 스탯은 화면에 늘 보이지만
+ *  "무엇이 달라졌는지"는 이 한 줄이 아니면 알아채기 어렵다. */
+export const trainedReply = (level: number): string =>
+  `교육 마치고 왔습니다. 레벨 ${level}이 됐습니다.`

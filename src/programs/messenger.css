@@ -304,3 +304,50 @@
 .msgr__give:disabled .msgr__give-when {
   color: var(--msgr-text-2);
 }
+
+/* ── 교육 칸 ──────────────────────────────────────────────
+   ⚠️ 지시 판(`.msgr__order`)과 **다른 칸**이다. 둘은 같은 사람을 잡지만 무는 것이
+      다르다(지시=행동력, 교육=돈) — 한 칸에 섞으면 무엇을 내는지가 흐려진다.
+   ⚠️ 여기는 `max-height`를 주지 않는다. 줄이 서넛뿐이라 늘 다 보이고, 지시 판처럼
+      길어지지 않는다(그 판은 업무 수만큼 늘어나서 상한이 필요했다). */
+.msgr__train {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-top: 1px solid var(--msgr-stroke);
+  background: var(--msgr-surface);
+}
+
+/* 지시 버튼(`.msgr__give`)과 **다른 얼굴**을 준다 — 채워진 면은 지시의 것이다.
+   교육은 늘 있는 선택지라 테두리만으로 서고, 그래야 방을 열었을 때 눈이 먼저
+   "지금 맡길 일"로 간다. */
+.msgr__teach {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-3);
+  border: 1px solid var(--msgr-rail);
+  border-radius: var(--sp-2);
+  background: var(--msgr-surface);
+  color: var(--msgr-rail);
+  font: inherit;
+  text-align: left;
+  transition: background-color 200ms ease-out;
+}
+
+.msgr__teach:hover:not(:disabled) {
+  background: var(--msgr-chat-bg);
+}
+
+/* ⚠️ 못 누르는 이유는 흐린 색이 아니라 아래 글자가 말한다(.msgr__note). */
+.msgr__teach:disabled {
+  border-color: var(--msgr-stroke);
+  color: var(--msgr-text-2);
+}
+
+.msgr__teach-cost {
+  flex: none;
+  font-size: var(--fs-xs);
+}

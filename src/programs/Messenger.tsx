@@ -1,13 +1,19 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { MESSENGER_ICONS } from '../data/icons'
-import { findRole, ORDER_AP, ORDER_QUALITY } from '../data/employees'
+import { findRole, ORDER_AP, ORDER_QUALITY,
+  EMPLOYEE_LEVEL,
+  TRAIN_COST,
+  TRAIN_STAT_GAIN,
+} from '../data/employees'
 import { formatDate, formatWeek } from '../systems/calendar'
 import {
   busyUntil,
   canOrder,
+  canTrain,
   orderDoneWeek,
   statOf,
+  trainDoneWeek,
   type Employee,
 } from '../systems/employee'
 import { gradeOf } from '../systems/craft'
@@ -88,7 +94,8 @@ function Room({
   onPick: () => void
 }) {
   const orders = useGame((s) => s.orders)
-  const until = busyUntil(employee.id, orders)
+  const trainings = useGame((s) => s.trainings)
+  const until = busyUntil(employee.id, orders, trainings)
 
   return (
     <button type="button" className={`msgr__room${on ? ' msgr__room--on' : ''}`} onClick={onPick}>
@@ -119,16 +126,23 @@ function Chat({ employee }: { employee: Employee }) {
   const allChats = useGame((s) => s.chats)
   const chats = allChats.filter((c) => c.employeeId === employee.id)
   const orderJob = useGame((s) => s.orderJob)
+  const trainings = useGame((s) => s.trainings)
+  const train = useGame((s) => s.train)
+  const money = useGame((s) => s.money)
 
   const role = findRole(employee.role)
-  const busy = busyUntil(employee.id, orders)
+  const busy = busyUntil(employee.id, orders, trainings)
+  // ⚠️ 조건은 `canTrain` 한 줄이 진다(최고 레벨·점유를 여기서 다시 적지 않는다).
+  //    돈만 화면이 따로 본다 — 순수 함수는 소지금을 모른다.
+  const trainable = canTrain(employee, orders, trainings)
+  const maxed = employee.level >= EMPLOYEE_LEVEL.max
 
   // 맡길 수 있는 업무 = **열린 공정이 있고 그 공정을 이 직원이 맡을 수 있는 것**.
   // ⚠️ 조건은 `canOrder` 한 줄이 진다(종류·점유를 여기서 다시 적지 않는다).
   const offers = jobs
     .filter((j) => !j.done)
     .map((j) => ({ job: j, step: openStep(asStep(j)) }))
-    .filter((x) => x.step !== undefined && canOrder(employee, x.step.program, orders))
+    .filter((x) => x.step !== undefined && canOrder(employee, x.step.program, orders, trainings))
 
   return (
     <div className="msgr__room-view">
@@ -193,6 +207,39 @@ function Chat({ employee }: { employee: Employee }) {
               ))}
             </ul>
             {ap < ORDER_AP && <p className="msgr__note">행동력이 모자라다.</p>}
+          </>
+        )}
+      </div>
+
+      {/* ── 교육 ────────────────────────────────────────────────
+          ⚠️ 지시 판과 **다른 칸**이다. 둘은 같은 사람을 잡지만 무는 것이 다르다 —
+             지시는 행동력, 교육은 돈이다. 한 칸에 섞으면 무엇을 내는지가 흐려진다. */}
+      <div className="msgr__train">
+        {maxed ? (
+          <p className="msgr__note">
+            레벨 {EMPLOYEE_LEVEL.max}, 더 가르칠 것이 없다.
+          </p>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="msgr__teach"
+              disabled={!trainable || money < TRAIN_COST}
+              onClick={() => train(employee.id)}
+            >
+              교육 보내기
+              <span className="msgr__teach-cost">{TRAIN_COST.toLocaleString()}원</span>
+            </button>
+            {/* 무엇을 내고 무엇을 얻는지 **누르기 전에** 적는다. 오른 레벨이 월급을
+                영구히 올린다는 것까지 적어야 이 선택에 값이 선다. */}
+            <p className="msgr__note">
+              {formatDate(trainDoneWeek(week))}에 돌아온다. 레벨 {employee.level} →{' '}
+              {employee.level + 1}, 세 스탯이 {TRAIN_STAT_GAIN}씩 오르고 월급도 오른다.
+            </p>
+            {money < TRAIN_COST && <p className="msgr__note">교육비가 모자라다.</p>}
+            {!trainable && busy !== undefined && (
+              <p className="msgr__note">지금은 잡혀 있어 보낼 수 없다.</p>
+            )}
           </>
         )}
       </div>

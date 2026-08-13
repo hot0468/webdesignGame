@@ -6,6 +6,9 @@ import {
   orderWeeks,
   POST_AP,
   salaryOf,
+  TRAIN_COST,
+  TRAIN_STAT_GAIN,
+  TRAIN_WEEKS,
 } from './data/employees'
 import {
   companyGrade,
@@ -35,6 +38,7 @@ beforeEach(() => {
     mails: [],
     employees: [],
     orders: [],
+    trainings: [],
     hirePostWeek: undefined,
     hiredApplicantIds: [],
     chats: [],
@@ -276,5 +280,43 @@ describe('평판 위기', () => {
     useGame.setState({ reputation: 50, money: 10_000_000, employees: [emp({ level: 5 })] })
     useGame.getState().advanceWeek()
     expect(useGame.getState().employees).toHaveLength(1)
+  })
+})
+
+describe('교육 (스토어)', () => {
+  it('교육비를 내고 그 주 동안 잡혀 있다가 레벨이 올라 돌아온다', () => {
+    useGame.setState({ employees: [emp({ id: 'e1', level: 2 })], money: 5_000_000, week: 1 })
+    const before = useGame.getState().money
+
+    useGame.getState().train('e1')
+    expect(useGame.getState().money).toBe(before - TRAIN_COST)
+    expect(useGame.getState().trainings).toHaveLength(1)
+
+    // 끝나기 전 주에는 아직 그대로다.
+    for (let i = 0; i < TRAIN_WEEKS - 1; i++) useGame.getState().advanceWeek()
+    expect(useGame.getState().employees[0]?.level).toBe(2)
+
+    useGame.getState().advanceWeek()
+    const e = useGame.getState().employees[0]!
+    expect(e.level).toBe(3)
+    expect(e.stats.design).toBe(50 + TRAIN_STAT_GAIN)
+    // 끝난 교육은 목록에서 사라진다 — 점유가 이 목록에서만 파생하기 때문이다.
+    expect(useGame.getState().trainings).toHaveLength(0)
+  })
+
+  // 규칙을 뒤집어 확인한다: 스토어가 막지 않으면 소지금이 음수로 내려간다.
+  it('교육비가 모자라면 아무 일도 일어나지 않는다', () => {
+    useGame.setState({ employees: [emp({ id: 'e1', level: 1 })], money: TRAIN_COST - 1 })
+    useGame.getState().train('e1')
+    expect(useGame.getState().money).toBe(TRAIN_COST - 1)
+    expect(useGame.getState().trainings).toHaveLength(0)
+  })
+
+  it('오른 레벨만큼 월급도 오른다 — 교육의 진짜 값은 그 뒤로 계속 나간다', () => {
+    useGame.setState({ employees: [emp({ id: 'e1', level: 1 })], money: 5_000_000 })
+    const was = monthlyCost(useGame.getState().employees)
+    useGame.getState().train('e1')
+    for (let i = 0; i < TRAIN_WEEKS; i++) useGame.getState().advanceWeek()
+    expect(monthlyCost(useGame.getState().employees)).toBe(was + salaryOf(2) - salaryOf(1))
   })
 })
