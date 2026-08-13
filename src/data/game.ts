@@ -185,6 +185,20 @@ export const skillFor = (program: 'figma' | 'photoshop' | 'ppt' | 'editor'): Ski
 /** 숙련도 축의 이름. ⚠️ `INITIAL_GAME`의 칸 이름과 같아야 한다. */
 export type SkillId = 'figmaSkill' | 'photoshopSkill' | 'codingSkill'
 
+/** 공정을 한 번 돌릴 때마다 그 프로그램의 숙련도가 오르는 폭.
+ *
+ * ⚠️ **손을 쓸 때만 오른다** — 직원에게 맡긴 공정은 내 숙련도를 올리지 않는다(내가
+ *    안 만들었으니까). 그래서 "직원을 늘려 편해지는 길"과 "내가 익혀 빨라지는 길"이
+ *    갈린다. 지시로도 오르면 맡기는 것이 늘 이득이라 이 선택이 사라진다.
+ *
+ * ⚠️ 상한은 100이다(`gainSkill`이 자른다). 40·80에서 감면 구간을 넘으므로,
+ *    이 값이 크면 몇 번 만에 최고가 되어 성장이 안 느껴진다. */
+export const SKILL_GAIN = 3
+
+/** 공정을 돌린 뒤의 숙련도. **오르는 곳은 전부 이 함수를 쓴다**(상한을 네 곳에서
+ *  따로 자르면 한 곳을 빠뜨린다 — `trained`가 같은 이유로 객체를 순회한다). */
+export const gainSkill = (skill: number): number => Math.min(100, skill + SKILL_GAIN)
+
 export const apCost = (base: number, skill: number): number =>
   Math.max(
     AP_MIN,

@@ -13,6 +13,7 @@ import {
   type QualityId,
   apCost,
   skillFor,
+  gainSkill,
 } from './data/game'
 import { gradeOf, type Draft } from './systems/craft'
 import { MEETING_AP, MEETING_OCCUPY_WEEKS, type KeywordId } from './data/keywords'
@@ -513,7 +514,12 @@ export const useGame = create<Store>()(
       const job = turnOf(s.jobs, id, 'editor')
       const cost = apCost(PUBLISH_AP, s[skillFor('editor')])
       if (!job || s.ap < cost) return {}
-      return { ap: s.ap - cost, jobs: bumpStep(s.jobs, id) }
+      // ⚠️ **내 손으로 돌렸을 때만** 숙련도가 오른다(직원 지시는 안 올린다 — `data/game.ts`).
+      return {
+        ap: s.ap - cost,
+        jobs: bumpStep(s.jobs, id),
+        codingSkill: gainSkill(s.codingSkill),
+      }
     }),
 
   toggleBookmark: (url) =>
@@ -635,6 +641,7 @@ export const useGame = create<Store>()(
       const seq = s.files.filter((f) => f.jobId === jobId).length + 1
       return {
         ap: s.ap - cost,
+        photoshopSkill: gainSkill(s.photoshopSkill),
         jobs: bumpStep(s.jobs, jobId),
         files: [
           ...s.files,
@@ -668,6 +675,7 @@ export const useGame = create<Store>()(
       const shift = keywordShift(hitCount(keywords, clientKeywords(jobId)))
       return {
         ap: s.ap - cost,
+        figmaSkill: gainSkill(s.figmaSkill),
         jobs: bumpStep(s.jobs, jobId),
         drafts: [
           ...s.drafts,
@@ -734,6 +742,7 @@ export const useGame = create<Store>()(
       const what = job.kind === 'site' ? '화면정의서' : '발표자료'
       return {
         ap: s.ap - cost,
+        photoshopSkill: gainSkill(s.photoshopSkill),
         jobs: bumpStep(s.jobs, jobId),
         slides: [
           ...s.slides,

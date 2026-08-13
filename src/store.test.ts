@@ -22,6 +22,7 @@ import {
   apCost,
   QUALITY,
   SKILL_DISCOUNT,
+  gainSkill,
 } from './data/game'
 import { monthlyCost } from './systems/money'
 import { MESSAGES, type Request } from './data/inbox'
@@ -1078,6 +1079,23 @@ describe('숙련도', () => {
     // 뒤집기: 하한이 없으면 '간단하게'(1)가 0이 되어 공짜로 무한히 만들 수 있다.
     expect(apCost(1, 100)).toBe(1)
     expect(apCost(2, 100)).toBe(1)
+  })
+
+  it('내 손으로 돌리면 그 프로그램의 숙련도가 오른다', () => {
+    const g = () => useGame.getState()
+    const ppt = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'ppt')!
+    g().acceptJob(ppt)
+    const before = g().photoshopSkill
+    g().makeSlides(ppt.id, 'light')
+    expect(g().photoshopSkill).toBe(gainSkill(before))
+    // ⚠️ 같이 오르지 않는다 — 축이 갈려 있어야 무엇을 익혔는지가 뜻을 갖는다.
+    expect(g().figmaSkill).toBe(INITIAL_GAME.figmaSkill)
+    expect(g().codingSkill).toBe(INITIAL_GAME.codingSkill)
+  })
+
+  it('숙련도는 100을 넘지 않는다', () => {
+    expect(gainSkill(100)).toBe(100)
+    expect(gainSkill(99)).toBe(100)
   })
 
   it('제작이 깎인 값만큼만 행동력을 문다', () => {

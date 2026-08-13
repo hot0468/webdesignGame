@@ -21,6 +21,7 @@ import { gradeOf } from './systems/craft'
 import { isBusy, type Employee } from './systems/employee'
 import { applicants } from './systems/hire'
 import { monthlyCost } from './systems/money'
+import { MESSAGES, type Request } from './data/inbox'
 import { useGame, type Job } from './store'
 
 beforeEach(() => {
@@ -323,5 +324,19 @@ describe('교육 (스토어)', () => {
     useGame.getState().train('e1')
     for (let i = 0; i < TRAIN_WEEKS; i++) useGame.getState().advanceWeek()
     expect(monthlyCost(useGame.getState().employees)).toBe(was + salaryOf(2) - salaryOf(1))
+  })
+})
+
+// ⚠️ 뒤집기: 지시로도 숙련도가 오르면 맡기는 것이 늘 이득이라
+//    "내가 익혀 빨라지는 길"과 "직원을 늘려 편해지는 길"의 선택이 사라진다.
+describe('지시와 숙련도', () => {
+  it('직원이 끝낸 공정은 내 숙련도를 올리지 않는다', () => {
+    const ppt = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'ppt')!
+    useGame.setState({ employees: [emp({ id: 'e1', role: 'designer', level: 5 })] })
+    useGame.getState().acceptJob(ppt)
+    const before = useGame.getState().photoshopSkill
+    useGame.getState().orderJob('e1', ppt.id)
+    for (let i = 0; i < orderWeeks(5) + 1; i++) useGame.getState().advanceWeek()
+    expect(useGame.getState().photoshopSkill).toBe(before)
   })
 })
