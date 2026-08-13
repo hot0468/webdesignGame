@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import {
   CLAIM_REPUTATION_LOSS,
+  companyLevel,
   findQuality,
   INITIAL_GAME,
   PUBLISH_AP,
@@ -12,9 +13,7 @@ import {
   type QualityId,
 } from './data/game'
 import { gradeOf, type Draft } from './systems/craft'
-import { MEETING_AP, type KeywordId,
-  MEETING_OCCUPY_WEEKS,
-} from './data/keywords'
+import { MEETING_AP, MEETING_OCCUPY_WEEKS, type KeywordId } from './data/keywords'
 import { clientKeywords, hitCount, keywordShift, meetingMail, revealedKeywords } from './systems/keywords'
 import { CLIENTS } from './data/company'
 import { EMPLOYEE_LEVEL, FEEDBACK_AP, ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP, TRAIN_COST } from './data/employees'
@@ -40,6 +39,7 @@ import {
   type Employee,
   type Order,
   type Training,
+  payroll,
 } from './systems/employee'
 import { companyGrade, REPUTATION_CRISIS } from './data/game'
 import { judgeOver, type GameOver } from './systems/gameover'
@@ -222,6 +222,16 @@ type Store = {
   /** 평판이 위기선 아래로 머문 주 수. `CRISIS_WEEKS_TO_SHUTDOWN`에 닿으면 폐업이다.
    *  ⚠️ 위기선 위로 오르면 **0으로 리셋**한다(설계 결정표). */
   crisisWeeks: number
+
+  /** **지금까지 벌어들인 대금의 합.** 회사레벨(→ 행동력 상한)이 여기서 파생한다.
+   *  ⚠️ 소지금이 아니다 — 돈을 쓰면 줄어드는 값으로 레벨을 재면 지출할 때마다
+   *  레벨이 내려가고 안 쓰고 모으는 것이 최적이 된다. 이 값은 **줄지 않는다**. */
+  revenue: number
+
+  /** 급여를 **연속으로 못 준 달 수**. `UNPAID_MONTHS_TO_BANKRUPT`에 닿으면 파산이다.
+   *  ⚠️ 잔액이 음수인 것과 다르다 — 착수금·대출로 한 달 마이너스는 버틸 수 있다.
+   *  ⚠️ 한 달이라도 급여를 다 주면 **0으로 리셋**한다(갚을 수 있는 빚이어야 한다). */
+  unpaidMonths: number
 
   /** 끝난 판. **undefined면 진행 중이다.**
    *  ⚠️ 판정은 `systems/gameover.ts`가 낸다 — 스토어는 적용만 한다(클레임 판정과 같다).
@@ -414,6 +424,8 @@ const saveFields = (s: Store) => ({
   chats: s.chats,
   requests: s.requests,
   crisisWeeks: s.crisisWeeks,
+  revenue: s.revenue,
+  unpaidMonths: s.unpaidMonths,
   over: s.over,
 })
 
@@ -441,6 +453,8 @@ const emptyGame = () => ({
   chats: [],
   requests: [],
   crisisWeeks: 0,
+  revenue: 0,
+  unpaidMonths: 0,
   over: undefined,
 })
 
@@ -721,9 +735,16 @@ export const useGame = create<Store>()(
       //    다른 값을 믿게 된다(`advanceWeek`의 클레임 처리와 같은 규칙).
       const grade = satisfaction(grades)
       const { fee, reputation } = reward(job.kind, grade)
+      // ⚠️ 누적 매출은 **여기 한 곳**에서만 는다(대금이 들어오는 유일한 자리다).
+      //    행동력 상한은 그 값에서 파생한다 — 두 곳에 적으면 어긋난다.
+      const revenue = s.revenue + fee
       return {
         jobs,
         money: s.money + fee,
+        revenue,
+        // ⚠️ 상한만 올린다. **이번 주의 남은 행동력(`ap`)은 건드리지 않는다** —
+        //    레벨업으로 그 자리에서 행동력이 차면 회신을 미뤘다가 몰아 쓰는 것이 최적이 된다.
+        apMax: companyLevel(revenue).apMax,
         reputation: clampReputation(s.reputation + reputation),
         mails: [doneMail(job, grade, fee, s.week), ...s.mails],
       }
@@ -1145,14 +1166,26 @@ export const useGame = create<Store>()(
       const settling = isSettleWeek(next)
       const money = s.money - (settling ? monthlyCost(withGrudge) : 0)
 
-      // ⚠️ **정산을 치른 뒤의 잔액**으로 판정한다 — 정산 전 값을 보면 급여를 못 준 주가
-      //    파산으로 안 잡힌다. 판정 자체는 순수 함수가 진다(`systems/gameover.ts`).
-      const over = judgeOver(next, money, crisisWeeks)
+      // ── 급여를 줬는가 ────────────────────────────────────────
+      // ⚠️ **잔액이 음수인 것과 다르다.** 월정액까지 낸 뒤 남은 돈이 급여를 덮지 못한
+      //    달만 "밀린 달"이다 — 착수금이 들어오거나 대출을 받을 수도 있으므로 한 달
+      //    마이너스로 회사가 문을 닫지는 않는다(설계 확정).
+      // ⚠️ 한 번이라도 다 주면 **0으로 리셋**한다. 갚을 수 있는 빚이어야 빠져나올 길이 있다.
+      const wages = payroll(withGrudge)
+      const unpaidMonths = !settling
+        ? s.unpaidMonths
+        : money < 0 && wages > 0
+          ? s.unpaidMonths + 1
+          : 0
+
+      // 판정 자체는 순수 함수가 진다(`systems/gameover.ts`).
+      const over = judgeOver(next, unpaidMonths, crisisWeeks)
 
       return {
         week: next,
         ap: s.apMax,
         money,
+        unpaidMonths,
         over,
         employees: withGrudge,
         orders: keptOrders,
@@ -1174,7 +1207,7 @@ export const useGame = create<Store>()(
         // 어떻게 끝났는지가 사라지고, 같은 의뢰가 다시 새 글로 보인다.
         jobs: byOrder.jobs.map((j) => (isBreached(j, next) ? { ...j, done: true, breached: true } : j)),
         mails: [
-          ...(settling ? [settleMail(next, money, withGrudge)] : []),
+          ...(settling ? [settleMail(next, money, withGrudge, unpaidMonths)] : []),
           // ⚠️ 나가는 이유가 **메일 문안으로 갈린다** — 위기(회사가 가라앉아서)와
           //    불만(내 말이 안 받아들여져서)은 고쳐야 할 것이 서로 다르다.
           ...(crisisLeaver ? [quitMail(crisisLeaver, next)] : []),

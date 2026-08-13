@@ -9,6 +9,9 @@ import {
   WEEKS_PER_MONTH,
   WINDOW_DRAG,
   CRISIS_WEEKS_TO_SHUTDOWN,
+  UNPAID_MONTHS_TO_BANKRUPT,
+  COMPANY_LEVELS,
+  companyLevel,
 } from './data/game'
 import { monthlyCost } from './systems/money'
 import { MESSAGES, type Request } from './data/inbox'
@@ -53,6 +56,8 @@ beforeEach(() => {
     requests: [],
     chats: [],
     crisisWeeks: 0,
+    revenue: 0,
+    unpaidMonths: 0,
     over: undefined,
   })
 })
@@ -287,6 +292,8 @@ describe('대금·파기·정산', () => {
     expect(g().money).toBe(money + BASE_FEE.fix)
     expect(g().reputation).toBe(rep)
     expect(g().mails[0]!.body).toContain('대금')
+    // ⚠️ 누적 매출도 **같은 자리에서** 는다(회사레벨이 여기서 파생한다).
+    expect(g().revenue).toBe(BASE_FEE.fix)
   })
 
   it('공들인 만큼 더 받는다 — 등급이 대금을 정한다', () => {
@@ -810,13 +817,62 @@ describe('직원 요청사항', () => {
 /** 게임 오버. ⚠️ 여기서 지키는 것은 **끝난 판이 계속 굴러가지 않는다**이다 —
  *  판정만 있고 멈추지 않으면 결과 화면 뒤에서 주차가 흘러 기록이 어긋난다. */
 describe('게임 오버 (스토어)', () => {
-  it('월말 정산에서 소지금이 음수가 되면 파산한다', () => {
-    // 정산 주차 직전 + 고정 지출도 못 낼 잔고.
-    useGame.setState({ week: WEEKS_PER_MONTH - 1, money: 1_000, employees: [] })
+  // ⚠️ 한 달 마이너스는 파산이 아니다 — 착수금·대출로 버틸 수 있는 구간이다(설계 확정).
+  it('급여가 밀려도 한 달로는 파산하지 않는다', () => {
+    useGame.setState({
+      week: WEEKS_PER_MONTH - 1,
+      money: 1_000,
+      employees: [
+        {
+          id: 'e1',
+          name: '급여받을사람',
+          role: 'designer',
+          level: 1,
+          stats: { design: 50, publishing: 50, planning: 50, cs: 50 },
+          hiredWeek: 1,
+        },
+      ],
+      unpaidMonths: 0,
+    })
     useGame.getState().advanceWeek()
     const s = useGame.getState()
     expect(s.money).toBeLessThan(0)
-    expect(s.over?.kind).toBe('bankrupt')
+    expect(s.unpaidMonths).toBe(1)
+    expect(s.over).toBeUndefined()
+  })
+
+  it('급여가 정해진 달만큼 연속으로 밀리면 파산한다', () => {
+    useGame.setState({
+      week: WEEKS_PER_MONTH - 1,
+      money: 1_000,
+      employees: [
+        {
+          id: 'e1',
+          name: '급여받을사람',
+          role: 'designer',
+          level: 1,
+          stats: { design: 50, publishing: 50, planning: 50, cs: 50 },
+          hiredWeek: 1,
+        },
+      ],
+      unpaidMonths: UNPAID_MONTHS_TO_BANKRUPT - 1,
+    })
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().over?.kind).toBe('bankrupt')
+  })
+
+  // 뒤집기: 리셋이 없으면 오래 굴린 회사가 한 번 밀린 것만으로도 결국 파산한다.
+  it('급여를 다 주면 밀린 달이 0으로 리셋된다', () => {
+    useGame.setState({
+      week: WEEKS_PER_MONTH - 1,
+      money: 10_000_000,
+      employees: [],
+      unpaidMonths: UNPAID_MONTHS_TO_BANKRUPT - 1,
+    })
+    useGame.getState().advanceWeek()
+    const s = useGame.getState()
+    expect(s.unpaidMonths).toBe(0)
+    expect(s.over).toBeUndefined()
   })
 
   it('위기가 이어지면 폐업한다', () => {
@@ -863,5 +919,38 @@ describe('게임 오버 (스토어)', () => {
     expect(useGame.getState().over).toBeDefined()
     useGame.getState().newGame()
     expect(useGame.getState().over).toBeUndefined()
+  })
+})
+
+/** 회사레벨. ⚠️ 여기서 지키는 것은 **누적 매출이 줄지 않는다**와 **레벨업이 그 주의
+ *  행동력을 채우지 않는다** 둘이다 — 둘 다 깨지면 최적 전략이 게임을 망가뜨린다. */
+describe('회사레벨', () => {
+  const level2 = COMPANY_LEVELS[1]!
+
+  it('누적 매출이 선을 넘으면 행동력 상한이 오른다', () => {
+    expect(companyLevel(0).apMax).toBe(INITIAL_GAME.apMax)
+    expect(companyLevel(level2.minRevenue).level).toBe(level2.level)
+    expect(companyLevel(level2.minRevenue).apMax).toBeGreaterThan(INITIAL_GAME.apMax)
+  })
+
+  // 뒤집기: 소지금으로 재면 월정액·급여를 내는 순간 레벨이 내려가고,
+  //        돈을 안 쓰고 모으기만 하는 것이 최적이 된다.
+  it('돈을 써도 누적 매출은 줄지 않는다', () => {
+    useGame.setState({ revenue: level2.minRevenue, money: 10, apMax: level2.apMax })
+    // 월말 정산으로 잔고가 크게 줄어도 레벨은 그대로다.
+    useGame.setState({ week: WEEKS_PER_MONTH - 1 })
+    useGame.getState().advanceWeek()
+    const s = useGame.getState()
+    expect(s.revenue).toBe(level2.minRevenue)
+    expect(companyLevel(s.revenue).apMax).toBe(level2.apMax)
+  })
+
+  // 뒤집기: 레벨업이 그 자리에서 ap를 채우면 회신을 미뤘다가 몰아 쓰는 것이 최적이 된다.
+  it('레벨이 올라도 이번 주의 남은 행동력은 그대로다', () => {
+    useGame.setState({ revenue: 0, apMax: INITIAL_GAME.apMax, ap: 0 })
+    const before = useGame.getState().ap
+    // 대금이 들어오는 자리를 직접 흉내 낸다(완료 회신은 공정을 다 거쳐야 해서 길다).
+    useGame.setState({ revenue: level2.minRevenue, apMax: level2.apMax })
+    expect(useGame.getState().ap).toBe(before)
   })
 })

@@ -32,6 +32,16 @@ export const INITIAL_GAME = {
 export const REPUTATION_CRISIS = 10
 /** 위기가 이만큼 이어지면 폐업(두 번째 게임 오버). */
 export const CRISIS_WEEKS_TO_SHUTDOWN = 4
+
+/** **급여를 이만큼의 달 연속으로 못 주면 파산이다.**
+ *
+ * ⚠️ 잔액이 음수인 것 자체는 파산이 아니다 — 착수금이 들어오거나 대출을 받을 수도 있어
+ *    한 달 마이너스로 회사가 문을 닫지는 않는다(설계 확정, 2026-08-13). 회사를 실제로
+ *    무너뜨리는 것은 **사람에게 줄 돈을 못 주는 것**이고, 그것이 여러 달 이어질 때다.
+ *
+ * ⚠️ 그래서 세는 것은 **잔액이 아니라 밀린 달 수**다(`unpaidMonths`). 갚으면 0으로
+ *    리셋된다 — 갚을 수 있는 빚이어야 위기에서 빠져나오는 길이 있다. */
+export const UNPAID_MONTHS_TO_BANKRUPT = 3
 export const REPUTATION_MAX = 100
 
 /** 회사등급 5단. **채용 상한을 지는 유일한 표다.**
@@ -60,6 +70,39 @@ export const companyGrade = (reputation: number): CompanyGrade =>
 /** 다음 등급(대기업이면 없음). 화면이 "얼마나 더 올려야 하나"를 적을 때 쓴다. */
 export const nextGrade = (grade: CompanyGrade): CompanyGrade | undefined =>
   COMPANY_GRADES[COMPANY_GRADES.indexOf(grade as never) + 1]
+
+/** 회사레벨 → 필요한 **누적 매출**과 그때의 행동력 상한.
+ *
+ * ⚠️ **누적 매출이다 — 소지금이 아니다.** 지금 가진 돈으로 재면 월정액·급여를 내는
+ *    순간 레벨이 내려가고, 돈을 안 쓰고 모으기만 하는 것이 최적이 된다. 여기서 세는 것은
+ *    **지금까지 벌어들인 대금의 합**이라 한 번 오른 레벨은 내려가지 않는다.
+ *
+ * ⚠️ 회사**등급**(`COMPANY_GRADES`, 평판에서 파생)과 다른 축이다. 등급은 채용 상한을
+ *    지고 오르내리며, 레벨은 **행동력 상한**을 지고 오르기만 한다. 둘을 합치지 마라 —
+ *    평판이 떨어졌다고 행동력이 줄면 위기에서 빠져나올 길이 함께 막힌다.
+ *
+ * ⚠️ 표가 오름차순이고 첫 칸이 `INITIAL_GAME.apMax`와 같아야 한다(`companyLevel`이
+ *    "조건을 만족하는 마지막 칸"을 답으로 낸다 — `COMPANY_GRADES`와 같은 모양). */
+export const COMPANY_LEVELS = [
+  { level: 1, minRevenue: 0, apMax: 3 },
+  { level: 2, minRevenue: 3_000_000, apMax: 4 },
+  { level: 3, minRevenue: 8_000_000, apMax: 5 },
+  { level: 4, minRevenue: 18_000_000, apMax: 6 },
+  { level: 5, minRevenue: 35_000_000, apMax: 7 },
+] as const
+
+export type CompanyLevel = (typeof COMPANY_LEVELS)[number]
+
+/** 누적 매출 → 회사레벨. 표가 오름차순이라 "조건을 만족하는 마지막 칸"이 답이다. */
+export const companyLevel = (revenue: number): CompanyLevel =>
+  COMPANY_LEVELS.reduce<CompanyLevel>(
+    (best, l) => (revenue >= l.minRevenue ? l : best),
+    COMPANY_LEVELS[0],
+  )
+
+/** 다음 레벨(최고면 없음). 화면이 "얼마나 더 벌어야 하나"를 적을 때 쓴다. */
+export const nextLevel = (level: CompanyLevel): CompanyLevel | undefined =>
+  COMPANY_LEVELS[COMPANY_LEVELS.indexOf(level as never) + 1]
 
 /** 마감이 **이만큼 남았거나 덜 남으면 임박**이다(업무목록에서 빨갛게 선다).
  *  ⚠️ 1주 = 남은 턴이 이번 주 하나뿐이라는 뜻이다. 데드라인 초과는 계약 파기라

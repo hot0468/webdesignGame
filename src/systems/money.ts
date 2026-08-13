@@ -4,6 +4,7 @@ import {
   BREACH_REPUTATION_LOSS,
   GRADE_REWARD,
   SUBSCRIPTIONS,
+  UNPAID_MONTHS_TO_BANKRUPT,
   WEEKS_PER_MONTH,
   type Grade,
 } from '../data/game'
@@ -66,6 +67,10 @@ export function settleMail(
   week: number,
   moneyAfter: number,
   employees: readonly Employee[] = [],
+  /** 급여를 연속으로 못 준 달 수(정산 뒤 값). ⚠️ **파산 전 유일한 경고**라
+   *  몇 달째인지와 몇 달이면 끝인지를 함께 적는다 — 숫자 없이 "밀렸습니다"만 적으면
+   *  얼마나 급한지 알 수 없다. */
+  unpaidMonths = 0,
 ): Message {
   // 급여는 **사람마다 한 줄**이다 — 합계만 적으면 누구를 내보내면 얼마가 주는지 알 수 없다.
   const lines = [
@@ -79,8 +84,10 @@ export function settleMail(
     subject: `${formatWeek(week)} 월말 정산`,
     body:
       `이번 달 고정 지출입니다.\n${lines}\n합계 ${won(monthlyCost(employees))}\n\n` +
-      (moneyAfter < 0
-        ? `정산 후 잔액 ${won(moneyAfter)} — 지급하지 못한 금액이 있습니다.`
+      (unpaidMonths > 0
+        ? `정산 후 잔액 ${won(moneyAfter)} — 급여를 지급하지 못했습니다.
+` +
+          `${unpaidMonths}달째 밀렸습니다. ${UNPAID_MONTHS_TO_BANKRUPT}달이 되면 회사가 무너집니다.`
         : `정산 후 잔액 ${won(moneyAfter)}.`),
     at: formatWeek(week),
     ad: true,

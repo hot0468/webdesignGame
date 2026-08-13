@@ -10,6 +10,8 @@ import {
   REPUTATION_MAX,
   companyGrade,
   nextGrade,
+  companyLevel,
+  nextLevel,
 } from '../data/game'
 import { payroll } from '../systems/employee'
 import { useGame } from '../store'
@@ -80,9 +82,13 @@ function Status() {
   const reputation = useGame((s) => s.reputation)
   const employees = useGame((s) => s.employees)
   const crisisWeeks = useGame((s) => s.crisisWeeks)
+  const revenue = useGame((s) => s.revenue)
   const inCrisis = reputation < REPUTATION_CRISIS
   const grade = companyGrade(reputation)
   const next = nextGrade(grade)
+  // ⚠️ 등급(평판)과 **다른 축**이다 — 레벨은 누적 매출에서 나오고 행동력 상한을 진다.
+  const level = companyLevel(revenue)
+  const up = nextLevel(level)
 
   const pct = (v: number) => `${(v / REPUTATION_MAX) * 100}%`
 
@@ -102,6 +108,18 @@ function Status() {
           이 화면이 진다(`Hud`와 겹치는 숫자를 다시 늘어놓지 않는다는 규칙). */}
       <p className="company__note">
         월 급여 합계 {payroll(employees).toLocaleString('ko-KR')}원
+      </p>
+
+      {/* 회사레벨. ⚠️ 등급과 **붙여 두되 다른 줄**이다 — 둘 다 "회사가 얼마나 큰가"를
+          말하지만 오르는 조건이 다르다(평판 vs 누적 매출). 한 줄에 섞으면 무엇을 올려야
+          행동력이 느는지가 흐려진다. */}
+      <div className="company__head">
+        <span className="company__label">회사레벨</span>
+        <span className="company__value">{level.level}</span>
+      </div>
+      <p className="company__note">
+        행동력 상한 {level.apMax} · 누적 매출 {revenue.toLocaleString('ko-KR')}원
+        {up && ` · ${up.minRevenue.toLocaleString('ko-KR')}원부터 레벨 ${up.level}(행동력 ${up.apMax})`}
       </p>
 
       <div className="company__head">
