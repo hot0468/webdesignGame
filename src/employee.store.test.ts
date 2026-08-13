@@ -18,7 +18,7 @@ import {
   WEEKS_PER_MONTH,
 } from './data/game'
 import { gradeOf } from './systems/craft'
-import type { Employee } from './systems/employee'
+import { isBusy, type Employee } from './systems/employee'
 import { applicants } from './systems/hire'
 import { monthlyCost } from './systems/money'
 import { useGame, type Job } from './store'
@@ -292,7 +292,10 @@ describe('교육 (스토어)', () => {
     expect(useGame.getState().money).toBe(before - TRAIN_COST)
     expect(useGame.getState().trainings).toHaveLength(1)
 
-    // 끝나기 전 주에는 아직 그대로다.
+    // 보낸 주에는 아직 안 올랐고 **잡혀 있다** — 교육 중에 일까지 시킬 수 있으면
+    // 교육의 값이 돈뿐이 된다(TRAIN_WEEKS를 줄여도 이 사실은 그대로여야 한다).
+    expect(useGame.getState().employees[0]?.level).toBe(2)
+    expect(isBusy('e1', useGame.getState().orders, useGame.getState().trainings)).toBe(true)
     for (let i = 0; i < TRAIN_WEEKS - 1; i++) useGame.getState().advanceWeek()
     expect(useGame.getState().employees[0]?.level).toBe(2)
 
