@@ -9,6 +9,13 @@ export const SHELL_ICONS = {
   close: 'mdi:close',
 } as const
 
+/** 작업 표시줄 시작 버튼 + 시작 메뉴. ⚠️ 작업 표시줄은 primary 면 위라 currentColor로
+ *  물드는 단색 `mdi` 한 세트다(다색을 들이면 그 자리만 색이 뜬다). */
+export const START_ICONS = {
+  start: 'mdi:view-grid-outline',
+  newGame: 'mdi:restart',
+} as const
+
 /** 창 내용 안에서 쓰는 단색 글리프. HUD와 같은 이유로 `mdi` 한 세트다. */
 export const PROGRAM_ICONS = {
   crisis: 'mdi:alert-outline',
