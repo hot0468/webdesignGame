@@ -27,6 +27,8 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-13 | 직원 시스템 — 채용(인간인 공고→지원자)·지시(종류 제한, 등급은 직원 스탯)·급여(월말, 사람 수가 정본)·위기 퇴사 | src/data/employees.ts·systems/hire.ts·employee.ts·programs/HireSite.tsx(신규), Messenger.tsx, store.ts, money.ts |
+| 2026-08-13 | 직원 교육 — 레벨을 올리는 유일한 길(돈 + 그 사람의 2주 점유), 레벨 +1과 세 스탯 +5가 한 자리에서 오른다 | src/data/employees.ts, src/systems/employee.ts(+test), src/store.ts(+test), src/programs/Messenger.tsx·messenger.css |
 | 2026-08-13 | 시안 키워드 — 미팅(행동력 1)에서 기획력만큼 알아내고, 적중 수가 시안 등급을 민다. 정답은 업무 id 시드로 파생(저장 안 함) | src/data/keywords.ts·systems/keywords.ts(신규), systems/craft.ts, programs/Figma.tsx, store.ts |
 | 2026-08-13 | 작업 표시줄 시작 버튼 — 이름 있는 세이브 슬롯 3칸(자동저장 위에 얹는다), 되돌릴 수 없는 일은 포털 확인창이 묻는다 | src/systems/save.ts·components/StartMenu.tsx(신규), Taskbar.tsx, store.ts, index.css |
 | 2026-08-13 | 돈이 도는 고리 — 완료 회신이 대금·평판을 주고, 마감 초과는 계약 파기, 월말엔 유지보수보고서로 고정 지출. 세이브(`webdi.save.v1`)까지 | src/systems/money.ts(신규)·pipeline.ts, src/data/game.ts, src/store.ts(+test, persist), src/components/Hud.tsx·JobActions.tsx |
@@ -35,5 +37,3 @@
 | 2026-08-12 | 바탕화면 바닥에 물결 두 겹 — CSS 의사요소만으로(큰 원을 돌린다), reduced-motion에서는 멈춘다 | src/index.css, project-context(shell.md) |
 | 2026-08-12 | 회사등급 5단(극소~대) — 평판에서 파생하는 표 하나가 채용 상한을 지고, 회사현황 맨 위에 선다 | src/data/game.ts(+test), src/programs/Company.tsx, project-context |
 | 2026-08-12 | 계기판의 `다음 주` 버튼 제거 — 주차를 미는 자리가 없어졌다(`advanceWeek`는 남아 있다) | src/components/Hud.tsx, src/index.css |
-| 2026-08-12 | 바탕화면에 `PPT` 아이콘 — 창은 아직 빈 상태다(업무에 종류 칸이 생기면 포토샵처럼 목록+퀄리티를 갖는다) | src/programs/Ppt.tsx(신규), src/data/programs.ts, src/App.tsx |
-| 2026-08-12 | 제작 퀄리티 세 갈래 — 간단하게/열심히/매우 신경써서로 행동력과 등급대(F~SSS)가 갈리고, 밴드 안 칸은 디자인 스탯이 정한다. 피그마 속성 패널에 시안 만들기 추가 | src/systems/craft.ts(신규), src/data/game.ts, src/store.ts, src/programs/Figma.tsx·Photoshop.tsx(+css) |
