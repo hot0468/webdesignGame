@@ -19,6 +19,13 @@ export const INITIAL_GAME = {
    *  쓰이는 공정이 생길 때 같은 자리에 붙인다(쓸 곳 없는 칸을 미리 만들지 않는다).
    *  ⚠️ 30은 스펙에 없는 임시치다(reputation과 같다). */
   design: 30,
+  /** ── 숙련도 3종(0~100). **업무 시간을 줄이는 축이다** — 등급과 무관하다.
+   *  ⚠️ 디자인·퍼블리싱·CS(등급을 정하는 축)와 **뒤바꾸지 마라**. 이 게임의 단골 사고
+   *     지점이라 설계 결정표가 따로 한 줄을 쓰고 있다.
+   *  ⚠️ 30은 스펙에 없는 임시치다(design과 같다). */
+  figmaSkill: 30,
+  photoshopSkill: 30,
+  codingSkill: 30,
   /** 기획력 스탯(0~100). **클라이언트 미팅에서 알아내는 키워드 수를 정하는 축이다**
    *  (`data/keywords.ts`의 `MEETING_REVEAL`). 디자인과 축이 다르다 — 잘 그리는 것과
    *  무엇을 원하는지 알아내는 것은 다른 일이고, 둘을 한 값으로 묶으면 미팅이 디자인
@@ -148,6 +155,41 @@ export type QualityId = (typeof QUALITY)[number]['id']
 export type Grade = (typeof QUALITY)[number]['grades'][number]
 
 export const findQuality = (id: QualityId) => QUALITY.find((q) => q.id === id)!
+
+/** 숙련도 → 행동력 감면. **표가 오름차순이고 첫 칸이 0이어야 한다**
+ *  (`MENTAL_PENALTY`·`LEVEL_SPEEDUP`과 같은 모양 — 표를 읽는 규칙을 둘로 만들지 않는다).
+ *  코어 설계의 "40+ → −1, 80+ → −2"가 그대로 온다. */
+export const SKILL_DISCOUNT = [
+  { minSkill: 0, ap: 0 },
+  { minSkill: 40, ap: 1 },
+  { minSkill: 80, ap: 2 },
+] as const
+
+/** 공정 1회의 실제 비용. **비용을 내는 곳은 전부 이 함수를 쓴다** —
+ *  화면이 적는 값과 스토어가 깎는 값이 갈리면 "쓴다고 적힌 것과 다르게 준다"가 된다.
+ *
+ * ⚠️ **하한 1**(`AP_MIN`)이다. 0이면 행동력을 안 쓰고 무한히 만들 수 있어 이 게임의
+ *    유일한 제약이 사라진다(코어 설계의 명시적 규칙).
+ *
+ * ⚠️ 감면은 **숙련도**가 정한다 — 등급을 정하는 스탯(디자인 등)을 여기 넣지 마라. */
+/** 그 공정의 비용을 깎는 숙련도가 무엇인가. **공정 → 숙련도의 단일 출처다** —
+ *  컴포넌트에서 프로그램별로 고르지 말 것(`statFor`와 같은 역할).
+ *
+ * ⚠️ `ppt`는 스펙의 숙련도 3종에 없다. **포토샵 숙련도를 쓴다** — 둘 다 이미지를
+ *    다루는 제작 도구이고, PPT만 감면이 없으면 같은 '열심히'가 공정마다 다른 값이 된다
+ *    (넷째 숙련도를 만들지 않은 이유: 스펙이 3종으로 못박았다).
+ * ⚠️ `browser`(관리자 등록)는 감면이 없다 — 업로드는 퀄리티 없는 고정 1이라 깎을 것이 없다. */
+export const skillFor = (program: 'figma' | 'photoshop' | 'ppt' | 'editor'): SkillId =>
+  program === 'figma' ? 'figmaSkill' : program === 'editor' ? 'codingSkill' : 'photoshopSkill'
+
+/** 숙련도 축의 이름. ⚠️ `INITIAL_GAME`의 칸 이름과 같아야 한다. */
+export type SkillId = 'figmaSkill' | 'photoshopSkill' | 'codingSkill'
+
+export const apCost = (base: number, skill: number): number =>
+  Math.max(
+    AP_MIN,
+    base - SKILL_DISCOUNT.reduce((best, d) => (skill >= d.minSkill ? d.ap : best), 0),
+  )
 
 /** 사이트 퍼블리싱(에디터) 1회 비용. 이 공정이 **그 업무의 마지막 공정**이라 여기서
  *  업무가 완료된다. ⚠️ 퀄리티 선택이 붙으면 이 값도 퀄리티 비용표(하1·중2·상3)로 바뀐다 —

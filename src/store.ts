@@ -11,6 +11,8 @@ import {
   WINDOW_SPAWN,
   type Grade,
   type QualityId,
+  apCost,
+  skillFor,
 } from './data/game'
 import { gradeOf, type Draft } from './systems/craft'
 import { MEETING_AP, MEETING_OCCUPY_WEEKS, type KeywordId } from './data/keywords'
@@ -239,6 +241,12 @@ type Store = {
    *  ⚠️ 위기선 위로 오르면 **0으로 리셋**한다(설계 결정표). */
   crisisWeeks: number
 
+  /** 숙련도 3종(0~100). **행동력 비용을 깎는 축이다** — 등급과 무관하다.
+   *  ⚠️ 등급을 정하는 `design`과 뒤바꾸지 마라(설계 결정표가 한 줄을 따로 쓴다). */
+  figmaSkill: number
+  photoshopSkill: number
+  codingSkill: number
+
   /** **지금까지 벌어들인 대금의 합.** 회사레벨(→ 행동력 상한)이 여기서 파생한다.
    *  ⚠️ 소지금이 아니다 — 돈을 쓰면 줄어드는 값으로 레벨을 재면 지출할 때마다
    *  레벨이 내려가고 안 쓰고 모으는 것이 최적이 된다. 이 값은 **줄지 않는다**. */
@@ -448,6 +456,9 @@ const saveFields = (s: Store) => ({
   requests: s.requests,
   weekendWorked: s.weekendWorked,
   crisisWeeks: s.crisisWeeks,
+  figmaSkill: s.figmaSkill,
+  photoshopSkill: s.photoshopSkill,
+  codingSkill: s.codingSkill,
   revenue: s.revenue,
   unpaidMonths: s.unpaidMonths,
   over: s.over,
@@ -500,8 +511,9 @@ export const useGame = create<Store>()(
   publishJob: (id) =>
     set((s) => {
       const job = turnOf(s.jobs, id, 'editor')
-      if (!job || s.ap < PUBLISH_AP) return {}
-      return { ap: s.ap - PUBLISH_AP, jobs: bumpStep(s.jobs, id) }
+      const cost = apCost(PUBLISH_AP, s[skillFor('editor')])
+      if (!job || s.ap < cost) return {}
+      return { ap: s.ap - cost, jobs: bumpStep(s.jobs, id) }
     }),
 
   toggleBookmark: (url) =>
@@ -616,11 +628,13 @@ export const useGame = create<Store>()(
       // ⚠️ 자기 차례가 아닌 업무는 여기서 만들 수 없다 — 공정의 줄을 건너뛰면
       //    회신 고리가 끊기고 마지막 공정만 눌러 업무를 끝낼 수 있게 된다.
       const job = turnOf(s.jobs, jobId, 'photoshop')
-      if (!job || s.ap < q.ap) return {}
+      // ⚠️ 실제 비용은 숙련도가 깎는다(`apCost` 한 함수가 정본이다 — 화면도 같은 값을 적는다).
+      const cost = apCost(q.ap, s[skillFor('photoshop')])
+      if (!job || s.ap < cost) return {}
       // seq는 그 업무로 만든 파일 수다 — 같은 업무를 다시 만들어도 id가 겹치지 않는다.
       const seq = s.files.filter((f) => f.jobId === jobId).length + 1
       return {
-        ap: s.ap - q.ap,
+        ap: s.ap - cost,
         jobs: bumpStep(s.jobs, jobId),
         files: [
           ...s.files,
@@ -643,7 +657,8 @@ export const useGame = create<Store>()(
     set((s) => {
       const q = findQuality(quality)
       const job = turnOf(s.jobs, jobId, 'figma')
-      if (!job || s.ap < q.ap) return {}
+      const cost = apCost(q.ap, s[skillFor('figma')])
+      if (!job || s.ap < cost) return {}
       const seq = s.drafts.filter((d) => d.jobId === jobId).length + 1
       // 맞춘 키워드가 등급을 민다. ⚠️ **정답은 여기서도 저장하지 않는다** — 업무 id에서
       //    그때그때 파생한다(`clientKeywords`). 그래서 세이브를 뜯어도 정답이 안 보이고,
@@ -652,7 +667,7 @@ export const useGame = create<Store>()(
       //    `GRADE_REWARD`가 이미 등급을 대금·평판으로 옮긴다).
       const shift = keywordShift(hitCount(keywords, clientKeywords(jobId)))
       return {
-        ap: s.ap - q.ap,
+        ap: s.ap - cost,
         jobs: bumpStep(s.jobs, jobId),
         drafts: [
           ...s.drafts,
@@ -713,11 +728,12 @@ export const useGame = create<Store>()(
     set((s) => {
       const q = findQuality(quality)
       const job = turnOf(s.jobs, jobId, 'ppt')
-      if (!job || s.ap < q.ap) return {}
+      const cost = apCost(q.ap, s[skillFor('ppt')])
+      if (!job || s.ap < cost) return {}
       const seq = s.slides.filter((d) => d.jobId === jobId).length + 1
       const what = job.kind === 'site' ? '화면정의서' : '발표자료'
       return {
-        ap: s.ap - q.ap,
+        ap: s.ap - cost,
         jobs: bumpStep(s.jobs, jobId),
         slides: [
           ...s.slides,

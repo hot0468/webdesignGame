@@ -12,6 +12,7 @@ import {
   nextGrade,
   companyLevel,
   nextLevel,
+  SKILL_DISCOUNT,
 } from '../data/game'
 import { payroll } from '../systems/employee'
 import { useGame } from '../store'
@@ -83,6 +84,11 @@ function Status() {
   const employees = useGame((s) => s.employees)
   const crisisWeeks = useGame((s) => s.crisisWeeks)
   const revenue = useGame((s) => s.revenue)
+  const design = useGame((s) => s.design)
+  const planning = useGame((s) => s.planning)
+  const figmaSkill = useGame((s) => s.figmaSkill)
+  const photoshopSkill = useGame((s) => s.photoshopSkill)
+  const codingSkill = useGame((s) => s.codingSkill)
   const inCrisis = reputation < REPUTATION_CRISIS
   const grade = companyGrade(reputation)
   const next = nextGrade(grade)
@@ -120,6 +126,23 @@ function Status() {
       <p className="company__note">
         행동력 상한 {level.apMax} · 누적 매출 {revenue.toLocaleString('ko-KR')}원
         {up && ` · ${up.minRevenue.toLocaleString('ko-KR')}원부터 레벨 ${up.level}(행동력 ${up.apMax})`}
+      </p>
+
+      {/* 내 스탯. ⚠️ **두 축을 갈라서 적는다** — 등급을 정하는 축(디자인·기획)과
+          행동력을 깎는 축(숙련도 3종)을 한 줄에 섞으면 무엇을 올려야 무엇이 좋아지는지가
+          흐려진다. 이 게임의 단골 사고 지점이라 설계 결정표도 한 줄을 따로 쓴다. */}
+      <div className="company__head">
+        <span className="company__label">내 스탯</span>
+      </div>
+      <p className="company__note">
+        결과물 등급 — 디자인 {design} · 기획 {planning}
+      </p>
+      <p className="company__note">
+        행동력 감면 — 피그마 {figmaSkill} · 포토샵 {photoshopSkill} · 코딩 {codingSkill}
+      </p>
+      <p className="company__note">
+        숙련도 {SKILL_DISCOUNT[1].minSkill}부터 −{SKILL_DISCOUNT[1].ap},{' '}
+        {SKILL_DISCOUNT[2].minSkill}부터 −{SKILL_DISCOUNT[2].ap} (최소 1)
       </p>
 
       <div className="company__head">

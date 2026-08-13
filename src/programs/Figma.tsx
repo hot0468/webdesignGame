@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { FIGMA_ICONS } from '../data/icons'
-import { QUALITY } from '../data/game'
+import { apCost, QUALITY, skillFor } from '../data/game'
 import {
   KEYWORDS,
   MEETING_AP,
@@ -32,6 +32,8 @@ export function Figma() {
   const jobs = useGame((s) => s.jobs)
   const drafts = useGame((s) => s.drafts)
   const ap = useGame((s) => s.ap)
+  // ⚠️ 화면이 적는 값과 스토어가 깎는 값은 **같은 함수**에서 나와야 한다.
+  const skill = useGame((s) => s[skillFor('figma')])
   const design = useGame((s) => s.design)
   const meetings = useGame((s) => s.meetings)
   const makeDraft = useGame((s) => s.makeDraft)
@@ -261,12 +263,12 @@ export function Figma() {
                       key={q.id}
                       type="button"
                       className="fig__make"
-                      disabled={ap < q.ap || !full}
+                      disabled={ap < apCost(q.ap, skill) || !full}
                       onClick={() => makeDraft(picked.id, q.id, picks)}
                     >
                       {q.label}
                       <span className="fig__cost">
-                        행동력 {q.ap} · {gradeOf(q.id, design)}
+                        행동력 {apCost(q.ap, skill)} · {gradeOf(q.id, design)}
                       </span>
                     </button>
                   ))}

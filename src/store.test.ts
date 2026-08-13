@@ -19,6 +19,9 @@ import {
   mentalPenalty,
   WEEKEND_DUE_WEEKS,
   WEEKEND_MENTAL_COST,
+  apCost,
+  QUALITY,
+  SKILL_DISCOUNT,
 } from './data/game'
 import { monthlyCost } from './systems/money'
 import { MESSAGES, type Request } from './data/inbox'
@@ -66,6 +69,9 @@ beforeEach(() => {
     chats: [],
     weekendWorked: [],
     crisisWeeks: 0,
+    figmaSkill: INITIAL_GAME.figmaSkill,
+    photoshopSkill: INITIAL_GAME.photoshopSkill,
+    codingSkill: INITIAL_GAME.codingSkill,
     revenue: 0,
     unpaidMonths: 0,
     over: undefined,
@@ -85,6 +91,9 @@ describe('초기 수치', () => {
       reputation: s.reputation,
       design: s.design,
       planning: s.planning,
+      figmaSkill: s.figmaSkill,
+      photoshopSkill: s.photoshopSkill,
+      codingSkill: s.codingSkill,
     }).toEqual({ ...INITIAL_GAME })
   })
 })
@@ -1054,5 +1063,32 @@ describe('주말 근무와 정신력', () => {
     useGame.getState().advanceWeek()
     expect(useGame.getState().apMax).toBe(COMPANY_LEVELS[0].apMax)
     expect(hurt).toBeLessThan(COMPANY_LEVELS[0].apMax)
+  })
+})
+
+/** 숙련도. ⚠️ 여기서 지키는 것은 **비용이 실제로 깎인다**와 **하한 1을 안 뚫는다** 둘이다 —
+ *  0이 되면 행동력을 안 쓰고 무한히 만들 수 있어 이 게임의 유일한 제약이 사라진다. */
+describe('숙련도', () => {
+  it('구간을 넘으면 비용이 깎이고 하한은 1이다', () => {
+    const d1 = SKILL_DISCOUNT[1]!
+    const d2 = SKILL_DISCOUNT[2]!
+    expect(apCost(3, 0)).toBe(3)
+    expect(apCost(3, d1.minSkill)).toBe(3 - d1.ap)
+    expect(apCost(3, d2.minSkill)).toBe(3 - d2.ap)
+    // 뒤집기: 하한이 없으면 '간단하게'(1)가 0이 되어 공짜로 무한히 만들 수 있다.
+    expect(apCost(1, 100)).toBe(1)
+    expect(apCost(2, 100)).toBe(1)
+  })
+
+  it('제작이 깎인 값만큼만 행동력을 문다', () => {
+    const g = () => useGame.getState()
+    const ppt = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'ppt')!
+    // 포토샵 숙련도가 PPT 공정의 비용을 깎는다(`skillFor`).
+    useGame.setState({ photoshopSkill: SKILL_DISCOUNT[1]!.minSkill })
+    g().acceptJob(ppt)
+    const before = g().ap
+    g().makeSlides(ppt.id, 'hard')
+    const hard = QUALITY.find((q) => q.id === 'hard')!
+    expect(before - g().ap).toBe(apCost(hard.ap, SKILL_DISCOUNT[1]!.minSkill))
   })
 })

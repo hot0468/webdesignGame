@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { CLIENTS } from '../data/company'
-import { PUBLISH_AP } from '../data/game'
+import { apCost, PUBLISH_AP, skillFor } from '../data/game'
 import { EDITOR_ICONS } from '../data/icons'
 import { formatDate } from '../systems/calendar'
 import { checkFtp } from '../systems/ftp'
@@ -41,6 +41,7 @@ const EMPTY_FORM: FtpForm = { host: '', port: '', user: '', pw: '' }
 export function Editor() {
   const jobs = useGame((s) => s.jobs)
   const ap = useGame((s) => s.ap)
+  const cost = apCost(PUBLISH_AP, useGame((s) => s[skillFor('editor')]))
   const ftpClients = useGame((s) => s.ftpClients)
   const connectFtp = useGame((s) => s.connectFtp)
   const publishJob = useGame((s) => s.publishJob)
@@ -193,7 +194,7 @@ export function Editor() {
                     <button
                       type="button"
                       className="ed__job"
-                      disabled={!isTurnOf(asStep(j), 'editor') || ap < PUBLISH_AP}
+                      disabled={!isTurnOf(asStep(j), 'editor') || ap < cost}
                       onClick={() => publishJob(j.id)}
                     >
                       <AppIcon name={EDITOR_ICONS.publish} size={16} />
@@ -201,7 +202,7 @@ export function Editor() {
                       <span className="ed__job-meta">마감 {formatDate(j.due)}</span>
                       <span className="ed__job-cost">
                         {isTurnOf(asStep(j), 'editor')
-                          ? `퍼블리싱 · 행동력 ${PUBLISH_AP}`
+                          ? `퍼블리싱 · 행동력 ${cost}`
                           : '올렸다 · 회신해야 끝난다'}
                       </span>
                     </button>
@@ -209,7 +210,7 @@ export function Editor() {
                 ))}
               </ul>
             )}
-            {ap < PUBLISH_AP && todo.length > 0 && (
+            {ap < cost && todo.length > 0 && (
               <p className="ed__note">행동력이 모자란다. 다음 주가 되면 채워진다.</p>
             )}
           </section>
@@ -218,7 +219,7 @@ export function Editor() {
             <p className="ed__welcome">webdi</p>
             {/* ⚠️ 없는 규칙을 화면이 말하지 않는다 — 숙련도 감면은 그 축이 생길 때 적는다. */}
             <p className="ed__note">
-              업체 폴더를 열면 그 업체의 남은 업무가 여기 뜬다. 올리면 행동력 {PUBLISH_AP}를
+              업체 폴더를 열면 그 업체의 남은 업무가 여기 뜬다. 올리면 행동력 {cost}를
               쓰고, 그 결과를 의뢰 글에 회신해야 업무가 끝난다.
             </p>
           </div>

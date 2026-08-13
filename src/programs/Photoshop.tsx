@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { PHOTOSHOP_ICONS, PROGRAM_ICONS } from '../data/icons'
-import { QUALITY } from '../data/game'
+import { apCost, QUALITY, skillFor } from '../data/game'
 import { gradeOf } from '../systems/craft'
 import { formatPeriod } from '../systems/calendar'
 import { isTurnOf, showsIn } from '../systems/pipeline'
@@ -29,6 +29,7 @@ export function Photoshop() {
   const jobs = useGame((s) => s.jobs)
   const files = useGame((s) => s.files)
   const ap = useGame((s) => s.ap)
+  const skill = useGame((s) => s[skillFor('photoshop')])
   const design = useGame((s) => s.design)
   const makePopup = useGame((s) => s.makePopup)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -122,12 +123,12 @@ export function Photoshop() {
                 key={q.id}
                 type="button"
                 className="ps__make"
-                disabled={ap < q.ap}
+                disabled={ap < apCost(q.ap, skill)}
                 onClick={() => makePopup(open.id, q.id)}
               >
                 {q.label}
                 <span className="ps__cost">
-                  행동력 {q.ap} · {gradeOf(q.id, design)}
+                  행동력 {apCost(q.ap, skill)} · {gradeOf(q.id, design)}
                 </span>
               </button>
             ))}

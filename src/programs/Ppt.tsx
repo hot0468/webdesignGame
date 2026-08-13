@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
-import { QUALITY } from '../data/game'
+import { apCost, QUALITY, skillFor } from '../data/game'
 import { PROGRAM_ICONS } from '../data/icons'
 import { formatDate } from '../systems/calendar'
 import { gradeOf } from '../systems/craft'
@@ -19,6 +19,7 @@ export function Ppt() {
   const jobs = useGame((s) => s.jobs)
   const slides = useGame((s) => s.slides)
   const ap = useGame((s) => s.ap)
+  const skill = useGame((s) => s[skillFor('ppt')])
   const design = useGame((s) => s.design)
   const makeSlides = useGame((s) => s.makeSlides)
   const [pickedId, setPicked] = useState<string | null>(null)
@@ -85,12 +86,12 @@ export function Ppt() {
                     key={q.id}
                     type="button"
                     className="ppt__make"
-                    disabled={ap < q.ap}
+                    disabled={ap < apCost(q.ap, skill)}
                     onClick={() => makeSlides(picked.id, q.id)}
                   >
                     {q.label}
                     <span className="ppt__cost">
-                      행동력 {q.ap} · {gradeOf(q.id, design)}
+                      행동력 {apCost(q.ap, skill)} · {gradeOf(q.id, design)}
                     </span>
                   </button>
                 ))}
