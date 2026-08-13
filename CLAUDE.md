@@ -27,6 +27,8 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-13 | 파산 규칙 교체 — 잔액 음수가 아니라 **급여 3달 연속 밀림**(착수금·대출로 한 달은 버틴다). 정산 메일이 몇 달째인지 경고 | src/data/game.ts, src/systems/gameover.ts·money.ts, src/store.ts(+test) |
+| 2026-08-13 | 회사레벨 — 누적 매출에서 파생해 **행동력 상한**을 민다(평판이 지는 회사등급과 다른 축, 줄지 않는다) | src/data/game.ts, src/store.ts(+test), src/programs/Company.tsx |
 | 2026-08-13 | 게임 오버 둘 — 파산(정산 뒤 소지금 음수)·폐업(위기 4주). 판정은 순수 함수, 끝난 판은 주차가 안 흐른다 | src/systems/gameover.ts·components/GameOver.tsx(신규), src/store.ts(+test), src/App.tsx, src/index.css |
 | 2026-08-13 | 직원 요청 — 휴가·급여협상·피드백·교육요청이 주차 넘김에 확률로 오고, 거절이 쌓이면 불만으로 퇴사 | src/systems/request.ts·seed.ts(신규), src/data/employees.ts, src/systems/employee.ts, src/store.ts(+test), src/programs/Messenger.tsx·messenger.css |
 | 2026-08-13 | 직원 스탯에 **기획** 추가(4종) → 막혀 있던 미팅 파견 개방. 가는 사람의 기획력이 알아내는 키워드 수를 정한다 | src/data/employees.ts·keywords.ts, src/systems/employee.ts·hire.ts, src/store.ts(+test), src/programs/Figma.tsx·figma.css·Messenger.tsx·HireSite.tsx |
@@ -35,5 +37,3 @@
 | 2026-08-13 | 시안 키워드 — 미팅(행동력 1)에서 기획력만큼 알아내고, 적중 수가 시안 등급을 민다. 정답은 업무 id 시드로 파생(저장 안 함) | src/data/keywords.ts·systems/keywords.ts(신규), systems/craft.ts, programs/Figma.tsx, store.ts |
 | 2026-08-13 | 작업 표시줄 시작 버튼 — 이름 있는 세이브 슬롯 3칸(자동저장 위에 얹는다), 되돌릴 수 없는 일은 포털 확인창이 묻는다 | src/systems/save.ts·components/StartMenu.tsx(신규), Taskbar.tsx, store.ts, index.css |
 | 2026-08-13 | 돈이 도는 고리 — 완료 회신이 대금·평판을 주고, 마감 초과는 계약 파기, 월말엔 유지보수보고서로 고정 지출. 세이브(`webdi.save.v1`)까지 | src/systems/money.ts(신규)·pipeline.ts, src/data/game.ts, src/store.ts(+test, persist), src/components/Hud.tsx·JobActions.tsx |
-| 2026-08-13 | `다음 주` 버튼을 되살리고 **묻는 창**을 붙였다(포털 · `window.confirm` 금지) — 행동력을 다 써도 그 주에 머물 수 있으므로 넘기는 것은 늘 선택이다 | src/components/Hud.tsx, src/index.css, project-context |
-| 2026-08-13 | 공정의 줄 + 회신 고리 — 업무에 `kind`·`step`·`replied`, 창은 자기 차례만, 회신해야 다음 공정이 열리고 마지막 회신에 만족도 메일이 온다 | src/systems/pipeline.ts(+test, 신규), src/store.ts(+test), src/data/inbox.ts·company.ts, src/programs/Ppt.tsx·Figma·Photoshop·Editor, src/components/JobActions.tsx·MessageList.tsx |

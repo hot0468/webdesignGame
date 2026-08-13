@@ -4,6 +4,8 @@
 코드에 앉힐 자리가 없는 결정(전역 방향 전환, 기각된 대안 전체)만 여기서 정본이 된다.
 
 <!-- 밀려난 줄은 이 아래에 -->
+| 2026-08-13 | `다음 주` 버튼을 되살리고 **묻는 창**을 붙였다(포털 · `window.confirm` 금지) — 행동력을 다 써도 그 주에 머물 수 있으므로 넘기는 것은 늘 선택이다 | src/components/Hud.tsx, src/index.css, project-context |
+| 2026-08-13 | 공정의 줄 + 회신 고리 — 업무에 `kind`·`step`·`replied`, 창은 자기 차례만, 회신해야 다음 공정이 열리고 마지막 회신에 만족도 메일이 온다 | src/systems/pipeline.ts(+test, 신규), src/store.ts(+test), src/data/inbox.ts·company.ts, src/programs/Ppt.tsx·Figma·Photoshop·Editor, src/components/JobActions.tsx·MessageList.tsx |
 | 2026-08-12 | 바탕화면 바닥에 물결 두 겹 — CSS 의사요소만으로(큰 원을 돌린다), reduced-motion에서는 멈춘다 | src/index.css, project-context(shell.md) |
 | 2026-08-12 | 회사등급 5단(극소~대) — 평판에서 파생하는 표 하나가 채용 상한을 지고, 회사현황 맨 위에 선다 | src/data/game.ts(+test), src/programs/Company.tsx, project-context |
 | 2026-08-12 | 계기판의 `다음 주` 버튼 제거 — 주차를 미는 자리가 없어졌다(`advanceWeek`는 남아 있다) | src/components/Hud.tsx, src/index.css |
