@@ -6,6 +6,7 @@ import { normalizeUrl, resolveUrl, siteTitle, type Destination } from '../system
 import { useGame } from '../store'
 import { AdminSite } from './AdminSite'
 import { HireSite } from './HireSite'
+import { WorkSite } from './WorkSite'
 import './browser.css'
 
 /** `브라우저` 창 — 주소 표시줄 + 그 주소가 가리키는 화면.
@@ -122,9 +123,13 @@ export function Browser() {
         // key로 업체를 갈라 준다 — 다른 업체로 옮기면 로그인이 따라가지 않는다.
         <AdminSite key={at.clientId} clientId={at.clientId} />
       ) : at.kind === 'site' ? (
-        // 지금 화면을 가진 바로가기는 채용사이트 하나다. 나머지는 `SHORTCUTS`에 주소가
-        // 없어 애초에 여기 닿지 않는다(준비 중 꼬리표가 그것을 말한다).
-        <HireSite />
+        // 화면을 가진 바로가기는 수주센터·채용사이트 둘이다. 나머지(쇼핑)는 `SHORTCUTS`에
+        // 주소가 없어 애초에 여기 닿지 않는다(준비 중 꼬리표가 그것을 말한다).
+        at.siteId === 'work' ? (
+          <WorkSite />
+        ) : (
+          <HireSite />
+        )
       ) : at.kind === 'unknown' ? (
         <div className="nv__lost">
           <AppIcon name={PROGRAM_ICONS.noSite} size={40} />

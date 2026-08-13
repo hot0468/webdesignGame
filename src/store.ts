@@ -22,6 +22,15 @@ import { CLIENTS } from './data/company'
 import { EMPLOYEE_LEVEL, FEEDBACK_AP, ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP, TRAIN_COST } from './data/employees'
 import type { Applicant } from './systems/hire'
 import {
+  asRequest,
+  bidMail,
+  eligibility,
+  wins,
+  winChance,
+  type Listing,
+} from './systems/bidding'
+import { BID_AP, findTier } from './data/bidding'
+import {
   canOrder,
   canTrain,
   doneReply,
@@ -217,6 +226,12 @@ type Store = {
   /** 이미 고용했거나 놓친 지원자의 id. ⚠️ **목록에서 지우지 않는다** — 파생 목록이라
    *  지울 자리가 없고, 한 번 뽑은 사람이 같은 공고에 다시 서면 두 번 뽑힌다. */
   hiredApplicantIds: string[]
+
+  /** 수주센터에 **응모한 공고의 id**. ⚠️ 공고 목록 자체는 저장하지 않는다 — 주차에서
+   *  파생한다(`systems/bidding.ts`의 `listings`). 여기 사는 것은 **내가 건 것뿐**이다.
+   *  ⚠️ 목록에서 지우지 않는다: 지우면 떨어진 공고에 다시 응모해 추첨을 굴릴 수 있다
+   *  (추첨 씨앗이 공고 id라 결과 자체는 안 바뀌지만, 행동력만 계속 태우는 죽은 길이 된다). */
+  bids: string[]
   /** 메신저에 쌓인 직원의 말. **방은 `employeeId`로 갈린다**(방 하나 = 직원 하나).
    *  ⚠️ 내가 한 말은 쌓지 않는다 — 지시는 `orders`에 이미 남아 있고, 같은 사실을 두 벌로
    *     적으면 둘이 어긋난다. */
@@ -321,6 +336,15 @@ type Store = {
    *  0이면 매주 몇 번이고 눌러 지원자를 새로 볼 수 있어 공고가 선택이 아니게 된다.
    *  ⚠️ 지원자는 저장하지 않는다 — 올린 주차만 남고 목록은 그 주차에서 파생한다. */
   postHiring: () => void
+  /** 수주센터의 공고에 **응모한다**(브라우저 수주센터). **행동력 `BID_AP`를 문다** —
+   *  공짜면 조건이 맞는 공고에 전부 응모하는 것이 늘 정답이라 선택이 아니게 된다.
+   *
+   *  ⚠️ **확정 수주가 아니라 추첨이다.** 당첨이면 그 자리에서 평범한 `Request`가 되어
+   *     `acceptJob`을 그대로 탄다(새 업무 축이 아니다). 어느 쪽이든 결과 메일이 온다.
+   *  ⚠️ **조건 미달이면 아무 일도 일어나지 않는다** — 버튼 disabled만으로는 경로가 남는다
+   *     (이 리포의 확립된 규칙). 이미 응모한 공고도 마찬가지다.
+   *  ⚠️ 추첨 씨앗은 **공고 id**라 다시 눌러 굴릴 수 없다(`systems/bidding.ts`의 `wins`). */
+  bidListing: (listing: Listing) => void
   /** 지원자를 고용한다. ⚠️ **정원(`companyGrade().hireMax`)을 넘으면 아무 일도 일어나지 않는다** —
    *  버튼 disabled만으로는 정원 초과 경로가 남는다(이 리포의 확립된 규칙). */
   hire: (applicant: Applicant) => void
@@ -369,6 +393,16 @@ type Store = {
 
 /** 드래그 clamp에 필요한 화면 크기. 스토어는 DOM을 모르므로 호출자가 준다. */
 export type Viewport = { w: number; h: number }
+
+/** 수주 확률에 **능력치가 얼마나 실리는지**를 정하는 한 자리.
+ *
+ * ⚠️ 화면(수주센터)과 스토어(`bidListing`)가 **둘 다 이것을 부른다** — 갈리면 "적힌
+ *    확률과 다르게 굴렸다"가 된다(`apCost`가 같은 이유로 하나인 것과 같다).
+ * ⚠️ 지금은 **디자인 + 기획력의 평균**이다: 공고에 낼 수 있는 것이 그림과 기획안이라
+ *    그 둘이 심사받는 축이다(숙련도는 만드는 속도지 회사의 실력이 아니다). 스탯 축이
+ *    늘면 여기만 고친다 — `systems/bidding.ts`는 평균 하나만 받는다. */
+export const bidStats = (s: Pick<Store, 'design' | 'planning'>): number =>
+  (s.design + s.planning) / 2
 
 /** 공정 판정에 넘기는 최소 모양. **순수 함수가 스토어의 `Job` 전체를 알지 않게 한다.** */
 export const asStep = (j: Job): StepJob => ({
@@ -453,6 +487,7 @@ const saveFields = (s: Store) => ({
   trainings: s.trainings,
   hirePostWeek: s.hirePostWeek,
   hiredApplicantIds: s.hiredApplicantIds,
+  bids: s.bids,
   chats: s.chats,
   requests: s.requests,
   weekendWorked: s.weekendWorked,
@@ -486,6 +521,7 @@ const emptyGame = () => ({
   trainings: [],
   hirePostWeek: undefined,
   hiredApplicantIds: [],
+  bids: [],
   chats: [],
   requests: [],
   weekendWorked: [],
@@ -833,6 +869,39 @@ export const useGame = create<Store>()(
   // ⚠️ 행동력이 모자라면 아무 일도 일어나지 않는다(제작 액션들과 같은 규칙).
   postHiring: () =>
     set((s) => (s.ap < POST_AP ? {} : { ap: s.ap - POST_AP, hirePostWeek: s.week })),
+
+  // ── 수주센터(업무 수주 사이트) ───────────────────────────
+  // ⚠️ **메일 의뢰와 다른 고리다**: 조건을 맞춰야 응모할 수 있고, 응모해도 **추첨**이다.
+  //    판정(자격·확률·추첨)은 전부 `systems/bidding.ts`의 순수 함수가 진다 — 스토어는
+  //    값을 물고 결과를 적용할 뿐이다(팝업 판정과 같은 역할 분담).
+  // ⚠️ 당첨된 공고는 **평범한 `Request`가 되어 `acceptJob`을 그대로 탄다** — 새 업무 축을
+  //    만들지 않는다(주말 돌발 의뢰와 같은 규칙).
+  // ⚠️ 추첨 씨앗은 공고 id라 **다시 눌러도 답이 안 바뀐다**. 그래도 `bids`로 한 번만
+  //    걸게 막는 이유는, 안 막으면 떨어진 공고에 행동력만 계속 태우는 길이 남아서다.
+  bidListing: (listing) => {
+    const s = get()
+    if (s.bids.includes(listing.id)) return
+    if (s.ap < BID_AP) return
+    const tier = findTier(listing.tier)
+    const ok = eligibility(tier.require, {
+      employees: s.employees.length,
+      drafts: s.drafts.length,
+      slideGrades: s.slides.map((d) => d.grade),
+    }).ok
+    if (!ok) return
+
+    // 확률은 **응모하는 그 순간의** 평판·능력치가 정한다. 화면이 응모 전에 적는 값과
+    // 같은 함수·같은 인자여야 "적힌 것과 다르게 굴렸다"가 되지 않는다.
+    const won = wins(listing.id, winChance(tier, s.reputation, bidStats(s)))
+    set((cur) => ({
+      ap: cur.ap - BID_AP,
+      bids: [...cur.bids, listing.id],
+      mails: [bidMail(listing, cur.week, won), ...cur.mails],
+    }))
+    // ⚠️ `acceptJob`은 `set` 밖에서 부른다 — 안에서 부르면 위 `set`이 아직 반영되지
+    //    않은 상태를 덮어써 응모 기록이 사라진다(같은 함정을 `weekendWork`가 이미 푼다).
+    if (won) get().acceptJob(asRequest(listing, get().week))
+  },
 
   // ⚠️ **정원은 회사등급이 진다**(`companyGrade(reputation).hireMax`). 등급이 내려가
   //    정원을 넘겨도 **있는 직원은 자르지 않고 신규 채용만 막는다**(설계 결정) —

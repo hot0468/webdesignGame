@@ -43,6 +43,7 @@ beforeEach(() => {
     orders: [],
     hirePostWeek: undefined,
     hiredApplicantIds: [],
+    bids: [],
     chats: [],
     weekendWorked: [],
     crisisWeeks: 0,
@@ -101,6 +102,9 @@ describe('이름 있는 슬롯', () => {
       ],
       hirePostWeek: 2,
       hiredApplicantIds: ['ap:2:0'],
+      // ⚠️ 수주센터의 응모 기록도 같은 함정을 진다 — `saveFields`에서 빠지면 불러온
+      //    판에서 이미 떨어진 공고에 행동력을 다시 태우게 된다.
+      bids: ['wk:2:0'],
       chats: [{ employeeId: 'e1', week: 2, text: '맡겠습니다' }],
       crisisWeeks: 2,
     })
@@ -115,6 +119,7 @@ describe('이름 있는 슬롯', () => {
     expect(s.orders).toHaveLength(1)
     expect(s.hirePostWeek).toBe(2)
     expect(s.hiredApplicantIds).toEqual(['ap:2:0'])
+    expect(s.bids).toEqual(['wk:2:0'])
     expect(s.chats).toHaveLength(1)
     expect(s.crisisWeeks).toBe(2)
   })

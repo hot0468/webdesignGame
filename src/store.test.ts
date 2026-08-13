@@ -69,6 +69,7 @@ beforeEach(() => {
     requests: [],
     chats: [],
     weekendWorked: [],
+    bids: [],
     crisisWeeks: 0,
     figmaSkill: INITIAL_GAME.figmaSkill,
     photoshopSkill: INITIAL_GAME.photoshopSkill,

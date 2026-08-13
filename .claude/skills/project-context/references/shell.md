@@ -92,6 +92,9 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/programs/editor.css` | `에디터` 창 전용 VS Code Dark+ 팔레트. ⚠️ **어두운 창**이라 대비 방향이 반대다 — 값을 다른 창과 주고받지 말 것 |
 | `src/programs/photoshop.css` | `포토샵` 창 전용 Photoshop CC Dark 팔레트. ⚠️ 어두운 창(에디터와 둘뿐). 보조 글자는 실제 포토샵의 #9A9A9A가 아니라 **#A0A0A0**이다 — 그 값이라야 패널 위에서 AA를 넘는다 |
 | `src/programs/figma.css` | `피그마` 창 전용 캔버스 뉴트럴 팔레트(액센트 없음 — 선택은 면으로 말한다). **이 파일 밖으로 새지 않는다** |
+| `src/data/bidding.ts` | 수주센터 공고의 수치(규모 3단·조건·확률 계수·응모 비용) |
+| `src/systems/bidding.ts` | 공고 생성·자격·확률·추첨. **순수 함수**(시드는 주차와 공고 id) |
+| `src/programs/WorkSite.tsx` | 수주센터 화면. `--nv-*`를 쓰고 `HireSite`의 클래스를 재사용한다 |
 | `src/data/sites.ts` | 가짜 포털 이름 + 첫화면 바로가기 목록. 사이트가 생기면 여는 대상이 여기 붙는다 |
 | `src/systems/url.ts` | 주소창 글자 → 갈 곳(`resolveUrl`) + 관리자 로그인 대조(`checkLogin`). **주소·계정의 정본은 `CLIENTS`다** — 여기 다시 적지 않는다 |
 | `src/programs/AdminSite.tsx` | 업체별 관리자 페이지(로그인 + 팝업 목록 + 등록 폼). 로그인은 `useState`(창 닫으면 풀림), 걸린 팝업은 스토어 `popups`. ⚠️ 셀렉터 안에서 `filter`를 돌리지 말 것 — 새 배열이 나와 zustand가 무한 렌더로 화면을 하얗게 만든다(겪었다) |

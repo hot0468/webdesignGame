@@ -21,7 +21,7 @@ export const SEARCH_HOME = {
  *    접속"이라 적었다고 두 입구를 그리면 어느 쪽이 진짜인지 흐려진다.
  * ⚠️ 고용 사이트는 **알바가 아니라 직원**을 뽑는 곳이다(`메신저`의 대화 상대가 여기서 온다). */
 export const SHORTCUTS = [
-  { id: 'work', name: '수주센터', icon: 'work' },
+  { id: 'work', name: '수주센터', icon: 'work', url: 'https://sooju.kr' },
   { id: 'hire', name: '인간인', icon: 'hire', url: 'https://ingannin.kr' },
   { id: 'shop', name: '쇼핑', icon: 'shop' },
 ] as const satisfies readonly {
