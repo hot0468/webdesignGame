@@ -27,6 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-13 | 게임 오버 둘 — 파산(정산 뒤 소지금 음수)·폐업(위기 4주). 판정은 순수 함수, 끝난 판은 주차가 안 흐른다 | src/systems/gameover.ts·components/GameOver.tsx(신규), src/store.ts(+test), src/App.tsx, src/index.css |
 | 2026-08-13 | 직원 요청 — 휴가·급여협상·피드백·교육요청이 주차 넘김에 확률로 오고, 거절이 쌓이면 불만으로 퇴사 | src/systems/request.ts·seed.ts(신규), src/data/employees.ts, src/systems/employee.ts, src/store.ts(+test), src/programs/Messenger.tsx·messenger.css |
 | 2026-08-13 | 직원 스탯에 **기획** 추가(4종) → 막혀 있던 미팅 파견 개방. 가는 사람의 기획력이 알아내는 키워드 수를 정한다 | src/data/employees.ts·keywords.ts, src/systems/employee.ts·hire.ts, src/store.ts(+test), src/programs/Figma.tsx·figma.css·Messenger.tsx·HireSite.tsx |
 | 2026-08-13 | 직원 시스템 — 채용(인간인 공고→지원자)·지시(종류 제한, 등급은 직원 스탯)·급여(월말, 사람 수가 정본)·위기 퇴사 | src/data/employees.ts·systems/hire.ts·employee.ts·programs/HireSite.tsx(신규), Messenger.tsx, store.ts, money.ts |
@@ -36,4 +37,3 @@
 | 2026-08-13 | 돈이 도는 고리 — 완료 회신이 대금·평판을 주고, 마감 초과는 계약 파기, 월말엔 유지보수보고서로 고정 지출. 세이브(`webdi.save.v1`)까지 | src/systems/money.ts(신규)·pipeline.ts, src/data/game.ts, src/store.ts(+test, persist), src/components/Hud.tsx·JobActions.tsx |
 | 2026-08-13 | `다음 주` 버튼을 되살리고 **묻는 창**을 붙였다(포털 · `window.confirm` 금지) — 행동력을 다 써도 그 주에 머물 수 있으므로 넘기는 것은 늘 선택이다 | src/components/Hud.tsx, src/index.css, project-context |
 | 2026-08-13 | 공정의 줄 + 회신 고리 — 업무에 `kind`·`step`·`replied`, 창은 자기 차례만, 회신해야 다음 공정이 열리고 마지막 회신에 만족도 메일이 온다 | src/systems/pipeline.ts(+test, 신규), src/store.ts(+test), src/data/inbox.ts·company.ts, src/programs/Ppt.tsx·Figma·Photoshop·Editor, src/components/JobActions.tsx·MessageList.tsx |
-| 2026-08-12 | 바탕화면 바닥에 물결 두 겹 — CSS 의사요소만으로(큰 원을 돌린다), reduced-motion에서는 멈춘다 | src/index.css, project-context(shell.md) |
