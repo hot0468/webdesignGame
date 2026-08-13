@@ -34,7 +34,7 @@ const emp = (over: Partial<Employee> = {}): Employee => ({
   name: '김지훈',
   role: 'designer',
   level: 1,
-  stats: { design: 50, publishing: 50, cs: 50 },
+  stats: { design: 50, publishing: 50, planning: 50, cs: 50 },
   hiredWeek: 1,
   ...over,
 })
@@ -180,7 +180,7 @@ describe('교육', () => {
     name: '테스트',
     role: 'designer',
     level,
-    stats: { design, publishing: 50, cs: 50 },
+    stats: { design, publishing: 50, planning: 50, cs: 50 },
     hiredWeek: 1,
   })
 
@@ -204,7 +204,7 @@ describe('교육', () => {
 
   it('교육 중인 직원은 잡혀 있다 — 지시를 겹쳐 받지 않는다', () => {
     const e = at(1)
-    const training = [{ employeeId: e.id, from: 3, doneWeek: trainDoneWeek(3) }]
+    const training = [{ employeeId: e.id, from: 3, doneWeek: trainDoneWeek(3), kind: 'train' as const }]
     expect(isBusy(e.id, [], training)).toBe(true)
     expect(canOrder(e, 'figma', [], training)).toBe(false)
     expect(canTrain(e, [], training)).toBe(false)

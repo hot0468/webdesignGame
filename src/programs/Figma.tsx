@@ -2,10 +2,17 @@ import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { FIGMA_ICONS } from '../data/icons'
 import { QUALITY } from '../data/game'
-import { KEYWORDS, MEETING_AP, SITE_KEYWORDS, type KeywordId } from '../data/keywords'
+import {
+  KEYWORDS,
+  MEETING_AP,
+  MEETING_OCCUPY_WEEKS,
+  SITE_KEYWORDS,
+  type KeywordId,
+} from '../data/keywords'
 import { formatDate } from '../systems/calendar'
 import { gradeOf } from '../systems/craft'
 import { isTurnOf, showsIn } from '../systems/pipeline'
+import { isBusy } from '../systems/employee'
 import { asStep, useGame } from '../store'
 import './figma.css'
 
@@ -29,6 +36,11 @@ export function Figma() {
   const meetings = useGame((s) => s.meetings)
   const makeDraft = useGame((s) => s.makeDraft)
   const holdMeeting = useGame((s) => s.holdMeeting)
+  // ⚠️ 셀렉터 안에서 filter를 돌리지 마라(새 배열 = 무한 렌더). 목록을 통째로 받아 거른다.
+  const employees = useGame((s) => s.employees)
+  const orders = useGame((s) => s.orders)
+  const trainings = useGame((s) => s.trainings)
+  const free = employees.filter((e) => !isBusy(e.id, orders, trainings))
   const [pickedId, setPicked] = useState<string | null>(null)
   // 고른 키워드는 **창을 보는 방식**이라 스토어에 넣지 않는다(세이브에 들어가고 버전이
   // 올라간다 — `shell.md`의 규칙). 굳는 것은 만든 순간 시안 파일에 적히는 쪽이다.
@@ -177,10 +189,31 @@ export function Figma() {
                       미팅 참석
                       <span className="fig__cost">행동력 {MEETING_AP}</span>
                     </button>
-                    {/* ⚠️ **미팅 파견은 이번 범위 밖이다.** 직원은 생겼지만(메신저에서
-                        공정을 맡긴다) 미팅에는 못 간다 — 직원 스탯이 디자인·퍼블리싱·CS
-                        3종뿐이라(설계 결정표) 알아내는 개수를 정할 기획력이 없다.
-                        붙이려면 먼저 그 축을 정해야 하므로, 지금은 미팅이 늘 내 몫이다. */}
+                    {/* ── 직원 파견 ───────────────────────────────────
+                        내 행동력 대신 **그 직원의 한 주**를 낸다. 알아내는 개수는
+                        ⚠️ **가는 사람의 기획력**이 정하므로, 누구를 보내느냐가 곧
+                        몇 개를 알아내느냐다(그래서 기획 스탯을 버튼에 적는다). */}
+                    {free.length > 0 && (
+                      <>
+                        <p className="fig__short">직원을 대신 보낼 수도 있다.</p>
+                        <ul className="fig__send">
+                          {free.map((e) => (
+                            <li key={e.id}>
+                              <button
+                                type="button"
+                                className="fig__delegate"
+                                onClick={() => holdMeeting(picked.id, e.id)}
+                              >
+                                <span>{e.name} 보내기</span>
+                                <span className="fig__cost">
+                                  기획 {e.stats.planning} · {MEETING_OCCUPY_WEEKS}주 점유
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
                   </>
                 ) : (
                   <p className="fig__short">

@@ -49,11 +49,22 @@ export type RoleId = EmployeeRole['id']
 
 export const findRole = (id: RoleId): EmployeeRole => EMPLOYEE_ROLES.find((r) => r.id === id)!
 
-/** 직원 스탯 3종. ⚠️ **숙련도는 없다**(설계 결정표) — 직원의 시간을 줄이는 것은 레벨이다.
- *  `cs`는 아직 공정에 관여하지 않는다(플레이어의 CS와 같다 — 단가·평판 회복 축이다).
- *  쓰지 않는 칸을 지금 지우지 않는 이유: 지원자 카드가 사람을 고르는 화면이고,
- *  세 축이 다 보여야 "이 사람은 무엇을 잘하나"가 선택이 된다. */
-export type EmployeeStats = { design: number; publishing: number; cs: number }
+/** 직원 스탯 4종. ⚠️ **숙련도는 없다**(설계 결정표) — 직원의 시간을 줄이는 것은 레벨이다.
+ *
+ *  각 축이 실제로 하는 일:
+ *   - `design`     제작 공정(시안·팝업·발표자료)의 등급
+ *   - `publishing` 퍼블리싱 공정의 등급
+ *   - `planning`   **미팅 파견 시 알아내는 키워드 수**(플레이어의 `planning`과 같은 표를 쓴다)
+ *   - `cs`         아직 공정에 관여하지 않는다(플레이어의 CS와 같다 — 단가·평판 회복 축)
+ *
+ *  ⚠️ `cs`처럼 아직 쓰이지 않는 칸을 지우지 않는 이유: 지원자 카드가 **사람을 고르는
+ *     화면**이고, 축이 다 보여야 "이 사람은 무엇을 잘하나"가 선택이 된다. */
+export type EmployeeStats = {
+  design: number
+  publishing: number
+  planning: number
+  cs: number
+}
 
 /** 그 공정의 등급을 정하는 스탯 축. **퍼블리싱 공정만 `publishing`이고 나머지는 `design`이다.**
  *  ⚠️ 축을 공정별로 컴포넌트에서 고르지 말 것 — 여기 한 줄이 정본이다. */

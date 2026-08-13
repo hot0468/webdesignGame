@@ -58,6 +58,11 @@ export type Training = {
   from: number
   /** **이 주차가 되면 끝난다**(`week >= doneWeek`). */
   doneWeek: number
+  /** 왜 잡혀 있는가. ⚠️ **점유 목록을 둘로 나누지 않는 이유**가 이 칸이다 —
+   *  잡히는 사유는 달라도 "그 사람이 N주간 다른 일을 못 한다"는 사실은 하나라
+   *  `isBusy`가 한 목록만 보면 된다. 끝날 때 하는 일만 여기서 갈린다
+   *  (`train`은 레벨이 오르고, `meeting`은 그냥 풀린다). */
+  kind: 'train' | 'meeting'
 }
 
 /** 교육이 끝나는 주차. */
@@ -83,7 +88,7 @@ export const canTrain = (
   trainings: readonly Training[],
 ): boolean => employee.level < EMPLOYEE_LEVEL.max && !isBusy(employee.id, orders, trainings)
 
-/** 이번 주에 끝난 교육들. `finishedOrders`와 같은 규칙(`>=`)이다. */
+/** 이번 주에 끝난 점유들(교육·미팅 모두). `finishedOrders`와 같은 규칙(`>=`)이다. */
 export const finishedTrainings = (
   trainings: readonly Training[],
   week: number,
@@ -96,16 +101,13 @@ export const finishedTrainings = (
  *    교육 가치가 두 배가 된다. ⚠️ 최고 레벨이면 **그대로 돌려준다**(넘어가지 않는다). */
 export function trained(employee: Employee): Employee {
   if (employee.level >= EMPLOYEE_LEVEL.max) return employee
+  // ⚠️ 축을 손으로 나열하지 않는다 — 스탯이 하나 늘 때 여기만 빠뜨리면 새 축은
+  //    교육해도 안 오르고, 타입 검사는 그것을 못 잡는다(모양은 그대로이므로).
   const up = (v: number) => Math.min(100, v + TRAIN_STAT_GAIN)
-  return {
-    ...employee,
-    level: employee.level + 1,
-    stats: {
-      design: up(employee.stats.design),
-      publishing: up(employee.stats.publishing),
-      cs: up(employee.stats.cs),
-    },
-  }
+  const stats = Object.fromEntries(
+    Object.entries(employee.stats).map(([k, v]) => [k, up(v)]),
+  ) as EmployeeStats
+  return { ...employee, level: employee.level + 1, stats }
 }
 
 /** 언제 한가해지는가. 지시도 교육도 아니면 undefined.
@@ -194,3 +196,7 @@ export const trainReply = (doneWeek: number): string =>
  *  "무엇이 달라졌는지"는 이 한 줄이 아니면 알아채기 어렵다. */
 export const trainedReply = (level: number): string =>
   `교육 마치고 왔습니다. 레벨 ${level}이 됐습니다.`
+
+/** 미팅에 다녀오겠다는 말. */
+export const meetingReply = (title: string, doneWeek: number): string =>
+  `${title} 미팅 다녀오겠습니다. ${formatWeek(doneWeek)}에 돌아옵니다.`

@@ -83,7 +83,7 @@ describe('이름 있는 슬롯', () => {
           name: '김지훈',
           role: 'dublisher',
           level: 3,
-          stats: { design: 70, publishing: 60, cs: 40 },
+          stats: { design: 70, publishing: 60, planning: 55, cs: 40 },
           hiredWeek: 2,
         },
       ],

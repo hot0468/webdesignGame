@@ -120,7 +120,8 @@ export function HireSite() {
                       {salaryOf(a.level).toLocaleString('ko-KR')}원
                     </p>
                     <p className="nv-hire__meta">
-                      디자인 {a.stats.design} · 퍼블리싱 {a.stats.publishing} · CS {a.stats.cs}
+                      디자인 {a.stats.design} · 퍼블리싱 {a.stats.publishing} · 기획 {a.stats.planning} · CS{' '}
+                      {a.stats.cs}
                     </p>
                     <p className="nv-hire__meta">
                       맡을 수 있는 일: {role.programs.map((p) => PROGRAM_WORK[p]).join(' · ')}

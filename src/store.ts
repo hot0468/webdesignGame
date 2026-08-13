@@ -11,29 +11,33 @@ import {
   type QualityId,
 } from './data/game'
 import { gradeOf, type Draft } from './systems/craft'
-import { MEETING_AP, type KeywordId } from './data/keywords'
+import { MEETING_AP, type KeywordId,
+  MEETING_OCCUPY_WEEKS,
+} from './data/keywords'
 import { clientKeywords, hitCount, keywordShift, meetingMail, revealedKeywords } from './systems/keywords'
 import { CLIENTS } from './data/company'
 import { ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP, TRAIN_COST } from './data/employees'
 import type { Applicant } from './systems/hire'
 import {
   canOrder,
+  canTrain,
   doneReply,
   finishedOrders,
+  finishedTrainings,
+  isBusy,
+  meetingReply,
   orderDoneWeek,
   orderReply,
   quitMail,
   quitter,
   statOf,
+  trainDoneWeek,
+  trained,
+  trainedReply,
+  trainReply,
   type Chat,
   type Employee,
   type Order,
-  canTrain,
-  finishedTrainings,
-  trainDoneWeek,
-  trained,
-  trainReply,
-  trainedReply,
   type Training,
 } from './systems/employee'
 import { companyGrade, REPUTATION_CRISIS } from './data/game'
@@ -208,13 +212,15 @@ type Store = {
   completeJob: (id: string) => void
   /** 팝업 이미지 제작(포토샵). **비용은 여기가 진다**(고른 퀄리티의 `ap`). */
   makePopup: (jobId: string, quality: QualityId) => void
-  /** 클라이언트 미팅(피그마). **행동력 `MEETING_AP`를 물고** 기획력에 따라 정해진 개수의
-   *  키워드를 알아낸다. ⚠️ 업무당 한 번뿐이다 — 여러 번 열면 행동력만 내고 5개를 다 알 수
-   *  있어 미팅이 '기다리는 값'이 아니라 '사는 값'이 된다.
-   *  ⚠️ **직원을 미팅에 보낼 수는 없다**(직원 시스템이 생긴 뒤에도 그렇다). 직원 스탯은
-   *     디자인·퍼블리싱·CS 3종뿐이라 알아내는 개수를 정할 기획력이 없어서다 — 붙이려면
-   *     그 축을 먼저 정해야 한다. 직원이 맡는 것은 **공정**이고(`orderJob`) 미팅은 내 몫이다. */
-  holdMeeting: (jobId: string) => void
+  /** 클라이언트 미팅(피그마). 알아내는 키워드 수는 **가는 사람의 기획력**이 정한다.
+   *
+   *  `employeeId`를 주면 **그 직원이 대신 간다**: 내 행동력은 안 들고 대신 그 직원이
+   *  `MEETING_OCCUPY_WEEKS`주 잡힌다(지시·교육과 같은 점유). 안 주면 내가 가고
+   *  **행동력 `MEETING_AP`**를 문다.
+   *
+   *  ⚠️ 업무당 한 번뿐이다 — 여러 번 열면 대가를 내고 5개를 다 알 수 있어 미팅이
+   *     '기다리는 값'이 아니라 '사는 값'이 된다. 사람을 바꿔 다시 보내는 것도 막는다. */
+  holdMeeting: (jobId: string, employeeId?: string) => void
   /** 시안 제작(피그마). 팝업과 **같은 퀄리티 표·같은 등급 규칙**을 쓴다.
    *  ⚠️ `keywords`는 플레이어가 고른 분위기 키워드다 — 맞춘 수가 **등급을 민다**
    *     (`systems/keywords.ts`). 대금·평판을 따로 곱하지 않는다: 등급이 이미 그리로 흐른다. */
@@ -580,15 +586,36 @@ export const useGame = create<Store>()(
   //    disabled만으로는 음수 경로가 남고(제작 액션들과 같은 규칙), 두 번 열면 행동력을
   //    내는 대가로 5개를 다 알 수 있어 기획력 스탯이 뜻을 잃는다.
   // ⚠️ 사이트 업무만 미팅이 있다 — 배너 한 장 바꾸는 일에 분위기 미팅은 없다.
-  holdMeeting: (jobId) =>
+  holdMeeting: (jobId, employeeId) =>
     set((s) => {
       const job = s.jobs.find((j) => j.id === jobId)
       if (!job || job.done || job.kind !== 'site') return {}
-      if (s.meetings[jobId] || s.ap < MEETING_AP) return {}
+      if (s.meetings[jobId]) return {}
+
+      // 알아내는 개수는 **가는 사람의 기획력**이 정한다(`data/keywords.ts`의 `MEETING_REVEAL`).
+      // ⚠️ 표는 하나다 — 직원용 표를 따로 만들면 같은 기획력이 사람에 따라 다른 답을 낸다.
+      if (employeeId === undefined) {
+        if (s.ap < MEETING_AP) return {}
+        return {
+          ap: s.ap - MEETING_AP,
+          meetings: { ...s.meetings, [jobId]: revealedKeywords(jobId, s.planning) },
+        }
+      }
+
+      const emp = s.employees.find((e) => e.id === employeeId)
+      // ⚠️ 점유는 `isBusy` 한 줄이 본다(지시·교육과 같은 규칙) — 여기서 다시 적지 않는다.
+      if (!emp || isBusy(emp.id, s.orders, s.trainings)) return {}
+      const doneWeek = s.week + MEETING_OCCUPY_WEEKS
       return {
-        ap: s.ap - MEETING_AP,
-        // 알아내는 개수는 **기획력**이 정한다(`data/keywords.ts`의 `MEETING_REVEAL`).
-        meetings: { ...s.meetings, [jobId]: revealedKeywords(jobId, s.planning) },
+        // ⚠️ 내 행동력은 들지 않는다 — 그것이 사람을 보내는 이유다. 대가는 그 직원의 한 주다.
+        meetings: { ...s.meetings, [jobId]: revealedKeywords(jobId, emp.stats.planning) },
+        // 미팅도 **교육과 같은 모양의 점유**다(`Training`) — 잡히는 이유가 달라도
+        // "그 사람이 N주간 다른 일을 못 한다"는 사실은 하나라 목록을 나누지 않는다.
+        trainings: [
+          ...s.trainings,
+          { employeeId, from: s.week, doneWeek, kind: 'meeting' as const },
+        ],
+        chats: [...s.chats, { employeeId, week: s.week, text: meetingReply(job.title, doneWeek) }],
       }
     }),
 
@@ -755,7 +782,10 @@ export const useGame = create<Store>()(
       const doneWeek = trainDoneWeek(s.week)
       return {
         money: s.money - TRAIN_COST,
-        trainings: [...s.trainings, { employeeId, from: s.week, doneWeek }],
+        trainings: [
+          ...s.trainings,
+          { employeeId, from: s.week, doneWeek, kind: 'train' as const },
+        ],
         chats: [...s.chats, { employeeId, week: s.week, text: trainReply(doneWeek) }],
       }
     }),
@@ -867,7 +897,11 @@ export const useGame = create<Store>()(
       const doneTraining = finishedTrainings(s.trainings, next).filter(
         (t) => !leaving || t.employeeId !== leaving.id,
       )
-      const grown = new Set(doneTraining.map((t) => t.employeeId))
+      // ⚠️ **교육으로 잡혔던 사람만** 레벨이 오른다 — 미팅에 다녀온 사람은 그냥 풀린다.
+      //    한 목록에 두 사유가 사는 값이 이 한 줄이다(`Training.kind`).
+      const grown = new Set(
+        doneTraining.filter((t) => t.kind === 'train').map((t) => t.employeeId),
+      )
       const employees = staying.map((e) => (grown.has(e.id) ? trained(e) : e))
       // 돌아왔다는 말도 그 방에 남는다 — 스탯은 늘 보이지만 무엇이 달라졌는지는
       // 이 한 줄이 아니면 알아채기 어렵다.

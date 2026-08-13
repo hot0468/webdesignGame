@@ -327,3 +327,36 @@
   color: var(--fig-text-2);
   text-align: center;
 }
+
+/* ── 직원 파견 ────────────────────────────────────────────
+   ⚠️ 미팅 참석 버튼(`.fig__make`)과 **다른 얼굴**을 준다 — 채워진 면은 값을 무는 자리의
+      것이고, 파견은 내 행동력이 들지 않는다. 테두리만으로 서야 "내가 갈까, 보낼까"에서
+      눈이 먼저 채워진 쪽(내가 가는 길)으로 간다. */
+.fig__send {
+  display: grid;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fig__delegate {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--fig-stroke);
+  border-radius: var(--sp-1);
+  background: var(--fig-surface);
+  color: var(--fig-text);
+  font: inherit;
+  font-size: var(--fs-xs);
+  text-align: left;
+  transition: background-color 200ms ease-out;
+}
+
+.fig__delegate:hover {
+  background: var(--fig-muted);
+}

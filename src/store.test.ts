@@ -477,6 +477,73 @@ describe('클라이언트 미팅', () => {
     expect(useGame.getState().ap).toBe(ap)
   })
 
+  it('직원을 보내면 내 행동력은 안 들고 그 직원의 기획력이 개수를 정한다', () => {
+    useGame.getState().acceptJob(site)
+    useGame.setState({
+      employees: [
+        {
+          id: 'e1',
+          name: '보낼사람',
+          role: 'designer',
+          level: 2,
+          // ⚠️ 내 기획력과 **다른 값**이라야 "누가 갔는가"가 결과를 갈랐음이 증명된다.
+          stats: { design: 50, publishing: 50, planning: 90, cs: 50 },
+          hiredWeek: 1,
+        },
+      ],
+    })
+    const ap = useGame.getState().ap
+    useGame.getState().holdMeeting(site.id, 'e1')
+    const s = useGame.getState()
+    expect(s.ap).toBe(ap)
+    expect(s.meetings[site.id]).toEqual(revealedKeywords(site.id, 90))
+    // 대가는 그 직원의 한 주다 — 잡히지 않으면 직원만 있으면 미팅이 공짜가 된다.
+    expect(s.trainings).toHaveLength(1)
+    expect(s.trainings[0]?.kind).toBe('meeting')
+  })
+
+  // 뒤집기: 미팅 점유를 교육과 구별하지 않으면 다녀온 사람이 레벨까지 오른다.
+  it('미팅에 다녀와도 레벨은 오르지 않는다', () => {
+    useGame.getState().acceptJob(site)
+    useGame.setState({
+      employees: [
+        {
+          id: 'e1',
+          name: '보낼사람',
+          role: 'designer',
+          level: 2,
+          stats: { design: 50, publishing: 50, planning: 40, cs: 50 },
+          hiredWeek: 1,
+        },
+      ],
+    })
+    useGame.getState().holdMeeting(site.id, 'e1')
+    useGame.getState().advanceWeek()
+    const s = useGame.getState()
+    expect(s.employees[0]?.level).toBe(2)
+    expect(s.employees[0]?.stats.design).toBe(50)
+    expect(s.trainings).toHaveLength(0)
+  })
+
+  it('잡혀 있는 직원은 미팅에 못 간다', () => {
+    useGame.getState().acceptJob(site)
+    useGame.setState({
+      employees: [
+        {
+          id: 'e1',
+          name: '바쁜사람',
+          role: 'designer',
+          level: 2,
+          stats: { design: 50, publishing: 50, planning: 90, cs: 50 },
+          hiredWeek: 1,
+        },
+      ],
+      trainings: [{ employeeId: 'e1', from: 1, doneWeek: 5, kind: 'train' }],
+    })
+    useGame.getState().holdMeeting(site.id, 'e1')
+    expect(useGame.getState().meetings[site.id]).toBeUndefined()
+  })
+
   it('사이트 업무를 수주하면 미팅 알림이 그 채널로 온다', () => {
     useGame.getState().acceptJob(site)
     const mail = useGame.getState().mails.find((m) => m.jobId === site.id)

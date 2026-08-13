@@ -4,6 +4,7 @@
 코드에 앉힐 자리가 없는 결정(전역 방향 전환, 기각된 대안 전체)만 여기서 정본이 된다.
 
 <!-- 밀려난 줄은 이 아래에 -->
+| 2026-08-12 | 계기판의 `다음 주` 버튼 제거 — 주차를 미는 자리가 없어졌다(`advanceWeek`는 남아 있다) | src/components/Hud.tsx, src/index.css |
 | 2026-08-12 | 바탕화면에 `PPT` 아이콘 — 창은 아직 빈 상태다(업무에 종류 칸이 생기면 포토샵처럼 목록+퀄리티를 갖는다) | src/programs/Ppt.tsx(신규), src/data/programs.ts, src/App.tsx |
 | 2026-08-12 | 제작 퀄리티 세 갈래 — 간단하게/열심히/매우 신경써서로 행동력과 등급대(F~SSS)가 갈리고, 밴드 안 칸은 디자인 스탯이 정한다. 피그마 속성 패널에 시안 만들기 추가 | src/systems/craft.ts(신규), src/data/game.ts, src/store.ts, src/programs/Figma.tsx·Photoshop.tsx(+css) |
 | 2026-08-12 | 퍼블리싱 고리 — 에디터에서 FTP 연결(업체 정보 대조) → 업체 폴더 → 남은 업무 클릭 = 실행(행동력 2, 업무 완료) | src/systems/ftp.ts(신규), src/store.ts, src/programs/Editor.tsx·editor.css, src/data/game.ts·icons.ts, project-context |

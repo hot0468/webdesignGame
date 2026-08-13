@@ -150,7 +150,7 @@ function Chat({ employee }: { employee: Employee }) {
         <span className="msgr__head-name">{employee.name}</span>
         <span className="msgr__head-note">
           {role.label} · 레벨 {employee.level} · 디자인 {employee.stats.design} / 퍼블리싱{' '}
-          {employee.stats.publishing} / CS {employee.stats.cs}
+          {employee.stats.publishing} / 기획 {employee.stats.planning} / CS {employee.stats.cs}
         </span>
       </header>
 

@@ -40,6 +40,10 @@ export const SITE_KEYWORDS = 5
  *  미팅이 시안만큼 비싸면 아무도 하지 않고, 그러면 이 기능이 화면에만 남는다. */
 export const MEETING_AP = 1
 
+/** 직원을 미팅에 보냈을 때 그 직원이 잡히는 주차. ⚠️ **내 행동력 대신 내는 값이다** —
+ *  0이면 직원만 있으면 미팅이 공짜가 되어 내가 갈 이유가 사라진다. */
+export const MEETING_OCCUPY_WEEKS = 1
+
 /** 기획력 → 미팅에서 알아내는 키워드 수. **오름차순이고 첫 칸이 0이어야 한다**
  *  (`revealCount`가 그 순서에 기댄다 — `COMPANY_GRADES`와 같은 규칙).
  *

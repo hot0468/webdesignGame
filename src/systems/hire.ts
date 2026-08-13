@@ -88,7 +88,7 @@ export function applicants(week: number, count = APPLICANTS_PER_POST): Applicant
       name: `${r.pick(SURNAMES)}${r.pick(GIVEN_NAMES)}`,
       role,
       level,
-      stats: { design: around(), publishing: around(), cs: around() },
+      stats: { design: around(), publishing: around(), planning: around(), cs: around() },
     }
   })
 }

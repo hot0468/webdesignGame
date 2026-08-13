@@ -51,7 +51,7 @@ const emp = (over: Partial<Employee> = {}): Employee => ({
   name: '김지훈',
   role: 'dublisher',
   level: 1,
-  stats: { design: 50, publishing: 50, cs: 50 },
+  stats: { design: 50, publishing: 50, planning: 50, cs: 50 },
   hiredWeek: 1,
   ...over,
 })
@@ -127,7 +127,7 @@ describe('채용', () => {
 
 describe('지시', () => {
   it('행동력 1을 물고 N주 뒤로 잡힌다 — 등급은 그 직원 스탯이 정한다', () => {
-    const e = emp({ level: 1, stats: { design: 90, publishing: 10, cs: 0 } })
+    const e = emp({ level: 1, stats: { design: 90, publishing: 10, planning: 40, cs: 0 } })
     useGame.setState({ week: 2, ap: 3, employees: [e], jobs: [siteJob()] })
     useGame.getState().orderJob('e1', 'j1')
 
