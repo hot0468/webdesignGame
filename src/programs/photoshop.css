@@ -263,3 +263,28 @@
   color: var(--ps-text-2);
   text-align: center;
 }
+
+/* ── 좁은 화면 ────────────────────────────────────────────
+ * 브레이크포인트는 `index.css`와 **같은 720px이다** — 갈리면 창마다 다른 폭에서 접힌다.
+ * 배치만 바꾼다: 이 창은 어두운 창이라 대비 방향이 반대이므로(파일 머리말) 값은 손대지 않는다.
+ * ⚠️ 모바일 규칙은 이 한 블록에 모은다.
+ *
+ * 도구 막대(44px)는 **그대로 세워 둔다** — 이미 얇아서 눕힐 것이 없고, 실제 포토샵도
+ * 그 폭으로 선다. 화면을 먹는 것은 244px 레이어 패널이라 그것만 캔버스 아래로 내린다. */
+@media (max-width: 720px) {
+  /* 캔버스와 패널이 반씩 나눈다. ⚠️ `fr`로 나눈다 — 레이어가 쌓여도 캔버스가 0으로
+   *    눌리지 않고, 아트보드는 `min(100%, 320px)`이라 남은 폭 안에서 알아서 줄어든다. */
+  .ps {
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      'tools tabs'
+      'tools canvas'
+      'tools panels';
+  }
+
+  .ps__panels {
+    border-left: 0;
+    border-top: 1px solid var(--ps-stroke);
+  }
+}

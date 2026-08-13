@@ -5,6 +5,7 @@ import type { Request } from './data/inbox'
 import { bidStats, useGame } from './store'
 import {
   bidDeadline,
+  bidMinGrade,
   eligibility,
   isOpen,
   openListings,
@@ -89,6 +90,17 @@ describe('입찰', () => {
     useGame.getState().bidListing(listing({ tier: 'large' }))
     expect(useGame.getState().ap).toBe(before)
     expect(useGame.getState().bids).toEqual([])
+  })
+
+  // ⚠️ 화면이 버튼을 안 그려도 스토어에 길이 남으면 안 된다(이 리포의 확립된 규칙).
+  it('소기업 미만은 걸리지 않는다 — 뒤집어 보면 그 등급부터 걸린다', () => {
+    useGame.setState({ reputation: bidMinGrade().minReputation - 1 })
+    useGame.getState().bidListing(listing())
+    expect(useGame.getState().bids).toEqual([])
+
+    useGame.setState({ reputation: bidMinGrade().minReputation })
+    useGame.getState().bidListing(listing())
+    expect(useGame.getState().bids).toHaveLength(1)
   })
 
   it('행동력이 모자라면 아무 일도 일어나지 않는다', () => {

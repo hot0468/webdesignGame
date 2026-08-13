@@ -1,6 +1,7 @@
 import { AppIcon } from '../icons/AppIcon'
 import { PROGRAM_ICONS, STAT_ICONS } from '../data/icons'
 import {
+  DEADLINE_URGENT_WEEKS,
   WEEKDAYS,
   WEEKEND_COUNT,
   WEEKEND_MENTAL_COST,
@@ -23,9 +24,15 @@ import { useGame } from '../store'
  *    달마다 28~31일로 흔들리게 만들지 마라 — 월말 정산 주차가 같이 흔들린다. */
 export function Schedule() {
   const week = useGame((s) => s.week)
+  const jobs = useGame((s) => s.jobs)
+  const trainings = useGame((s) => s.trainings)
+  const employees = useGame((s) => s.employees)
   const { year, month, weekOfMonth } = toCalendar(week)
 
   const isWeekend = (day: number) => day >= WEEKDAYS.length - WEEKEND_COUNT
+  /** 그리는 달의 첫 주. 줄 번호 → 통산 주차 환산의 기준이다. */
+  const firstWeek = week - weekOfMonth + 1
+  const nameOf = (id: string) => employees.find((e) => e.id === id)?.name ?? '직원'
 
   return (
     <div>
@@ -42,19 +49,47 @@ export function Schedule() {
           ))}
         </div>
 
-        {Array.from({ length: WEEKS_PER_MONTH }, (_, w) => (
-          <div
-            key={w}
-            className={`cal__row${w + 1 === weekOfMonth ? ' cal__row--now' : ''}`}
-            aria-current={w + 1 === weekOfMonth ? 'date' : undefined}
-          >
-            {WEEKDAYS.map((d, i) => (
-              <span key={d} className={`cal__cell${isWeekend(i) ? ' cal__cell--weekend' : ''}`}>
-                {w * WEEKDAYS.length + i + 1}
-              </span>
-            ))}
-          </div>
-        ))}
+        {Array.from({ length: WEEKS_PER_MONTH }, (_, w) => {
+          const rowWeek = firstWeek + w
+          // ⚠️ 마감·휴무는 **주차 단위로** 붙는다 — 이 게임의 시간은 한 주가 최소 눈금이라
+          //    날짜 칸 하나에 매달면 없는 정밀도를 지어내게 된다. 날짜는 `formatDate`가
+          //    말하는 그 주의 마지막 날이고(마감 표기와 같은 함수), 자리는 줄이다.
+          const due = jobs.filter((j) => !j.done && j.due === rowWeek)
+          const leave = trainings.filter(
+            (t) => t.kind === 'leave' && rowWeek >= t.from && rowWeek < t.doneWeek,
+          )
+          return (
+            <div
+              key={w}
+              className={`cal__row${w + 1 === weekOfMonth ? ' cal__row--now' : ''}`}
+              aria-current={w + 1 === weekOfMonth ? 'date' : undefined}
+            >
+              {WEEKDAYS.map((d, i) => (
+                <span key={d} className={`cal__cell${isWeekend(i) ? ' cal__cell--weekend' : ''}`}>
+                  {w * WEEKDAYS.length + i + 1}
+                </span>
+              ))}
+
+              {(due.length > 0 || leave.length > 0) && (
+                <ul className="cal__marks">
+                  {due.map((j) => (
+                    <li
+                      key={j.id}
+                      className={`cal__mark${rowWeek - week <= DEADLINE_URGENT_WEEKS ? ' cal__mark--soon' : ''}`}
+                    >
+                      {formatDate(j.due)} 마감 · {j.title}
+                    </li>
+                  ))}
+                  {leave.map((t) => (
+                    <li key={t.employeeId} className="cal__mark">
+                      휴무 · {nameOf(t.employeeId)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       <Weekend />

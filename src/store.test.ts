@@ -3,9 +3,13 @@ import {
   BASE_FEE,
   BREACH_REPUTATION_LOSS,
   CLAIM_REPUTATION_LOSS,
+  CS_REPLY_AP,
+  csRecover,
   findQuality,
   GRADE_REWARD,
   INITIAL_GAME,
+  MAINTENANCE_FEE,
+  MAINTENANCE_MIN_DONE,
   WEEKS_PER_MONTH,
   WINDOW_DRAG,
   CRISIS_WEEKS_TO_SHUTDOWN,
@@ -23,6 +27,8 @@ import {
   QUALITY,
   SKILL_DISCOUNT,
   gainSkill,
+  WINDOW_FIT,
+  WINDOW_SPAWN,
 } from './data/game'
 import { monthlyCost } from './systems/money'
 import { MESSAGES, type Request } from './data/inbox'
@@ -47,6 +53,11 @@ import { canOrder, isBusy, quitMail, trained, type Employee } from './systems/em
 import type { EmployeeRequest } from './systems/request'
 import { makeSlot } from './systems/save'
 import { clientKeywords, GRADE_LADDER, revealedKeywords } from './systems/keywords'
+import { REVISION_DUE_EXTRA, REVISION_MAX } from './data/followup'
+import { needsRevision } from './systems/followup'
+
+/** 넓은 화면. 스폰 위치가 잘리지 않아 계단식 배치가 예전 그대로다. */
+const WIDE = { w: 1440, h: 900 }
 
 beforeEach(() => {
   useGame.setState({
@@ -75,10 +86,25 @@ beforeEach(() => {
     photoshopSkill: INITIAL_GAME.photoshopSkill,
     codingSkill: INITIAL_GAME.codingSkill,
     revenue: 0,
+    apologized: [],
+    contracts: [],
     unpaidMonths: 0,
     over: undefined,
   })
 })
+
+/** **수정 요청을 끄고** 회신한다. 회신에는 확률로 수정 요청이 붙어 그 회신이 통째로
+ *  무르는데(`systems/followup.ts`), 아래 테스트들이 보는 것은 공정의 줄과 대금이지
+ *  수정 요청이 아니다 — 거기서 확률이 굴러가면 무엇을 재는 테스트인지가 흐려진다.
+ *
+ * ⚠️ 확률을 우회하지 않고 **실제 규칙**을 쓴다: 상한(`REVISION_MAX`)에 닿은 업무에는
+ *    수정 요청이 오지 않는다. 수정 요청 자체는 아래 전용 테스트가 본다. */
+const reply = (id: string) => {
+  useGame.setState({
+    jobs: useGame.getState().jobs.map((j) => (j.id === id ? { ...j, revisions: REVISION_MAX } : j)),
+  })
+  useGame.getState().replyJob(id)
+}
 
 describe('초기 수치', () => {
   it('src/data/game.ts에서 온다 — 컴포넌트가 만든 두 번째 출처가 없어야 한다', () => {
@@ -93,6 +119,7 @@ describe('초기 수치', () => {
       reputation: s.reputation,
       design: s.design,
       planning: s.planning,
+      cs: s.cs,
       figmaSkill: s.figmaSkill,
       photoshopSkill: s.photoshopSkill,
       codingSkill: s.codingSkill,
@@ -102,17 +129,32 @@ describe('초기 수치', () => {
 
 describe('창', () => {
   it('열고 닫는다', () => {
-    useGame.getState().openWindow('schedule')
+    useGame.getState().openWindow('schedule', WIDE)
     expect(useGame.getState().windows.map((w) => w.id)).toEqual(['schedule'])
     useGame.getState().closeWindow('schedule')
     expect(useGame.getState().windows).toEqual([])
   })
 
+  // ⚠️ 좁은 화면에서 창이 **화면 밖에서 태어나면** 잡아 끌 타이틀바까지 잘려 되찾을 수가
+  //    없다. 넓은 화면에서는 예전 계단식 스폰이 그대로여야 하므로 둘을 함께 본다.
+  it('좁은 화면에서는 스폰 위치가 잘리고, 넓은 화면에서는 그대로다', () => {
+    useGame.getState().openWindow('schedule', WIDE)
+    expect(useGame.getState().windows[0]!.x).toBe(WINDOW_SPAWN.x)
+
+    useGame.setState({ windows: [] })
+    // 가장 넓은 창(`WINDOW_FIT.maxW`)이 들어가고도 남는 자리가 없는 폭이다.
+    // ⚠️ 여기서 **창 폭을 다시 계산하지 않는다** — 폭은 CSS가 정하고(`100vw - sp-8`)
+    //    스토어는 모른다. 스토어가 보증하는 것은 "왼쪽 여백에서 시작한다" 하나이고,
+    //    폭이 뷰포트를 넘지 않는 것은 CSS 쪽의 몫이다(값을 세 곳에 적지 않는다).
+    useGame.getState().openWindow('schedule', { w: 760, h: 900 })
+    expect(useGame.getState().windows[0]!.x).toBe(WINDOW_FIT.edge)
+  })
+
   it('이미 열린 창을 다시 열면 중복 생성하지 않고 앞으로 온다', () => {
     const { openWindow } = useGame.getState()
-    openWindow('schedule')
+    openWindow('schedule', WIDE)
     const z1 = useGame.getState().windows[0]!.z
-    openWindow('schedule')
+    openWindow('schedule', WIDE)
     const after = useGame.getState().windows
     expect(after).toHaveLength(1)
     expect(after[0]!.z).toBeGreaterThan(z1)
@@ -138,7 +180,7 @@ describe('창', () => {
   it('화면 밖으로 잃어버릴 수 없다 — 양쪽 끝을 다 막는다', () => {
     const viewport = { w: 1000, h: 800 }
     const keep = WINDOW_DRAG.keepVisible
-    useGame.getState().openWindow('schedule')
+    useGame.getState().openWindow('schedule', WIDE)
 
     useGame.getState().moveWindow('schedule', -50, -80, viewport)
     expect(useGame.getState().windows[0]).toMatchObject({ x: 0, y: 0 })
@@ -225,14 +267,14 @@ describe('공정과 회신', () => {
     g().makeDraft(site.id, 'light')
     expect(g().drafts).toEqual([])
 
-    g().replyJob(site.id)
+    reply(site.id)
     useGame.setState({ ap: 3 })
     g().makeDraft(site.id, 'light')
-    g().replyJob(site.id)
+    reply(site.id)
     useGame.setState({ ap: 3 })
     g().publishJob(site.id)
     expect(g().jobs[0]!.done).toBe(false) // ⚠️ 만든 것으로는 끝나지 않는다
-    g().replyJob(site.id)
+    reply(site.id)
     expect(g().jobs[0]!.done).toBe(true)
   })
 
@@ -240,17 +282,17 @@ describe('공정과 회신', () => {
     const g = () => useGame.getState()
     g().acceptJob(site)
     g().makeSlides(site.id, 'light')
-    g().replyJob(site.id)
+    reply(site.id)
     // 답장은 그 업무에 매인 글이라 `jobId`를 진다(그 글에서도 다음 회신을 보낼 수 있다).
     expect(g().mails[0]!.jobId).toBe(site.id)
     expect(g().mails[0]!.channel).toBe(site.channel)
 
     useGame.setState({ ap: 3 })
     g().makeDraft(site.id, 'light')
-    g().replyJob(site.id)
+    reply(site.id)
     useGame.setState({ ap: 3 })
     g().publishJob(site.id)
-    g().replyJob(site.id)
+    reply(site.id)
     // 만족도는 산출물 등급 중 가장 낮은 것이다(약한 고리) — 여기서는 전부 '간단하게'다.
     expect(g().mails[0]!.body).toContain('만족도')
   })
@@ -262,7 +304,7 @@ describe('공정과 회신', () => {
     const popupJob = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'popup')!
     g().acceptJob(popupJob)
     g().makePopup(popupJob.id, 'light')
-    g().replyJob(popupJob.id)
+    reply(popupJob.id)
     const fileId = g().files[0]!.id
     const step = g().jobs[0]!.step
 
@@ -291,9 +333,87 @@ describe('공정과 회신', () => {
     g().acceptJob(fix)
     g().publishJob(fix.id)
     const before = g().ap
-    g().replyJob(fix.id)
+    reply(fix.id)
     expect(g().ap).toBe(before)
     expect(g().jobs[0]!.done).toBe(true)
+  })
+})
+
+// 수정 요청이 온 회신은 **없던 일이 된다.** 대금이 걸린 불변식이라 규칙을 뒤집어 본다.
+describe('수정 요청', () => {
+  // ⚠️ `CLIENTS`에 없는 업체다 — 완료 회신에 버그 리포트가 딸려 오면 무엇을 재는
+  //    테스트인지 흐려진다(버그 리포트는 `systems/followup.test.ts`가 본다).
+  const from = '수정지옥상사'
+
+  /** 이 자리에서 **반드시 수정 요청이 오는** 업무 id. 씨앗은 id·업체·회신 수뿐이라
+   *  규칙 함수에 직접 물어 고르면 된다(확률을 우회하지 않는다). */
+  const pick = (cs: number) => {
+    for (let i = 0; i < 5000; i++) {
+      const id = `rv${i}`
+      if (needsRevision({ id, from, title: '수정건', kind: 'fix', step: 1, replied: 0 }, cs))
+        return id
+    }
+    throw new Error('수정 요청이 오는 자리가 없다')
+  }
+
+  const setup = (id: string, over: Partial<{ revisions: number }> = {}) =>
+    useGame.setState({
+      jobs: [
+        {
+          id,
+          from,
+          title: '수정건',
+          channel: 'board',
+          kind: 'fix',
+          step: 1,
+          replied: 0,
+          due: 9,
+          done: false,
+          ...over,
+        },
+      ],
+    })
+
+  it('수정 요청이 온 회신에서는 돈도 평판도 움직이지 않는다 — 안 오면 대금이 들어온다', () => {
+    const g = () => useGame.getState()
+    const id = pick(g().cs)
+    const money = g().money
+    const rep = g().reputation
+    setup(id)
+    g().replyJob(id)
+
+    // ① 수정 요청이 온 쪽 — 회신이 통째로 무른다.
+    expect(g().money).toBe(money)
+    expect(g().revenue).toBe(0)
+    expect(g().reputation).toBe(rep)
+    expect(g().jobs[0]!.done).toBe(false)
+    expect(g().jobs[0]!.replied).toBe(0)
+    expect(g().jobs[0]!.revisions).toBe(1)
+    // 다시 만들 시간은 준다 — 안 주면 임박한 업무가 수정 요청 한 통에 즉사한다.
+    expect(g().jobs[0]!.due).toBe(9 + REVISION_DUE_EXTRA)
+    expect(g().mails[0]!.jobId).toBe(id)
+    expect(g().mails[0]!.body).not.toContain('대금')
+
+    // ② 규칙을 뒤집는다 — 수정 요청이 **안 오면** 같은 회신이 대금을 낸다.
+    //    둘 다 봐야 "안 준다"가 버그가 아니라 규칙임이 증명된다.
+    setup(id, { revisions: REVISION_MAX })
+    g().replyJob(id)
+    expect(g().jobs[0]!.done).toBe(true)
+    expect(g().money).toBe(money + BASE_FEE.fix)
+    expect(g().revenue).toBe(BASE_FEE.fix)
+    expect(g().mails[0]!.body).toContain('대금')
+  })
+
+  it('수정 요청을 받으면 같은 공정이 다시 열린다', () => {
+    const g = () => useGame.getState()
+    const id = pick(g().cs)
+    setup(id)
+    const before = openStep(asStep({ ...g().jobs[0]!, step: 0, replied: 0 }))
+    g().replyJob(id)
+
+    expect(g().jobs[0]!.step).toBe(0)
+    // 회신 전 상태의 공정과 **같은 칸**이 다시 열린다 — 그것이 "다시 만들어 오세요"다.
+    expect(openStep(asStep(g().jobs[0]!))).toEqual(before)
   })
 })
 
@@ -307,7 +427,7 @@ describe('대금·파기·정산', () => {
     const rep = g().reputation
     g().acceptJob(fix)
     g().publishJob(fix.id)
-    g().replyJob(fix.id)
+    reply(fix.id)
 
     // 퍼블리싱만 있는 업무는 등급이 없어 기준선(C)이다 — 대금은 정가, 평판은 그대로.
     expect(g().money).toBe(money + BASE_FEE.fix)
@@ -323,7 +443,7 @@ describe('대금·파기·정산', () => {
     const money = g().money
     g().acceptJob(ppt)
     g().makeSlides(ppt.id, 'care') // 행동력 3 — 등급 S대
-    g().replyJob(ppt.id)
+    reply(ppt.id)
     const grade = g().slides[0]!.grade
     expect(g().money).toBe(money + Math.round(BASE_FEE.ppt * GRADE_REWARD[grade].fee))
     expect(g().money).toBeGreaterThan(money + BASE_FEE.ppt)
@@ -361,6 +481,60 @@ describe('대금·파기·정산', () => {
     const after = g().money
     g().advanceWeek()
     expect(g().money).toBe(after)
+  })
+
+  // ⚠️ 사과가 클레임을 **완전히 지우면** 팝업을 어긋나게 걸고 사과만 하는 것이 최적이 된다.
+  //    평판을 만드는 불변식이라 뒤집어서도 확인한다.
+  it('사과는 깎인 것보다 적게 돌려주고, 한 클레임에 한 번뿐이다', () => {
+    const g = () => useGame.getState()
+    const popupJob = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'popup')!
+    g().acceptJob(popupJob)
+    g().advanceWeek() // 기간인데 안 걸려 있으니 클레임이 온다
+
+    const claim = g().mails.find((m) => m.claim)!
+    const rep = g().reputation
+    const ap = g().ap
+    g().apologize(claim.id)
+
+    const gain = csRecover(INITIAL_GAME.cs)
+    expect(gain).toBeLessThan(CLAIM_REPUTATION_LOSS)
+    expect(g().reputation).toBe(rep + gain)
+    expect(g().ap).toBe(ap - CS_REPLY_AP)
+
+    // 두 번째는 아무 일도 없다 — 행동력으로 평판을 살 수 없다.
+    g().apologize(claim.id)
+    expect(g().reputation).toBe(rep + gain)
+  })
+
+  // 돈이 **들어오는** 유일한 고정 수입이라 정산 불변식으로 확인한다.
+  it('유지보수 계약은 매달 들어오고, 조건을 못 채우면 맺어지지 않는다', () => {
+    const g = () => useGame.getState()
+    // 조건 미달이면 아무 일도 없다(버튼 disabled만으로는 경로가 남는다).
+    g().signContract('dalbit')
+    expect(g().contracts).toEqual([])
+
+    // 그 업체 일을 `MAINTENANCE_MIN_DONE`건 끝내면 맺어진다.
+    useGame.setState({
+      jobs: Array.from({ length: MAINTENANCE_MIN_DONE }, (_, i) => ({
+        id: `j${i}`,
+        from: '달빛공방',
+        title: 't',
+        channel: 'mail' as const,
+        kind: 'fix' as const,
+        step: 1,
+        replied: 1,
+        due: 9,
+        done: true,
+      })),
+    })
+    g().signContract('dalbit')
+    expect(g().contracts).toEqual(['dalbit'])
+
+    const money = g().money
+    useGame.setState({ week: WEEKS_PER_MONTH - 1 })
+    g().advanceWeek() // 월말
+    expect(g().money).toBe(money + MAINTENANCE_FEE - monthlyCost())
+    expect(g().mails[0]!.body).toContain('유지보수 수입')
   })
 
   it('평판은 0~100 밖으로 나가지 않는다', () => {
@@ -613,7 +787,7 @@ describe('키워드가 시안 등급을 민다', () => {
   const toDraftStep = () => {
     useGame.getState().acceptJob(site)
     useGame.getState().makeSlides(site.id, 'light')
-    useGame.getState().replyJob(site.id)
+    reply(site.id)
     useGame.setState({ ap: INITIAL_GAME.apMax })
   }
 
@@ -1111,3 +1285,4 @@ describe('숙련도', () => {
     expect(before - g().ap).toBe(apCost(hard.ap, SKILL_DISCOUNT[1]!.minSkill))
   })
 })
+

@@ -2,18 +2,12 @@ import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { FIGMA_ICONS } from '../data/icons'
 import { apCost, QUALITY, skillFor } from '../data/game'
-import {
-  KEYWORDS,
-  MEETING_AP,
-  MEETING_OCCUPY_WEEKS,
-  SITE_KEYWORDS,
-  type KeywordId,
-} from '../data/keywords'
+import { KEYWORDS, SITE_KEYWORDS, type KeywordId } from '../data/keywords'
 import { formatDate } from '../systems/calendar'
 import { gradeOf } from '../systems/craft'
 import { isTurnOf, showsIn } from '../systems/pipeline'
-import { isBusy } from '../systems/employee'
 import { asStep, useGame } from '../store'
+import { useWorking } from '../components/Working'
 import './figma.css'
 
 /** `피그마` 창. 사이트 업무의 **시안 공정**이 여기서 돌 자리다(그다음이 VS코드 퍼블리싱).
@@ -37,13 +31,8 @@ export function Figma() {
   const design = useGame((s) => s.design)
   const meetings = useGame((s) => s.meetings)
   const makeDraft = useGame((s) => s.makeDraft)
-  const holdMeeting = useGame((s) => s.holdMeeting)
-  // ⚠️ 셀렉터 안에서 filter를 돌리지 마라(새 배열 = 무한 렌더). 목록을 통째로 받아 거른다.
-  const employees = useGame((s) => s.employees)
-  const orders = useGame((s) => s.orders)
-  const trainings = useGame((s) => s.trainings)
-  const free = employees.filter((e) => !isBusy(e.id, orders, trainings))
   const [pickedId, setPicked] = useState<string | null>(null)
+  const work = useWorking()
   // 고른 키워드는 **창을 보는 방식**이라 스토어에 넣지 않는다(세이브에 들어가고 버전이
   // 올라간다 — `shell.md`의 규칙). 굳는 것은 만든 순간 시안 파일에 적히는 쪽이다.
   const [picks, setPicks] = useState<KeywordId[]>([])
@@ -173,55 +162,18 @@ export function Figma() {
               </p>
             ) : (
               <>
-                {/* ── 클라이언트 미팅 ─────────────────────────────────
+                {/* ── 미팅에서 알아낸 것 ───────────────────────────────
+                    ⚠️ **미팅은 여기서 하지 않는다**(설계자 확정 2026-08-13) — 미팅 요청
+                       글에서 대화 창으로 연다(`components/Meeting.tsx`). 이 창이 하는 일은
+                       알아낸 것을 **시안 고르는 자리에 표시**하는 것뿐이다.
                     ⚠️ 미팅 전에는 **무엇을 원하는지 모른다고 말한다.** 5개를 흐리게라도
                        보여 주면 미팅이 값을 잃는다 — 여기 없는 것이 곧 이 기능이다. */}
                 <p className="fig__prop">클라이언트가 원하는 분위기</p>
-                {!known ? (
-                  <>
-                    <p className="fig__short">
-                      아직 무엇을 원하는지 모른다. 미팅에서 몇 가지를 알아낼 수 있다.
-                    </p>
-                    <button
-                      type="button"
-                      className="fig__make"
-                      disabled={ap < MEETING_AP}
-                      onClick={() => holdMeeting(picked.id)}
-                    >
-                      미팅 참석
-                      <span className="fig__cost">행동력 {MEETING_AP}</span>
-                    </button>
-                    {/* ── 직원 파견 ───────────────────────────────────
-                        내 행동력 대신 **그 직원의 한 주**를 낸다. 알아내는 개수는
-                        ⚠️ **가는 사람의 기획력**이 정하므로, 누구를 보내느냐가 곧
-                        몇 개를 알아내느냐다(그래서 기획 스탯을 버튼에 적는다). */}
-                    {free.length > 0 && (
-                      <>
-                        <p className="fig__short">직원을 대신 보낼 수도 있다.</p>
-                        <ul className="fig__send">
-                          {free.map((e) => (
-                            <li key={e.id}>
-                              <button
-                                type="button"
-                                className="fig__delegate"
-                                onClick={() => holdMeeting(picked.id, e.id)}
-                              >
-                                <span>{e.name} 보내기</span>
-                                <span className="fig__cost">
-                                  기획 {e.stats.planning} · {MEETING_OCCUPY_WEEKS}주 점유
-                                </span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <p className="fig__short">
-                    {SITE_KEYWORDS}개 중 {known.length}개를 알아냈다. 나머지는 감으로 골라야 한다.
-                  </p>
-                )}
+                <p className="fig__short">
+                  {known
+                    ? `${SITE_KEYWORDS}개 중 ${known.length}개를 알아냈다. 나머지는 감으로 골라야 한다.`
+                    : '아직 무엇을 원하는지 모른다. 미팅 요청 글에서 미팅을 하면 몇 가지를 알아낼 수 있다.'}
+                </p>
 
                 {/* ── 키워드 고르기 ───────────────────────────────────
                     ⚠️ 미팅과 무관하게 **늘 고를 수 있다** — 모르는 채로 찍는 것도 선택이고,
@@ -264,7 +216,16 @@ export function Figma() {
                       type="button"
                       className="fig__make"
                       disabled={ap < apCost(q.ap, skill) || !full}
-                      onClick={() => makeDraft(picked.id, q.id, picks)}
+                      onClick={() => {
+                        makeDraft(picked.id, q.id, picks)
+                        // ⚠️ 등급은 만든 **뒤에** 파일에서 집는다 — 키워드 보정이 들어간
+                        //    최종 등급은 스토어만 안다(화면이 다시 계산하면 어긋난다).
+                        const made = useGame
+                          .getState()
+                          .drafts.filter((d) => d.jobId === picked.id)
+                          .at(-1)
+                        if (made) work.show({ title: '시안', grade: made.grade })
+                      }}
                     >
                       {q.label}
                       <span className="fig__cost">
@@ -282,6 +243,7 @@ export function Figma() {
           </>
         )}
       </aside>
+      {work.view}
     </div>
   )
 }

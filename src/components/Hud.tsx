@@ -59,56 +59,68 @@ export function Hud() {
       )}
 
       <div className="hud__col">
-        <dl className="hud__panel stats" aria-label="회사 현황">
-          <Stat
-            icon={STAT_ICONS.ap}
-            label="행동력"
-            value={`${g.ap}/${g.apMax}`}
-            bar={<Ticks value={g.ap} max={g.apMax} tone="accent" />}
-          />
-          {/* ⚠️ 정신력이 깎는 것은 **다음 주 행동력 상한**이라, 그 몫을 적지 않으면 다음
-              주에 칸이 왜 줄었는지 알 자리가 없다(깎일 때가 아니라 깎이기 전에 읽힌다).
-              깎을 것이 없으면 아무것도 붙지 않는다 — 늘 서 있는 라벨은 정보가 아니다.
-              ⚠️ 값(`stat__value`)에 이어 붙이지 마라. 그 줄은 `white-space: nowrap`이라
-              길어지면 `.hud__col`의 폭 상한을 뚫고 계기판이 화면 오른쪽 밖으로 밀려난다
-              (겪었다) — 막대와 같은 자리에 **자기 줄로** 선다. */}
-          <Stat
-            icon={STAT_ICONS.mental}
-            label="정신력"
-            value={`${g.mental}/${g.mentalMax}`}
-            bar={
-              <>
-                <Bar value={g.mental} max={g.mentalMax} tone="success" />
-                {mentalPenalty(g.mental) > 0 && (
-                  <p className="stat__warn">다음 주 행동력 −{mentalPenalty(g.mental)}</p>
-                )}
-              </>
-            }
-          />
-          {/* 평판만 기본색(primary)을 쓴다 — 위기에 destructive로 튀는 변화가 가장 커야 한다. */}
-          <Stat
-            icon={STAT_ICONS.reputation}
-            label="회사평판"
-            value={`${g.reputation}`}
-            bar={
-              <Bar
-                value={g.reputation}
-                max={REPUTATION_MAX}
-                crisis={g.reputation < REPUTATION_CRISIS}
-              />
-            }
-          />
-          {/* 소지금은 막대가 없다 — 상한이 없는 값이라 채울 끝이 없다. 그래서 맨 아래다. */}
-          <Stat
-            icon={STAT_ICONS.money}
-            label="소지금"
-            value={`${g.money.toLocaleString('ko-KR')}원`}
-          />
-        </dl>
-
+        <Stats />
         <Jobs />
       </div>
     </div>
+  )
+}
+
+/** 스탯 판. **여기 하나가 정본이고 두 자리에서 쓰인다** — 넓은 화면에서는 계기판에 늘 서
+ *  있고(위), 좁은 화면에서는 작업 표시줄의 팝오버 안에 선다(`Taskbar`).
+ *
+ * ⚠️ 판을 두 벌로 그리지 마라 — 스탯 줄이 늘거나 색이 바뀔 때 한쪽만 고치게 된다.
+ *    어디에 서는지는 **CSS가 정한다**(`index.css`의 모바일 블록). */
+export function Stats() {
+  const g = useGame()
+
+  return (
+    <dl className="hud__panel stats" aria-label="회사 현황">
+      <Stat
+        icon={STAT_ICONS.ap}
+        label="행동력"
+        value={`${g.ap}/${g.apMax}`}
+        bar={<Ticks value={g.ap} max={g.apMax} tone="accent" />}
+      />
+      {/* ⚠️ 정신력이 깎는 것은 **다음 주 행동력 상한**이라, 그 몫을 적지 않으면 다음
+          주에 칸이 왜 줄었는지 알 자리가 없다(깎일 때가 아니라 깎이기 전에 읽힌다).
+          깎을 것이 없으면 아무것도 붙지 않는다 — 늘 서 있는 라벨은 정보가 아니다.
+          ⚠️ 값(`stat__value`)에 이어 붙이지 마라. 그 줄은 `white-space: nowrap`이라
+          길어지면 `.hud__col`의 폭 상한을 뚫고 계기판이 화면 오른쪽 밖으로 밀려난다
+          (겪었다) — 막대와 같은 자리에 **자기 줄로** 선다. */}
+      <Stat
+        icon={STAT_ICONS.mental}
+        label="정신력"
+        value={`${g.mental}/${g.mentalMax}`}
+        bar={
+          <>
+            <Bar value={g.mental} max={g.mentalMax} tone="success" />
+            {mentalPenalty(g.mental) > 0 && (
+              <p className="stat__warn">다음 주 행동력 −{mentalPenalty(g.mental)}</p>
+            )}
+          </>
+        }
+      />
+      {/* 평판만 기본색(primary)을 쓴다 — 위기에 destructive로 튀는 변화가 가장 커야 한다. */}
+      <Stat
+        icon={STAT_ICONS.reputation}
+        label="회사평판"
+        value={`${g.reputation}`}
+        bar={
+          <Bar
+            value={g.reputation}
+            max={REPUTATION_MAX}
+            crisis={g.reputation < REPUTATION_CRISIS}
+          />
+        }
+      />
+      {/* 소지금은 막대가 없다 — 상한이 없는 값이라 채울 끝이 없다. 그래서 맨 아래다. */}
+      <Stat
+        icon={STAT_ICONS.money}
+        label="소지금"
+        value={`${g.money.toLocaleString('ko-KR')}원`}
+      />
+    </dl>
   )
 }
 
@@ -116,7 +128,7 @@ export function Hud() {
  *
  * ⚠️ **읽는 목록이다 — 누르는 자리가 아니다.** 취소선은 업무를 실제로 끝냈을 때
  *    (`completeJob`) 자동으로 그어진다. 사람이 켜는 체크박스를 도로 달지 말 것. */
-function Jobs() {
+export function Jobs() {
   const jobs = useGame((s) => s.jobs)
   const week = useGame((s) => s.week)
 

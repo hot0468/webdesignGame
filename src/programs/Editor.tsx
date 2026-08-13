@@ -7,6 +7,7 @@ import { formatDate } from '../systems/calendar'
 import { checkFtp } from '../systems/ftp'
 import { isTurnOf, showsIn } from '../systems/pipeline'
 import { asStep, useGame } from '../store'
+import { useWorking } from '../components/Working'
 import './editor.css'
 
 /** `에디터` 창(VS코드). 사이트 업무의 **퍼블리싱 공정**이 여기서 돈다 — 피그마 시안 다음
@@ -51,6 +52,7 @@ export function Editor() {
   const [connecting, setConnecting] = useState(false)
   const [form, setForm] = useState<FtpForm>(EMPTY_FORM)
   const [failed, setFailed] = useState(false)
+  const work = useWorking()
 
   const connected = CLIENTS.filter((c) => ftpClients.includes(c.id))
   const open = connected.find((c) => c.id === openId) ?? null
@@ -195,7 +197,11 @@ export function Editor() {
                       type="button"
                       className="ed__job"
                       disabled={!isTurnOf(asStep(j), 'editor') || ap < cost}
-                      onClick={() => publishJob(j.id)}
+                      onClick={() => {
+                        publishJob(j.id)
+                        // 퍼블리싱은 **퀄리티가 없어 등급도 없다** — 완성 문구만 뜬다.
+                        work.show({ title: '퍼블리싱' })
+                      }}
                     >
                       <AppIcon name={EDITOR_ICONS.publish} size={16} />
                       <span className="ed__label">{j.title}</span>
@@ -231,6 +237,7 @@ export function Editor() {
         <span>{open ? `${open.name} · 남은 업무 ${todo.length}` : '폴더 없음'}</span>
         <span className="ed__status-right">UTF-8 · HTML</span>
       </div>
+      {work.view}
     </div>
   )
 }

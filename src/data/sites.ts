@@ -23,7 +23,11 @@ export const SEARCH_HOME = {
 export const SHORTCUTS = [
   { id: 'work', name: '수주센터', icon: 'work', url: 'https://sooju.kr' },
   { id: 'hire', name: '인간인', icon: 'hire', url: 'https://ingannin.kr' },
-  { id: 'shop', name: '쇼핑', icon: 'shop' },
+  { id: 'shop', name: '쇼핑', icon: 'shop', url: 'https://webdimall.kr' },
+  // ⚠️ **일하는 곳이 아니다** — 남의 잘된 작업을 구경하는 자리이고, 그 시간이 행동력으로
+  //    나간다(`data/reference.ts`). 수주·채용·쇼핑 옆에 두는 이유는 이것도 결국 행동력을
+  //    어디에 쓸까라는 같은 선택이기 때문이다.
+  { id: 'reference', name: '어워더즈', icon: 'reference', url: 'https://awwwdi.kr' },
 ] as const satisfies readonly {
   id: string
   name: string

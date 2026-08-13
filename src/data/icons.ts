@@ -109,6 +109,9 @@ export const BROWSER_ICONS = {
   warn: 'mdi:alert-circle-outline',
   /** 채용사이트 — 공고 올리기. 관리자 페이지 글리프와 같은 단색 mdi 세트다. */
   post: 'mdi:file-document-plus-outline',
+  /** 쇼핑몰의 상품 줄. ⚠️ 첫화면 바로가기의 다색 `fluent-color`와 다르다 — 사이트 **안**은
+   *  단색 세트라야 `--nv-*` 팔레트가 currentColor로 물든다. */
+  shop: 'mdi:cart-outline',
   /** 즐겨찾기. ⚠️ 켜짐만 **꽉 찬 별**이다 — 같은 자리에서 윤곽↔채움이 갈려야 상태가 보인다. */
   star: 'mdi:star-outline',
   starOn: 'mdi:star',
@@ -119,4 +122,6 @@ export const SITE_ICONS = {
   work: 'fluent-color:briefcase-24',
   hire: 'fluent-color:people-team-24',
   shop: 'fluent-color:building-store-24',
+  /** 레퍼런스(어워드) 사이트. 수상작을 구경하는 곳이라 트로피다. */
+  reference: 'fluent-color:trophy-32',
 } as const

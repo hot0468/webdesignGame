@@ -33,6 +33,11 @@ export const INITIAL_GAME = {
    *  ⚠️ 30은 스펙에 없는 **임시치**다(design과 같은 값 — 곡선이 정해지면 조정한다).
    *  올리는 길은 아직 없다. */
   planning: 30,
+  /** CS 스탯(0~100). **클레임에 사과했을 때 되돌아오는 평판을 정하는 축이다**
+   *  (`CS_RECOVER`). 등급을 정하는 축(디자인)과 다른 일이라 값을 나눠 둔다 —
+   *  잘 만드는 것과 사고를 수습하는 것은 같은 능력이 아니다.
+   *  ⚠️ 30은 스펙에 없는 임시치다. 올리는 길은 아직 없다(디자인·기획과 같다). */
+  cs: 30,
 } as const
 
 /** 평판 위기선. 이 아래로 내려가면 신규 수주가 끊기고 매주 직원이 떠난다. */
@@ -130,6 +135,19 @@ export const WEEKEND_COUNT = 2
  *  아래로 쓸 높이가 필요하므로 위에서 시작한다. 가운데 정렬로 바꾸지 말 것. */
 export const WINDOW_SPAWN = { x: 160, y: 24, cascade: 28 } as const
 
+/** 창이 **화면 밖에서 태어나지 않게** 스폰 위치를 자를 때 쓰는 값(`store.openWindow`).
+ *
+ * ⚠️ `WINDOW_SPAWN.x`는 고정 160이라 좁은 화면에서는 창이 오른쪽으로 잘려 나간다
+ *    (드래그해야 하는 clamp는 `moveWindow`뿐이라 태어나는 순간은 아무도 안 막았다).
+ *    태어날 때부터 다 보여야 한다 — 잘린 창을 되찾으려면 타이틀바를 잡아 끌어야 하는데,
+ *    그 타이틀바가 잘린 쪽에 있으면 잡을 수도 없다.
+ *
+ * ⚠️ **`maxW`는 `index.css`의 `.window--app` 폭 상한(1040px)과 같은 값이다.** 창 폭은
+ *    CSS가 정하고 스폰은 스토어가 정하므로 값이 두 곳에 산다 — 한쪽을 고치면 여기도
+ *    고쳐라(`WINDOW_DRAG.keepVisible`이 `--os-taskbar-h`+`--os-titlebar-h`와 묶여 있는
+ *    것과 같은 종류의 짝이다). 가장 넓은 창을 기준으로 잡으므로 작은 창은 늘 안전하다. */
+export const WINDOW_FIT = { maxW: 1040, edge: 16 } as const
+
 /** 드래그로 창을 화면 밖에 버려 되찾을 수 없게 되는 것을 막는 최소 노출량(px).
  *  ⚠️ 세로 96은 index.css의 `--os-taskbar-h`(56) + `--os-titlebar-h`(40)와 같은 값이다 —
  *  타이틀바가 작업 표시줄 **위에** 온전히 남아야 다시 잡을 수 있다. 그 토큰을 바꾸면 여기도 바꾼다. */
@@ -197,7 +215,11 @@ export const SKILL_GAIN = 3
 
 /** 공정을 돌린 뒤의 숙련도. **오르는 곳은 전부 이 함수를 쓴다**(상한을 네 곳에서
  *  따로 자르면 한 곳을 빠뜨린다 — `trained`가 같은 이유로 객체를 순회한다). */
-export const gainSkill = (skill: number): number => Math.min(100, skill + SKILL_GAIN)
+export const gainSkill = (skill: number): number => raiseSkill(skill, SKILL_GAIN)
+
+/** 숙련도를 **원하는 만큼** 올린다(장비 구입 등). ⚠️ 상한을 자르는 자리는 여기 하나다 —
+ *  `gainSkill`도 이것을 부른다(두 곳에서 자르면 한 곳을 빠뜨린다). */
+export const raiseSkill = (skill: number, amount: number): number => Math.min(100, skill + amount)
 
 export const apCost = (base: number, skill: number): number =>
   Math.max(
@@ -211,10 +233,35 @@ export const apCost = (base: number, skill: number): number =>
  *  이 상수 대신 그 표를 쓴다(제작 쪽은 이미 그렇게 돈다). */
 export const PUBLISH_AP = 2
 
+/** 작업 진행 막대가 끝까지 차는 시간(ms). **결과는 이미 정해져 있고 이 시간은 연출이다**
+ *  (`components/Working.tsx`) — 길면 매 공정마다 기다리는 벌이 되고, 짧으면 만든 느낌이
+ *  안 난다. ⚠️ `prefers-reduced-motion`에서는 이 값을 쓰지 않고 바로 끝난다. */
+export const WORK_ANIM_MS = 1400
+
 /** 팝업 클레임 한 건당 평판 하락. ⚠️ **업체·주 단위로 한 번만** 깎는다 —
  *  한 업체가 같은 주에 세 갈래로 어긋나도 메일은 한 통, 하락도 한 번이다
  *  (`systems/popup.ts`의 `judgePopups`가 묶는다). */
 export const CLAIM_REPUTATION_LOSS = 5
+
+/** 클레임에 사과할 때 드는 행동력. ⚠️ **0으로 두지 마라** — 공짜면 사과가 선택이 아니라
+ *  버튼 누르기가 된다. 공정을 하나 덜 돌리는 대신 평판을 되돌리는 맞바꿈이어야 한다. */
+export const CS_REPLY_AP = 1
+
+/** CS 스탯 → 사과로 되돌아오는 평판. **오름차순이고 첫 칸이 0 스탯**이어야 한다
+ *  (`csRecover`가 "조건을 만족하는 마지막 칸"을 답으로 낸다 — `COMPANY_GRADES`와 같은 관용구).
+ *
+ * ⚠️ 최고 칸도 `CLAIM_REPUTATION_LOSS`(5)보다 **작다**. 같거나 크면 사과가 클레임을
+ *    완전히 지워, 팝업을 어긋나게 걸고 사과만 하는 것이 최적이 된다 — 실수의 대가가 남아야 한다. */
+export const CS_RECOVER = [
+  { minCs: 0, gain: 1 },
+  { minCs: 40, gain: 2 },
+  { minCs: 70, gain: 3 },
+  { minCs: 90, gain: 4 },
+] as const
+
+/** CS 스탯 → 회복 평판. 표가 오름차순이라 조건을 만족하는 **마지막 칸**이 답이다. */
+export const csRecover = (cs: number): number =>
+  CS_RECOVER.reduce<number>((best, r) => (cs >= r.minCs ? r.gain : best), CS_RECOVER[0].gain)
 
 /** 업무 종류별 기본단가(원). **완료 회신에서 지급된다**(`systems/money.ts`).
  *  ⚠️ 스펙에 수치가 없는 **임시치**다 — 시작 소지금 100만, 월 고정지출 5만 기준으로
@@ -246,6 +293,18 @@ export const BREACH_REPUTATION_LOSS = 10
 
 /** 월정액(원/월). 월말 정산에서 **묶어서 한 번에** 빠진다 — 스펙의 고정 지출이다.
  *  ⚠️ 직원 급여가 생기면 여기에 더하지 말고 **직원 목록에서 계산**한다(사람 수가 정본). */
+/** 유지보수 계약 한 건이 **매달 들어오는 돈**. ⚠️ 급여의 반대편이다 — 매달 나가는 것만
+ *  있으면 사람을 뽑는 일이 늘 도박이고, 고정 수입이 있어야 그것이 계산이 된다.
+ *
+ * ⚠️ 한 건이 월정액 합계(5만)보다 크되 **직원 하나 월급보다는 작다** — 계약 몇 건으로
+ *    회사가 굴러가면 업무를 할 이유가 사라지고, 너무 작으면 맺을 이유가 없다.
+ * ⚠️ 스펙에 없는 임시치다. */
+export const MAINTENANCE_FEE = 120_000
+
+/** 유지보수 계약을 맺으려면 그 업체의 업무를 **이만큼 완료**해야 한다.
+ *  ⚠️ 0이면 수주하자마자 고정 수입이 붙어 "잘해 준 사이"라는 뜻이 사라진다. */
+export const MAINTENANCE_MIN_DONE = 2
+
 export const SUBSCRIPTIONS = [
   { label: '피그마', cost: 20_000 },
   { label: '포토샵', cost: 30_000 },

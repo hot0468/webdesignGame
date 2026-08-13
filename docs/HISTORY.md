@@ -4,6 +4,22 @@
 코드에 앉힐 자리가 없는 결정(전역 방향 전환, 기각된 대안 전체)만 여기서 정본이 된다.
 
 <!-- 밀려난 줄은 이 아래에 -->
+| 2026-08-13 | 인간인을 **구인 포털 얼개**로 — 메뉴 줄(표시) + 눕는 공고 판 + 지원자 카드 격자(880px, 큰 값은 월급 하나). 없는 토큰 `--sp-5`로 죽어 있던 판 셋의 padding도 살렸다 | src/programs/HireSite.tsx, src/programs/browser.css, project-context(shell.md) |
+| 2026-08-13 | 브라우저 **뒤로·앞으로** — 방문 기록 한 줄에서 화면·주소·별이 전부 파생한다(새로고침은 안 쌓고, 뒤로 뒤 새 주소는 앞쪽을 버린다) | src/programs/Browser.tsx |
+| 2026-08-13 | 일정 달력이 **그 주에 걸린 일**을 적는다 — 업무 마감(임박하면 빨강)과 직원 휴무가 주차 줄 아래에 눕는다 | src/programs/Schedule.tsx, src/index.css |
+| 2026-08-13 | 수주센터를 **훑는 목록**으로 — 880px 카드에 본문 + 결정 칸(단가·확률만 크게), 규칙은 문단 대신 칩 한 줄. 포인트 색은 왼쪽 막대와 낙찰 확률에만 | src/programs/WorkSite.tsx, src/programs/browser.css, project-context(shell.md) |
+| 2026-08-13 | 공정 실행에 **진행 막대 창** — 다 차면 `완성되었다!`와 등급이 뜬다(창 넷이 `useWorking()` 하나를 쓴다) | src/components/Working.tsx(신규), src/data/game.ts, src/index.css, src/programs/Ppt·Figma·Photoshop·Editor.tsx |
+| 2026-08-13 | 미팅을 피그마에서 떼어 **채팅 창**으로 — 기획서를 제출해야 열리고, 대화가 한 줄씩 흐른 뒤 알아낸 키워드가 선다. 피그마는 `확인됨`만 표시 | src/components/Meeting.tsx(신규)·JobActions.tsx, src/data/keywords.ts·inbox.ts, src/systems/keywords.ts(+test), src/programs/Figma.tsx, src/index.css |
+| 2026-08-13 | 입찰에 **기한**과 **익주 판정**을 붙였다 — 낙찰 메일의 `사업 시작`을 눌러야 업무가 되고, 메일 의뢰와 같은 고리를 탄다 | src/data/bidding.ts·systems/bidding.ts, src/store.ts(+test), src/components/JobActions.tsx, src/data/inbox.ts, src/programs/WorkSite.tsx |
+| 2026-08-13 | 수주센터 — 조건(직원수·시안 장수·기획안 랭크)을 갖춰야 **입찰**하고, 낙찰 확률은 평판·능력치가 정한다. 추첨 씨앗은 공고 id | src/data/bidding.ts·systems/bidding.ts·programs/WorkSite.tsx(신규), src/store.ts(+test), src/data/sites.ts |
+| 2026-08-13 | 숙련도 상승 — 내 손으로 공정을 돌릴 때마다 +3(상한 100). ⚠️ 직원 지시로는 안 오른다 | src/data/game.ts, src/store.ts(+test), src/employee.store.test.ts |
+| 2026-08-13 | 숙련도 3종 — `apCost(base, skill)` 한 함수가 공정 비용을 깎는다(40+ −1, 80+ −2, 하한 1). 등급 축과 갈라 표시 | src/data/game.ts, src/store.ts(+test), src/programs/Figma·Photoshop·Ppt·Editor·Company.tsx |
+| 2026-08-13 | 주말 돌발 의뢰 — 확률로 급한 의뢰가 오고 일할지 선택. 대가는 정신력이고 낮으면 다음 주 행동력 상한이 깎인다 | src/systems/weekend.ts(신규), src/data/game.ts(apMaxOf), src/store.ts(+test), src/programs/Schedule.tsx, src/components/Hud.tsx |
+| 2026-08-13 | 파산 규칙 교체 — 잔액 음수가 아니라 **급여 3달 연속 밀림**(착수금·대출로 한 달은 버틴다). 정산 메일이 몇 달째인지 경고 | src/data/game.ts, src/systems/gameover.ts·money.ts, src/store.ts(+test) |
+| 2026-08-13 | 회사레벨 — 누적 매출에서 파생해 **행동력 상한**을 민다(평판이 지는 회사등급과 다른 축, 줄지 않는다) | src/data/game.ts, src/store.ts(+test), src/programs/Company.tsx |
+| 2026-08-13 | 게임 오버 둘 — 파산(정산 뒤 소지금 음수)·폐업(위기 4주). 판정은 순수 함수, 끝난 판은 주차가 안 흐른다 | src/systems/gameover.ts·components/GameOver.tsx(신규), src/store.ts(+test), src/App.tsx, src/index.css |
+| 2026-08-13 | 직원 요청 — 휴가·급여협상·피드백·교육요청이 주차 넘김에 확률로 오고, 거절이 쌓이면 불만으로 퇴사 | src/systems/request.ts·seed.ts(신규), src/data/employees.ts, src/systems/employee.ts, src/store.ts(+test), src/programs/Messenger.tsx·messenger.css |
+| 2026-08-13 | 직원 스탯에 **기획** 추가(4종) → 막혀 있던 미팅 파견 개방. 가는 사람의 기획력이 알아내는 키워드 수를 정한다 | src/data/employees.ts·keywords.ts, src/systems/employee.ts·hire.ts, src/store.ts(+test), src/programs/Figma.tsx·figma.css·Messenger.tsx·HireSite.tsx |
 | 2026-08-13 | 직원 시스템 — 채용(인간인 공고→지원자)·지시(종류 제한, 등급은 직원 스탯)·급여(월말, 사람 수가 정본)·위기 퇴사 | src/data/employees.ts·systems/hire.ts·employee.ts·programs/HireSite.tsx(신규), Messenger.tsx, store.ts, money.ts |
 | 2026-08-13 | 직원 교육 — 레벨을 올리는 유일한 길(돈 + 그 사람의 1주 점유), 레벨 +1과 세 스탯 +5가 한 자리에서 오른다 | src/data/employees.ts, src/systems/employee.ts(+test), src/store.ts(+test), src/programs/Messenger.tsx·messenger.css |
 | 2026-08-13 | 시안 키워드 — 미팅(행동력 1)에서 기획력만큼 알아내고, 적중 수가 시안 등급을 민다. 정답은 업무 id 시드로 파생(저장 안 함) | src/data/keywords.ts·systems/keywords.ts(신규), systems/craft.ts, programs/Figma.tsx, store.ts |

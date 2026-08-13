@@ -7,12 +7,14 @@ import '@fontsource/jua'
 import '@fontsource-variable/noto-sans-kr'
 import { Desktop } from './components/Desktop'
 import { GameOver } from './components/GameOver'
+import { Intro } from './components/Intro'
 import { Window } from './components/Window'
 import { findProgram, type ProgramId } from './data/programs'
 import { Browser } from './programs/Browser'
 import { Company } from './programs/Company'
 import { Editor } from './programs/Editor'
 import { Figma } from './programs/Figma'
+import { Folder } from './programs/Folder'
 import { Mail } from './programs/Mail'
 import { Messenger } from './programs/Messenger'
 import { Photoshop } from './programs/Photoshop'
@@ -32,6 +34,7 @@ const VIEWS: Record<ProgramId, () => React.JSX.Element> = {
   schedule: Schedule,
   company: Company,
   browser: Browser,
+  folder: Folder,
 }
 
 export default function App() {
@@ -51,6 +54,9 @@ export default function App() {
       {/* ⚠️ 포털이라 어디에 두든 화면 맨 앞에 선다. 창 목록 **밖**에 두는 이유는
           끝난 판에서도 늘 그려져야 하기 때문이다(창은 닫힐 수 있다). */}
       <GameOver />
+      {/* 첫 판에서 한 번 도는 소개. ⚠️ 끝난 판보다 **뒤**에 그린다 — 불러온 판이 이미
+          끝나 있으면 결과가 먼저다(층은 `--z-over`가 이미 그렇게 정해 뒀다). */}
+      <Intro />
     </Desktop>
   )
 }

@@ -1,19 +1,23 @@
-import { create } from 'zustand'
+﻿import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import {
   apMaxOf,
   CLAIM_REPUTATION_LOSS,
+  CS_REPLY_AP,
+  csRecover,
   findQuality,
   INITIAL_GAME,
   PUBLISH_AP,
   REPUTATION_MAX,
   WINDOW_DRAG,
+  WINDOW_FIT,
   WINDOW_SPAWN,
   type Grade,
   type QualityId,
   apCost,
   skillFor,
   gainSkill,
+  raiseSkill,
 } from './data/game'
 import { gradeOf, type Draft } from './systems/craft'
 import { MEETING_AP, MEETING_OCCUPY_WEEKS, type KeywordId } from './data/keywords'
@@ -22,6 +26,7 @@ import { CLIENTS } from './data/company'
 import { EMPLOYEE_LEVEL, FEEDBACK_AP, ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP, TRAIN_COST } from './data/employees'
 import type { Applicant } from './systems/hire'
 import {
+  canBid,
   eligibility,
   isOpen,
   loseMail,
@@ -72,7 +77,18 @@ import {
   type JobKind,
   type StepJob,
 } from './systems/pipeline'
-import { breach, breachMail, isSettleWeek, monthlyCost, reward, settleMail } from './systems/money'
+import { REVISION_DUE_EXTRA } from './data/followup'
+import { bugReport, needsRevision, personalityOf, revisionMail } from './systems/followup'
+import {
+  breach,
+  breachMail,
+  canContract,
+  isSettleWeek,
+  monthlyCost,
+  monthlyIncome,
+  reward,
+  settleMail,
+} from './systems/money'
 import { recovered, weekendEvent, worked } from './systems/weekend'
 import type { ProgramId } from './data/programs'
 import {
@@ -104,6 +120,10 @@ import {
   type Workable,
 } from './systems/request'
 import { normalizeUrl } from './systems/url'
+import { findItem, type ShopItemId } from './data/shop'
+import { buyBlock } from './systems/shop'
+import { portfolioBonus } from './systems/portfolio'
+import { INSPIRE_SHIFT, REFERENCE_AP } from './data/reference'
 import { makeSlot, parseSlot, slotKey } from './systems/save'
 
 /** 수주한 업무 한 건. `id`는 그 의뢰 글의 id다 — 한 의뢰가 두 업무가 되지 않는다.
@@ -135,6 +155,10 @@ export type Job = {
   /** 마감을 넘겨 깨진 계약. ⚠️ `done`과 **함께** 선다 — 끝난 것은 맞고, 어떻게 끝났는지가
    *  이 칸이다(목록에서 지우면 무엇이 어떻게 끝났는지가 사라진다). */
   breached?: boolean
+  /** 그 업무에 온 수정 요청 수. 회신이 통째로 무르고 `step`이 1 내려간 횟수다.
+   *  ⚠️ 상한(`REVISION_MAX`)이 없으면 판이 끝나지 않는다 — 공정이 계속 도로 열려
+   *     대금이 영원히 안 들어오는 업무가 생긴다(`systems/followup.ts`가 막는다). */
+  revisions?: number
   popup?: { clientId: string; from: number; to: number }
 }
 
@@ -194,6 +218,9 @@ type Store = {
   /** 기획력 스탯(0~100). **미팅에서 알아내는 키워드 수를 정하는 축**이고, 올리는 길은
    *  아직 없다(design과 같다 — 성장이 붙으면 두 값이 같은 자리에서 는다). */
   planning: number
+  /** CS 스탯(0~100). **클레임 사과로 되돌아오는 평판을 정하는 축**이고, 올리는 길은
+   *  아직 없다(design·planning과 같다). */
+  cs: number
 
   /** 클라이언트 미팅에서 **알아낸** 키워드. 업무 id → 알아낸 키워드 목록이다.
    *
@@ -303,6 +330,30 @@ type Store = {
    *  ⚠️ 세이브에 들어간다 — 끝난 판을 불러왔는데 멀쩡히 굴러가면 안 된다. */
   over?: GameOver
 
+  /** 사과로 응대를 마친 클레임 글의 id. ⚠️ **한 클레임에 한 번뿐이다** — 여러 번 누르면
+   *  행동력으로 평판을 사게 되고, 그 순간 팝업을 어긋나게 걸어도 손해가 아니게 된다. */
+  apologized: string[]
+
+  /** 유지보수 계약을 맺은 업체 id. **매달 정산에서 `MAINTENANCE_FEE`씩 들어온다** —
+   *  급여의 반대편이라 고정 수입이 있어야 사람을 뽑는 일이 도박이 아니라 계산이 된다.
+   *  ⚠️ 맺는 조건(그 업체 완료 업무 수)은 `systems/money.ts`의 `canContract`가 정본이다. */
+  contracts: string[]
+
+  /** 쇼핑몰에서 **한 번만 살 수 있는 것**(장비) 중 이미 산 것의 id.
+   *  ⚠️ 소모품(커피·의자)은 여기 안 쌓인다 — 반복해서 사는 것이라 "샀다"는 상태가 없다. */
+  boughtIds: string[]
+
+  /** 레퍼런스 사이트를 구경한 **주차**. 그 주에 만드는 시안이 `INSPIRE_SHIFT`만큼 좋아진다.
+   *  ⚠️ 값이 아니라 **주차를 담는다**(`weekendWorked`와 같은 관용구) — "이번 주에 이미
+   *     봤는가"가 `=== week` 한 줄이고, 주가 넘어가면 영감이 저절로 식는다(따로 지우는
+   *     자리를 만들지 않는다).
+   *  ⚠️ 한 주에 한 번뿐이다 — 여러 번 보면 행동력으로 등급을 계속 살 수 있다. */
+  inspiredWeek?: number
+
+  /** 첫 판의 소개 창을 이미 보았는가(`components/Intro.tsx`).
+   *  ⚠️ 세이브에 들어간다 — 새로고침할 때마다 소개가 뜨면 그것이 곧 고장으로 읽힌다. */
+  seenIntro: boolean
+
   windows: OpenWindow[]
 
   /** 슬롯 목록이 바뀔 때마다 오르는 수. ⚠️ **슬롯 내용은 스토어에 들이지 않는다** —
@@ -311,7 +362,10 @@ type Store = {
    *  ⚠️ `saveFields`에 넣지 않는다 — 판이 아니라 화면을 다시 그리는 신호다. */
   slotsRevision: number
 
-  openWindow: (id: ProgramId) => void
+  /** 창을 연다. ⚠️ **화면 크기를 받는다**(`moveWindow`와 같은 이유 — 스토어는 DOM을
+   *  모른다): 좁은 화면에서 계단식 스폰 위치를 그대로 쓰면 창이 오른쪽 화면 밖에서
+   *  태어나고, 그러면 잡아 끌 타이틀바까지 잘려 되찾을 수가 없다. */
+  openWindow: (id: ProgramId, viewport: Viewport) => void
   closeWindow: (id: ProgramId) => void
   focusWindow: (id: ProgramId) => void
   moveWindow: (id: ProgramId, x: number, y: number, viewport: Viewport) => void
@@ -414,6 +468,26 @@ type Store = {
    *  ⚠️ **슬롯은 지우지 않는다** — 새 게임은 지금 판을 버리는 일이지 남겨 둔 판을
    *  버리는 일이 아니다(그것까지 날리면 되돌아올 자리가 없다). */
   newGame: () => void
+  /** 소개 창을 닫는다(다 봤거나 건너뛰었다). **한 방향이다** — 다시 켜는 길은 새 게임뿐이다. */
+  finishIntro: () => void
+  /** 레퍼런스 사이트에서 남의 작업을 구경한다(브라우저 어워더즈). 행동력 `REFERENCE_AP`를
+   *  물고 **그 주 내내** 시안 등급이 `INSPIRE_SHIFT`만큼 밀린다.
+   *  ⚠️ 이번 주에 이미 봤거나 행동력이 모자라면 **아무 일도 일어나지 않는다**(버튼
+   *  disabled만으로는 경로가 남는다 — 이 리포의 확립된 규칙). */
+  surfReference: () => void
+  /** 쇼핑몰에서 하나 산다. **소지금이 사람 손으로 나가는 유일한 자리다.**
+   *  ⚠️ 못 사는 경우(돈 부족·이미 삼·상한)에는 **아무 일도 일어나지 않는다** —
+   *  판정은 `systems/shop.ts`의 `buyBlock` 하나가 내고 화면도 같은 함수를 쓴다. */
+  buyItem: (id: ShopItemId) => void
+  /** 그 업체와 **유지보수 계약**을 맺는다(사내시스템 > 업체정보). 다음 정산부터 매달 들어온다.
+   *  ⚠️ 조건(완료 업무 수)을 못 채웠거나 이미 맺었으면 **아무 일도 일어나지 않는다** —
+   *  판정은 `canContract` 하나가 내고 화면도 같은 함수를 쓴다. */
+  signContract: (clientId: string) => void
+  /** 클레임에 **사과한다**(그 글에서). 행동력 `CS_REPLY_AP`를 물고 평판이 `csRecover(cs)`만큼
+   *  돌아온다 — **CS 스탯이 사는 유일한 자리다.**
+   *  ⚠️ 되돌아오는 양은 클레임이 깎은 것(`CLAIM_REPUTATION_LOSS`)보다 **작다**(`CS_RECOVER`).
+   *  ⚠️ 이미 사과했거나 행동력이 모자라면 아무 일도 일어나지 않는다. */
+  apologize: (mailId: string) => void
 }
 
 /** 드래그 clamp에 필요한 화면 크기. 스토어는 DOM을 모르므로 호출자가 준다. */
@@ -423,11 +497,18 @@ export type Viewport = { w: number; h: number }
  *
  * ⚠️ 화면(수주센터)과 스토어(`bidListing`)가 **둘 다 이것을 부른다** — 갈리면 "적힌
  *    확률과 다르게 굴렸다"가 된다(`apCost`가 같은 이유로 하나인 것과 같다).
- * ⚠️ 지금은 **디자인 + 기획력의 평균**이다: 공고에 낼 수 있는 것이 그림과 기획안이라
+ * ⚠️ 스탯은 **디자인 + 기획력의 평균**이다: 공고에 낼 수 있는 것이 그림과 기획안이라
  *    그 둘이 심사받는 축이다(숙련도는 만드는 속도지 회사의 실력이 아니다). 스탯 축이
- *    늘면 여기만 고친다 — `systems/bidding.ts`는 평균 하나만 받는다. */
-export const bidStats = (s: Pick<Store, 'design' | 'planning'>): number =>
-  (s.design + s.planning) / 2
+ *    늘면 여기만 고친다 — `systems/bidding.ts`는 값 하나만 받는다.
+ * ⚠️ 거기에 **쌓인 작업물이 얹힌다**(`portfolioBonus`) — 심사에 들고 갈 것이 있는 회사와
+ *    없는 회사가 같은 확률을 받지 않는다. 세 목록을 다 넘기는 이유는 **만든 것 전부가
+ *    포트폴리오이기 때문**이다(참가 조건 쪽이 시안 장수·기획안 랭크만 보는 것과 다르다 —
+ *    저쪽은 문턱이고 이쪽은 점수다). */
+export const bidStats = (
+  s: Pick<Store, 'design' | 'planning' | 'files' | 'drafts' | 'slides'>,
+): number =>
+  (s.design + s.planning) / 2 +
+  portfolioBonus([...s.files, ...s.drafts, ...s.slides].map((f) => f.grade))
 
 /** 공정 판정에 넘기는 최소 모양. **순수 함수가 스토어의 `Job` 전체를 알지 않게 한다.** */
 export const asStep = (j: Job): StepJob => ({
@@ -496,6 +577,7 @@ const saveFields = (s: Store) => ({
   reputation: s.reputation,
   design: s.design,
   planning: s.planning,
+  cs: s.cs,
   readIds: s.readIds,
   meetings: s.meetings,
   jobs: s.jobs,
@@ -523,6 +605,11 @@ const saveFields = (s: Store) => ({
   revenue: s.revenue,
   unpaidMonths: s.unpaidMonths,
   over: s.over,
+  apologized: s.apologized,
+  contracts: s.contracts,
+  boughtIds: s.boughtIds,
+  seenIntro: s.seenIntro,
+  inspiredWeek: s.inspiredWeek,
 })
 
 /** 게임을 처음 상태로 되돌릴 때 붓는 값. **새 게임과 불러오기가 같은 바닥을 쓴다** —
@@ -554,6 +641,12 @@ const emptyGame = () => ({
   revenue: 0,
   unpaidMonths: 0,
   over: undefined,
+  apologized: [],
+  contracts: [],
+  boughtIds: [],
+  inspiredWeek: undefined,
+  // ⚠️ 새 판은 소개를 **다시** 본다 — 판이 처음부터라는 뜻이고, 창에 건너뛰기가 있다.
+  seenIntro: false,
 })
 
 export const useGame = create<Store>()(
@@ -594,17 +687,26 @@ export const useGame = create<Store>()(
       }
     }),
 
-  openWindow: (id) =>
+  openWindow: (id, viewport) =>
     set((s) => {
       // 이미 열려 있으면 새로 만들지 않고 앞으로 가져온다.
       if (s.windows.some((w) => w.id === id)) {
         return { windows: s.windows.map((w) => (w.id === id ? { ...w, z: topZ(s.windows) + 1 } : w)) }
       }
       const step = WINDOW_SPAWN.cascade * s.windows.length
+      // ⚠️ 계단식으로 밀되 **가장 넓은 창이 들어갈 자리**를 넘지 않는다 — 넘으면 창이
+      //    오른쪽 화면 밖에서 태어나고, 되찾으려고 잡아야 할 타이틀바까지 잘린다.
+      //    넓은 화면에서는 이 상한에 걸리지 않아 예전 그대로 계단이 진다.
+      const fit = Math.max(WINDOW_FIT.edge, viewport.w - WINDOW_FIT.maxW - WINDOW_FIT.edge)
       return {
         windows: [
           ...s.windows,
-          { id, x: WINDOW_SPAWN.x + step, y: WINDOW_SPAWN.y + step, z: topZ(s.windows) + 1 },
+          {
+            id,
+            x: Math.min(WINDOW_SPAWN.x + step, fit),
+            y: WINDOW_SPAWN.y + step,
+            z: topZ(s.windows) + 1,
+          },
         ],
       }
     }),
@@ -733,7 +835,12 @@ export const useGame = create<Store>()(
       //    같은 업무는 몇 번을 다시 계산해도 같은 답이다.
       // ⚠️ 보정은 **등급 하나로만** 흐른다(대금·평판을 따로 곱하지 않는다 —
       //    `GRADE_REWARD`가 이미 등급을 대금·평판으로 옮긴다).
-      const shift = keywordShift(hitCount(keywords, clientKeywords(jobId)))
+      // ⚠️ 레퍼런스 사이트에서 얻은 영감이 **여기에 더해진다**(`data/reference.ts`) —
+      //    둘 다 밴드 밖으로 나가는 보정이라 `shiftGrade`가 사다리 끝에서 잘라 준다.
+      //    시안에만 걸린다: 남의 사이트를 본 것이 팝업이나 발표자료를 낫게 하지는 않는다.
+      const shift =
+        keywordShift(hitCount(keywords, clientKeywords(jobId))) +
+        (s.inspiredWeek === s.week ? INSPIRE_SHIFT : 0)
       return {
         ap: s.ap - cost,
         figmaSkill: gainSkill(s.figmaSkill),
@@ -827,6 +934,34 @@ export const useGame = create<Store>()(
       if (!job || !canReply(asStep(job), s.week)) return {}
 
       const done = repliedStep(asStep(job))!
+
+      // ── 수정 요청 ─────────────────────────────────────────
+      // ⚠️ **회신 처리보다 먼저** 갈린다. 수정 요청이 붙으면 이 회신은 **없던 일이 되고**
+      //    대금·평판·`revenue`·`apMax`가 하나도 움직이지 않는다 — 그것이 이 기능의
+      //    불변식이다(`store.test.ts`가 뒤집어 증명한다). 아래 완료 회신 갈래에
+      //    닿기 전에 끝내지 않으면 "다시 해 오세요"와 "잘 받았습니다"가 함께 온다.
+      // ⚠️ 새 상태 축을 만들지 않는다: `replied`를 올리는 대신 **`step`을 1 내리면**
+      //    `openStep`이 같은 공정을 다시 낸다(`systems/pipeline.ts`) — 그것이 곧
+      //    "이렇게 말고 저렇게 다시 만들어 오세요"다.
+      if (needsRevision(job, s.cs)) {
+        const p = personalityOf(job.from)
+        return {
+          jobs: s.jobs.map((j) =>
+            j.id === id
+              ? {
+                  ...j,
+                  step: j.step - 1,
+                  revisions: (j.revisions ?? 0) + 1,
+                  // 다시 만드는 행동력만으로도 이미 벌이다 — 마감까지 그대로면
+                  // 기한이 임박한 업무는 수정 요청 한 통에 손쓸 새 없이 파기된다.
+                  due: j.due + REVISION_DUE_EXTRA,
+                }
+              : j,
+          ),
+          mails: [revisionMail(job, done, p, s.week), ...s.mails],
+        }
+      }
+
       const final = isFinalReply(asStep(job))
       const jobs = s.jobs.map((j) =>
         j.id === id ? { ...j, replied: j.replied + 1, done: j.done || final } : j,
@@ -849,6 +984,10 @@ export const useGame = create<Store>()(
       // ⚠️ 누적 매출은 **여기 한 곳**에서만 는다(대금이 들어오는 유일한 자리다).
       //    행동력 상한은 그 값에서 파생한다 — 두 곳에 적으면 어긋난다.
       const revenue = s.revenue + fee
+      // 크로스브라우징 버그 신고. **여기서 만들어 미래 주차를 달아 둔다** —
+      // `inbox()`가 `week`으로 아직 안 온 글을 이미 거르므로 `advanceWeek`에
+      // 판정 자리를 새로 만들지 않는다(새 상태 축도 없다).
+      const bug = bugReport(job, s.week, s.codingSkill)
       return {
         jobs,
         money: s.money + fee,
@@ -858,7 +997,7 @@ export const useGame = create<Store>()(
         // ⚠️ 정신력도 이 값에 걸린다 — `apMaxOf` 하나가 상한의 정본이다.
         apMax: apMaxOf(revenue, s.mental),
         reputation: clampReputation(s.reputation + reputation),
-        mails: [doneMail(job, grade, fee, s.week), ...s.mails],
+        mails: [doneMail(job, grade, fee, s.week), ...(bug ? [bug] : []), ...s.mails],
       }
     }),
 
@@ -908,6 +1047,9 @@ export const useGame = create<Store>()(
     set((s) => {
       if (s.bids.some((b) => b.listing.id === listing.id)) return {}
       if (s.ap < BID_AP) return {}
+      // ⚠️ **소기업 이상만 입찰한다**(`BID_MIN_GRADE`) — 공고마다 붙는 참가 조건과 다른
+      //    축이라 조건 없는 공고에도 이 문이 걸린다. 화면도 막지만 가드는 여기에도 둔다.
+      if (!canBid(s.reputation)) return {}
       // ⚠️ **기한이 지났으면 아무 일도 일어나지 않는다** — 화면이 버튼을 안 그리지만
       //    disabled만으로는 경로가 남는다(이 리포의 확립된 규칙).
       if (!isOpen(listing, s.week)) return {}
@@ -1345,7 +1487,11 @@ export const useGame = create<Store>()(
       // 월말 정산은 **마지막에** 편다 — 이번 주에 깨진 계약까지 반영한 잔액이 적혀야 한다.
       // ⚠️ 급여는 **이번 주에 나간 사람을 뺀 목록**으로 낸다 — 떠난 사람에게 월급을 주지 않는다.
       const settling = isSettleWeek(next)
-      const money = s.money - (settling ? monthlyCost(withGrudge) : 0)
+      // ⚠️ 유지보수 수입은 **지출보다 먼저** 더한다 — 급여를 줬는지 판정(`unpaidMonths`)이
+      //    이 잔액을 보므로, 계약이 있는데도 밀린 것으로 세면 파산이 앞당겨진다.
+      const contractNames = s.contracts.map((id) => CLIENTS.find((c) => c.id === id)?.name ?? id)
+      const money =
+        s.money + (settling ? monthlyIncome(s.contracts) - monthlyCost(withGrudge) : 0)
 
       // ── 급여를 줬는가 ────────────────────────────────────────
       // ⚠️ **잔액이 음수인 것과 다르다.** 월정액까지 낸 뒤 남은 돈이 급여를 덮지 못한
@@ -1401,7 +1547,7 @@ export const useGame = create<Store>()(
         // 어떻게 끝났는지가 사라지고, 같은 의뢰가 다시 새 글로 보인다.
         jobs: byOrder.jobs.map((j) => (isBreached(j, next) ? { ...j, done: true, breached: true } : j)),
         mails: [
-          ...(settling ? [settleMail(next, money, withGrudge, unpaidMonths)] : []),
+          ...(settling ? [settleMail(next, money, withGrudge, unpaidMonths, contractNames)] : []),
           // ⚠️ 나가는 이유가 **메일 문안으로 갈린다** — 위기(회사가 가라앉아서)와
           //    불만(내 말이 안 받아들여져서)은 고쳐야 할 것이 서로 다르다.
           ...(crisisLeaver ? [quitMail(crisisLeaver, next)] : []),
@@ -1445,6 +1591,64 @@ export const useGame = create<Store>()(
 
   // ⚠️ 슬롯은 건드리지 않는다(남겨 둔 판까지 날리면 되돌아올 자리가 없다).
   newGame: () => set({ ...emptyGame(), windows: [] }),
+
+  finishIntro: () => set({ seenIntro: true }),
+
+  // ⚠️ 한 주에 한 번이다 — 여러 번 볼 수 있으면 행동력으로 등급을 계속 사게 되고,
+  //    영감이라는 말이 그냥 상점 물건이 된다.
+  // ⚠️ 남는 것은 **주차 하나**다(`inspiredWeek`). 주가 넘어가면 저절로 식으므로
+  //    영감을 걷어 내는 자리를 따로 만들지 않는다.
+  surfReference: () =>
+    set((s) =>
+      s.inspiredWeek === s.week || s.ap < REFERENCE_AP
+        ? {}
+        : { ap: s.ap - REFERENCE_AP, inspiredWeek: s.week },
+    ),
+
+  apologize: (mailId) =>
+    set((s) => {
+      if (s.apologized.includes(mailId) || s.ap < CS_REPLY_AP) return {}
+      // 그 글이 정말 클레임인가 — 화면이 버튼을 안 그려도 스토어에 길이 남으면 안 된다.
+      const mail = s.mails.find((m) => m.id === mailId)
+      if (!mail?.claim) return {}
+      return {
+        ap: s.ap - CS_REPLY_AP,
+        reputation: clampReputation(s.reputation + csRecover(s.cs)),
+        apologized: [...s.apologized, mailId],
+      }
+    }),
+
+  signContract: (clientId) =>
+    set((s) => {
+      const name = CLIENTS.find((c) => c.id === clientId)?.name
+      if (!name) return {}
+      // 깨진 계약은 세지 않는다 — 잘해 준 사이라는 뜻이 이 조건의 전부다.
+      const done = s.jobs.filter((j) => j.from === name && j.done && !j.breached).length
+      if (!canContract(done, s.contracts.includes(clientId))) return {}
+      return { contracts: [...s.contracts, clientId] }
+    }),
+
+  buyItem: (id) =>
+    set((s) => {
+      const item = findItem(id)
+      const blocked = buyBlock(item, {
+        money: s.money,
+        boughtIds: s.boughtIds,
+        mental: s.mental,
+        mentalMax: s.mentalMax,
+        skills: { figmaSkill: s.figmaSkill, photoshopSkill: s.photoshopSkill, codingSkill: s.codingSkill },
+      })
+      if (blocked) return {}
+
+      // 값은 늘 나가고, 오르는 축은 상품이 정한다(숙련도는 `raiseSkill`이, 정신력은 여기서 자른다).
+      return {
+        money: s.money - item.price,
+        ...(item.once && { boughtIds: [...s.boughtIds, item.id] }),
+        ...('skill' in item
+          ? { [item.skill]: raiseSkill(s[item.skill], item.gain) }
+          : { mental: Math.min(s.mentalMax, s.mental + item.mental) }),
+      }
+    }),
   }),
   {
     name: SAVE_KEY,

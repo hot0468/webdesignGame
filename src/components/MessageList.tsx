@@ -18,10 +18,12 @@ export function MessageList({ channel }: { channel: Channel }) {
   // ⚠️ 게임 중에 생겨난 글(회신에 대한 답장·완료 메일·클레임)도 **같은 목록에** 선다 —
   //    빠뜨리면 고객게시판 업무의 답장이 어디에도 안 보여 다음 공정이 열리지 않는다.
   const mails = useGame((s) => s.mails)
+  // ⚠️ 아직 안 온 글은 목록에도, 뱃지에도 없다 — 둘이 같은 주차를 봐야 숫자가 안 어긋난다.
+  const week = useGame((s) => s.week)
 
   return (
     <div className="msgs">
-      {inbox(channel, mails).map((m) => {
+      {inbox(channel, week, mails).map((m) => {
         const unread = !readIds.includes(m.id)
         const open = openId === m.id
         return (

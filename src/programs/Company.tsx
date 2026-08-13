@@ -6,6 +6,8 @@ import { CLIENTS, type Client } from '../data/company'
 import { unreadCount } from '../data/inbox'
 import {
   CRISIS_WEEKS_TO_SHUTDOWN,
+  MAINTENANCE_FEE,
+  MAINTENANCE_MIN_DONE,
   REPUTATION_CRISIS,
   REPUTATION_MAX,
   companyGrade,
@@ -15,6 +17,7 @@ import {
   SKILL_DISCOUNT,
 } from '../data/game'
 import { payroll } from '../systems/employee'
+import { canContract } from '../systems/money'
 import { useGame } from '../store'
 
 /** `사내시스템` 창. 왼쪽 메뉴로 화면을 가르는 백오피스형이다.
@@ -38,12 +41,14 @@ export function Company() {
   const readIds = useGame((s) => s.readIds)
   // ⚠️ 뱃지도 생겨난 글을 함께 센다(`MessageList`와 같은 목록을 봐야 숫자가 안 어긋난다).
   const mails = useGame((s) => s.mails)
+  // ⚠️ 아직 안 온 글은 뱃지에도 없다(고객게시판 목록과 같은 주차를 본다).
+  const week = useGame((s) => s.week)
 
   return (
     <div className="company">
       <nav className="company__menu">
         {MENU.map((m) => {
-          const unread = 'badge' in m ? unreadCount(m.badge, readIds, mails) : 0
+          const unread = 'badge' in m ? unreadCount(m.badge, week, readIds, mails) : 0
           return (
             <button
               key={m.id}
@@ -188,6 +193,14 @@ function Info() {
     { title: '관리자 사이트 계정정보', rows: client.admin },
   ]
 
+  // ⚠️ 셀렉터 안에서 filter를 돌리지 마라(새 배열 = 무한 렌더). 목록을 통째로 받아 거른다.
+  const jobs = useGame((s) => s.jobs)
+  const contracts = useGame((s) => s.contracts)
+  const signContract = useGame((s) => s.signContract)
+  // 깨진 계약은 세지 않는다 — 잘해 준 사이라는 뜻이 이 조건의 전부다(`canContract`와 같은 규칙).
+  const done = jobs.filter((j) => j.from === client.name && j.done && !j.breached).length
+  const signed = contracts.includes(client.id)
+
   return (
     <div className="company__panel">
       <div className="company__tabs">
@@ -203,6 +216,29 @@ function Info() {
           </button>
         ))}
       </div>
+
+      {/* ── 유지보수 계약 ─────────────────────────────────────
+          **매달 들어오는 돈**이다(급여의 반대편). ⚠️ 맺으려면 그 업체 일을
+          `MAINTENANCE_MIN_DONE`건 끝내야 한다 — 수주하자마자 고정 수입이 붙으면
+          "잘해 준 사이"라는 뜻이 사라진다. 못 맺는 이유는 글자가 말한다. */}
+      <section className="company__group">
+        <h4 className="company__group-title">유지보수 계약</h4>
+        <p className="company__note">
+          {signed
+            ? `계약 중 — 매달 ${MAINTENANCE_FEE.toLocaleString('ko-KR')}원이 정산에 들어온다.`
+            : `납품 ${done}건 / ${MAINTENANCE_MIN_DONE}건. 맺으면 매달 ${MAINTENANCE_FEE.toLocaleString('ko-KR')}원이 들어온다.`}
+        </p>
+        {!signed && (
+          <button
+            type="button"
+            className="company__sign"
+            disabled={!canContract(done, signed)}
+            onClick={() => signContract(client.id)}
+          >
+            계약 맺기
+          </button>
+        )}
+      </section>
 
       {/* 고른 업체 이름은 칩이 이미 진다 — 바로 아래 제목으로 또 적지 않는다. */}
       {groups.map((g) => (

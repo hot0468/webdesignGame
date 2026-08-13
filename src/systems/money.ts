@@ -3,6 +3,8 @@ import {
   BASE_FEE,
   BREACH_REPUTATION_LOSS,
   GRADE_REWARD,
+  MAINTENANCE_FEE,
+  MAINTENANCE_MIN_DONE,
   SUBSCRIPTIONS,
   UNPAID_MONTHS_TO_BANKRUPT,
   WEEKS_PER_MONTH,
@@ -42,6 +44,17 @@ export const isSettleWeek = (week: number) => week % WEEKS_PER_MONTH === 0
 export const monthlyCost = (employees: readonly Employee[] = []) =>
   SUBSCRIPTIONS.reduce((sum, s) => sum + s.cost, 0) + payroll(employees)
 
+/** 월말에 들어오는 돈 — **유지보수 계약**뿐이다(업무 대금은 완료 회신이 그때그때 준다).
+ *  ⚠️ 지출과 **다른 함수**로 둔다: 순액 하나로 합치면 정산 메일이 무엇이 들어오고
+ *  무엇이 나갔는지 말할 수 없다. */
+export const monthlyIncome = (contracts: readonly string[] = []) =>
+  contracts.length * MAINTENANCE_FEE
+
+/** 그 업체와 계약할 수 있는가 — **완료한 업무가 `MAINTENANCE_MIN_DONE`건 이상**이어야 한다.
+ *  ⚠️ 깨진 계약(`breached`)은 세지 않는다. 잘해 준 사이라는 뜻이 계약의 전부다. */
+export const canContract = (doneJobs: number, already: boolean) =>
+  !already && doneJobs >= MAINTENANCE_MIN_DONE
+
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
 
 /** 마감을 넘겨 계약이 깨졌다는 통보. ⚠️ `ad: true` 갈래다(고를 것이 없는 글).
@@ -71,18 +84,27 @@ export function settleMail(
    *  몇 달째인지와 몇 달이면 끝인지를 함께 적는다 — 숫자 없이 "밀렸습니다"만 적으면
    *  얼마나 급한지 알 수 없다. */
   unpaidMonths = 0,
+  /** 유지보수 계약을 맺은 업체 이름들. **들어온 돈도 한 줄씩** 적는다 — 나간 것만 적으면
+   *  이 메일이 지출 통보서가 되고, 계약을 늘린 보람이 어디에도 안 보인다. */
+  contractNames: readonly string[] = [],
 ): Message {
   // 급여는 **사람마다 한 줄**이다 — 합계만 적으면 누구를 내보내면 얼마가 주는지 알 수 없다.
   const lines = [
     ...SUBSCRIPTIONS.map((s) => `- ${s.label} ${won(s.cost)}`),
     ...employees.map((e) => `- ${e.name} 급여 ${won(salaryOf(e.level))}`),
   ].join('\n')
+  const income = contractNames.length
+    ? `이번 달 유지보수 수입입니다.\n${contractNames
+        .map((n) => `- ${n} ${won(MAINTENANCE_FEE)}`)
+        .join('\n')}\n합계 ${won(monthlyIncome(contractNames))}\n\n`
+    : ''
   return {
     id: `settle:${week}`,
     channel: 'mail',
     from: '유지보수보고서',
     subject: `${formatWeek(week)} 월말 정산`,
     body:
+      income +
       `이번 달 고정 지출입니다.\n${lines}\n합계 ${won(monthlyCost(employees))}\n\n` +
       (unpaidMonths > 0
         ? `정산 후 잔액 ${won(moneyAfter)} — 급여를 지급하지 못했습니다.

@@ -310,7 +310,7 @@ body {
    표시줄을 뚫고 내려간다. */
 .window--app {
   width: min(1040px, calc(100vw - var(--sp-8)));
-  height: min(640px, calc(100vh - var(--os-taskbar-h) - var(--sp-12)));
+  height: min(640px, calc(100dvh - var(--os-taskbar-h) - var(--sp-12)));
 }
 
 .window--app .window__body {
@@ -382,7 +382,7 @@ body {
   display: grid;
   gap: var(--sp-3);
   width: min(360px, calc(100vw - var(--sp-8)));
-  max-height: calc(100vh - var(--os-taskbar-h) - var(--sp-8));
+  max-height: calc(100dvh - var(--os-taskbar-h) - var(--sp-8));
   overflow-y: auto;
   padding: var(--sp-4);
   border: 2px solid var(--color-border);
@@ -767,6 +767,28 @@ body {
   border-color: var(--color-primary);
 }
 
+/* 그 주에 걸린 일(업무 마감 · 직원 휴무). ⚠️ 날짜 칸이 아니라 **줄 아래**에 눕는다 —
+   이 게임의 최소 눈금은 한 주라 칸 하나에 매달면 없는 정밀도를 지어내게 되고, 일곱 칸
+   폭에는 업무 제목이 들어가지도 않는다. 줄의 그리드를 통째로 가로지른다.
+   ⚠️ 칸 배경(--color-muted)이 아니라 카드 위에 앉으므로 muted-foreground가 AA를
+   넘는다(4.76:1) — 주말 칸 위였다면 3.8:1로 미달이다. */
+.cal__marks {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--sp-1);
+  margin-top: var(--sp-1);
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-xs);
+  color: var(--color-muted-foreground);
+}
+
+/* 임박한 마감. 업무목록의 `.job__due--soon`과 **같은 뜻이라 같은 색**이다. */
+.cal__mark--soon {
+  color: var(--color-destructive);
+  font-weight: 700;
+}
+
 /* ── 이번 주말 판(일정 창) ────────────────────────────
    ⚠️ **돌발 의뢰가 있을 때만 선다**(`Schedule.tsx`) — 동작하지 않는 컨트롤을 그리지 않는다.
    ⚠️ 새 색을 만들지 않았다. `--color-accent`를 **테두리로만** 쓴다(그 위에 소형 글자를
@@ -948,6 +970,32 @@ body {
   font-family: var(--font-display);
   font-size: var(--fs-md);
   font-weight: 400;
+}
+
+/* 유지보수 계약 버튼. 사내시스템 안의 유일한 결정이라 셸의 주 버튼 모양을 그대로 쓴다.
+   ⚠️ 못 누르는 이유는 흐린 색이 아니라 **위 줄의 글자**가 말한다(납품 몇 건 남았는지). */
+.company__sign {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--sp-2);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: opacity var(--dur-fast) ease;
+}
+
+.company__sign:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.company__sign:disabled {
+  border-color: var(--color-border);
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  cursor: default;
 }
 
 .company__row {
@@ -1242,6 +1290,211 @@ body {
   font-size: var(--fs-sm);
 }
 
+/* ── 소개 창(첫 판, 핀라이트) ─────────────────────────
+   말하는 자리만 남기고 화면을 어둡게 덮는다. ⚠️ 어둠은 오버레이 한 장이 아니라
+   **구멍 하나의 거대한 box-shadow**다 — 마스크도, 네 장의 사각형도 필요 없다. */
+.spot {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-confirm);
+  /* ⚠️ 덮개는 클릭을 통과시킨다 — 소개 중에 창이 열려도 안 되지만, 막는 것은 구멍이
+     아니라 **아래가 안 눌리게** 하는 이 층이다(카드만 다시 켠다). */
+  pointer-events: auto;
+}
+
+/* 대상이 없는 장(환영)의 어둠. 구멍이 없으니 이 한 장이 그 자리를 대신한다. */
+.spot__dim {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.55);
+}
+
+/* 핀라이트. 구멍 자체는 투명하고 **바깥이 그림자로 덮인다**(9999px면 어느 화면이든 넘는다). */
+.spot__hole {
+  position: fixed;
+  border-radius: var(--sp-3);
+  box-shadow:
+    0 0 0 9999px rgb(0 0 0 / 0.55),
+    0 0 0 2px var(--color-on-primary);
+  pointer-events: none;
+}
+
+/* 카드는 대상 옆에 선다(자리는 `Intro.tsx`가 잰다) — 대상이 없으면 가운데다. */
+.spot__card {
+  position: fixed;
+  display: grid;
+  gap: var(--sp-3);
+  width: min(440px, calc(100vw - var(--sp-8)));
+  padding: var(--sp-6);
+  border: 2px solid var(--color-border);
+  border-radius: var(--os-window-radius);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  box-shadow: var(--el-window);
+}
+
+.spot__card--center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* 몇 장 남았는지 먼저 보여 준다 — 끝이 안 보이는 소개는 건너뛰기부터 찾게 된다. */
+.intro__step {
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+}
+
+/* ⚠️ 장마다 글 길이가 달라 판이 들썩인다 — 최소 높이를 잡아 버튼이 손 밑에서 안 움직이게 한다. */
+.intro__body {
+  min-height: 4.8em;
+  line-height: 1.7;
+}
+
+.intro__buttons {
+  justify-content: flex-end;
+}
+
+/* ── 작업 창(공정 진행 막대) ──────────────────────────
+   묻는 창의 판을 그대로 빌려 쓴다(같은 층·같은 표면 — 새 값이 필요 없다). */
+.confirm__panel.work {
+  width: min(360px, calc(100vw - var(--sp-8)));
+}
+
+/* 계기판의 `.gauge`를 쓰지 않는다 — 그쪽은 **상태를 읽는 막대**(늘 보인다)이고
+   이것은 **한 번 차고 끝나는 막대**다. 같은 클래스로 묶으면 한쪽을 고칠 때 다른 쪽이 흔들린다. */
+.work__bar {
+  height: var(--sp-3);
+  border-radius: 999px;
+  background: var(--color-muted);
+  overflow: hidden;
+}
+
+/* ⚠️ 전환 시간은 **인라인 스타일로 온다**(`data/game.ts`의 `WORK_ANIM_MS`) — 여기 적으면
+   JS와 CSS 두 곳에 같은 값이 살고 둘이 어긋난다. 여기서 정하는 것은 무엇이 움직이는가뿐이다. */
+.work__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition-property: width;
+  transition-timing-function: linear;
+}
+
+.work__result {
+  text-align: center;
+}
+
+.work__grade {
+  margin-left: var(--sp-2);
+  font-family: var(--font-display);
+  color: var(--color-card-foreground);
+}
+
+.work .confirm__buttons {
+  justify-content: center;
+}
+
+/* ── 미팅 창(클라이언트와의 대화) ─────────────────────
+   묻는 창(`.confirm`)의 판을 그대로 빌려 쓴다 — 같은 층·같은 표면이라 새 값이 필요 없다.
+   ⚠️ 대화는 **셸 언어**다(프로그램 창이 아니라 게임이 띄우는 창이라서). */
+/* 대화가 오가는 창이라 묻는 창보다 **두 배 넓다** — 좌우로 갈리는 말풍선이 한 줄에 담겨야
+   대화로 읽힌다(좁으면 두세 글자마다 접힌다). */
+/* ⚠️ `.confirm__panel`이 아래쪽에 있어 같은 특정도면 그쪽 폭(360px)이 이긴다 —
+   두 클래스를 겹쳐 적어 이 창만 넓힌다(파일 순서에 기대지 않는다). */
+.confirm__panel.meet {
+  width: min(420px, calc(100vw - var(--sp-8)));
+}
+
+/* ⚠️ 높이는 **고정이다**(min/max가 아니라) — 말풍선이 늘 때마다 판이 커지면 버튼이 손
+   밑에서 움직이고, 다 뜬 뒤에야 결과 자리가 정해진다.
+   ⚠️ 스크롤바는 **감춘다**: 넘친 말은 위로 흘러 올라가고(`Meeting.tsx`가 바닥으로 따라
+   내린다) 손으로 굴려 읽는 자리가 아니다. 감추는 것은 막대뿐이고 스크롤 자체는 살아 있다. */
+.meet__log {
+  display: grid;
+  align-content: end;
+  gap: var(--sp-2);
+  height: 320px;
+  padding: var(--sp-3);
+  border-radius: var(--sp-2);
+  background: var(--color-muted);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.meet__log::-webkit-scrollbar {
+  display: none;
+}
+
+.meet__line {
+  max-width: 82%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--sp-4);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+/* 클라이언트는 왼쪽 흰 말풍선, 나는 오른쪽 인디고 — 카카오톡과 같은 좌우 규칙이다. */
+.meet__line--client {
+  justify-self: start;
+  border-bottom-left-radius: var(--sp-1);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+}
+
+.meet__line--me {
+  justify-self: end;
+  border-bottom-right-radius: var(--sp-1);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* 다음 말을 기다리는 표시. 읽는 이름은 주지 않는다(장식이다). */
+.meet__line--typing {
+  justify-self: start;
+  background: var(--color-card);
+  color: var(--color-muted-foreground);
+  letter-spacing: 0.2em;
+}
+
+/* 대화가 끝난 뒤의 결과는 **가운데로 모인다** — 좌우로 갈리던 말풍선이 끝나고
+   "이번 미팅에서 건진 것"이라는 한 덩어리로 읽혀야 한다. */
+.meet__result {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-2);
+  text-align: center;
+}
+
+.meet__result-head {
+  font-family: var(--font-display);
+}
+
+.meet__keys {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-1);
+  list-style: none;
+}
+
+/* ⚠️ 묻는 창의 버튼은 왼쪽에 선다(둘 중 하나를 고르는 자리라서). 여기는 버튼이 하나뿐이라
+   가운데다 — `.confirm__buttons`를 고치지 말고 이 창 안에서만 덮는다. */
+.meet .confirm__buttons {
+  justify-content: center;
+}
+
+/* 알아낸 키워드 칩. ⚠️ 면은 `--color-secondary`를 쓰지 않는다(그 위에서 글자가 2.5:1로
+   미달한다 — PPT 창에서 겪었다). 흰 면 + primary 테두리로 말한다. */
+.meet__key {
+  padding: var(--sp-1) var(--sp-3);
+  border: 2px solid var(--color-primary);
+  border-radius: 999px;
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  font-size: var(--fs-sm);
+}
+
 /* ── PPT 창(화면정의서·발표자료 제작) ─────────────────
    ⚠️ **셸 언어 그대로다.** 파워포인트 흉내를 내려면 자기 팔레트가 필요한데, 이 창이 하는
    일은 목록에서 하나 골라 퀄리티를 정하는 것뿐이라 아직 그럴 값이 없다(`Ppt.tsx` 주석). */
@@ -1530,4 +1783,178 @@ body {
   color: var(--color-muted-foreground);
   font-size: var(--fs-xs);
   line-height: 1.6;
+}
+
+
+/* ── 독(작업 표시줄의 스탯·업무 버튼) ─────────────────────
+   ⚠️ **좁은 화면 전용이다.** 넓은 화면에서는 계기판이 오른쪽 위에 늘 서 있어서 같은 것을
+   여는 버튼이 둘이 된다(아래 모바일 블록이 되살린다). */
+.dock {
+  display: none;
+}
+
+/* ── 모바일: 한 번에 앱 하나 ──────────────────────────────────────────
+ *
+ * 폰에는 겹치는 창이 없다. 그래서 데스크톱의 "떠다니는 창"을 줄여 그리지 않고
+ * **전체화면 앱 하나 + 작업 표시줄이 앱 전환기**로 바꾼다 — 폰이 실제로 그렇게
+ * 생겼으므로 이것은 타협이 아니라 같은 OS 은유의 다른 몸이다.
+ *
+ * ⚠️ **팔레트·타이포·간격 토큰은 그대로다.** 여기 있는 것은 전부 배치뿐이고,
+ *    새 색·새 간격·새 그림자를 만들지 않는다(만들어야 하면 그것은 시각 언어 변경이라
+ *    다른 절차를 탄다 — CLAUDE.md).
+ * ⚠️ **모바일 규칙은 이 블록 하나에 모은다.** 파일 곳곳에 미디어쿼리를 흩으면
+ *    "좁은 화면에서 무엇이 달라지는가"를 파일 전체를 훑어야 알 수 있다.
+ *
+ * 720px인 이유: 이 게임에서 가장 넓은 창 크롬이 사이드바 둘로 476px을 먹는다
+ * (메일 `176+300`, 피그마 `232+244`). 본문에 최소한의 폭이 남으려면 그 위여야 한다.
+ * 프로그램별 CSS도 **같은 값**을 쓴다 — 갈리면 창마다 다른 폭에서 접힌다. */
+@media (max-width: 720px) {
+  /* ── 창 = 전체화면 ────────────────────────────────────
+   * ⚠️ `transform`은 인라인 style로 들어온다(`Window.tsx`가 x·y를 그린다) —
+   *    `!important`가 아니면 못 덮는다. 좌표는 그대로 살아 있어서 화면이 다시
+   *    넓어지면 창이 있던 자리로 돌아간다(상태를 지우지 않는다). */
+  .window {
+    inset: 0 0 var(--os-taskbar-h) 0;
+    width: auto;
+    height: auto;
+    transform: none !important;
+    border: 0;
+    border-radius: 0;
+  }
+
+  /* ⚠️ `app` 창의 고정 폭·높이를 걷는다 — 안 걷으면 전체화면 안에서 그 크기로 앉는다. */
+  .window--app {
+    width: auto;
+    height: auto;
+  }
+
+  /* 겹치는 창이 없으니 **포커스 테두리가 가리킬 것이 없다**(늘 맨 앞이 전부다). */
+  .window--focused {
+    border: 0;
+  }
+
+  /* ⚠️ 드래그를 **드러내지 않는다** — 전체화면이라 옮길 곳이 없다(눌러도 아무 일 없는
+   *    손잡이를 그리지 않는다는 규칙). `touch-action`을 되살려야 타이틀바에서
+   *    시작한 스크롤이 먹히지 않는 일이 없다. */
+  .window__titlebar {
+    cursor: default;
+    touch-action: auto;
+  }
+
+  /* ── 바탕화면 아이콘: 두 줄 → 한 격자 ──────────────────
+   * ⚠️ `display: contents`라 **두 칸(`col`)이 사라지고 아이콘이 바로 격자에 흐른다** —
+   *    좁은 화면에서 왼쪽/오른쪽이라는 구분은 세로로 길어지기만 할 뿐 뜻이 없다.
+   *    데스크톱에서는 그 구분이 그대로 남는다(이 블록 밖). */
+  .desktop__icons {
+    inset: var(--sp-4) var(--sp-3) auto var(--sp-3);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: var(--sp-1);
+  }
+
+  .desktop__col {
+    display: contents;
+  }
+
+  .desktop-icon {
+    width: auto;
+  }
+
+  /* ── 계기판: 오른쪽 위 → 작업 표시줄 바로 위 ────────────
+   * ⚠️ 위쪽은 아이콘이 쓴다 — 둘 다 절대 위치라 좁아지면 반드시 겹친다.
+   * ⚠️ 높이를 **재고 넘치면 스크롤**한다(`dvh`). 업무가 쌓이면 업무목록이 길어지는데
+   *    상한이 없으면 계기판이 작업 표시줄을 뚫고 내려간다. */
+  .hud {
+    inset: auto var(--sp-3) calc(var(--os-taskbar-h) + var(--sp-3)) var(--sp-3);
+    flex-direction: column;
+    align-items: stretch;
+    max-height: 52dvh;
+    overflow-y: auto;
+  }
+
+  /* 폭 상한은 데스크톱에서 "바탕화면을 얼마나 덮을까"였다 — 화면이 곧 판인 여기서는
+     그 상한이 계기판을 오히려 좁게 만든다. */
+  .hud__col {
+    min-width: 0;
+    max-width: none;
+  }
+
+  /* ── 사이드바 → 가로 탭 줄(사내시스템·작업물) ──────────
+   * 140px 사이드바는 390px 화면의 3분의 1이다. 눕혀서 가로로 훑게 한다.
+   * ⚠️ 프로그램 CSS의 사이드바들도 **같은 방식**으로 접힌다(각자 파일에서). */
+  .company {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .company__menu {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    align-content: center;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 2px solid var(--color-border);
+  }
+
+  /* ── 계기판은 **시간만** 남긴다 ────────────────────────
+   * 스탯·업무목록은 아래 독의 팝오버로 간다. 좁은 화면에서 판 셋이 세로로 쌓이면
+   * 바탕화면 아이콘을 덮어 무엇을 열 수 있는지가 안 보인다.
+   * ⚠️ 주차 판만 남기는 이유: **`다음 주`가 이 게임의 유일한 진행 손짓이라** 늘 손에
+   *    닿아야 한다(열어야 보이는 자리로 내리면 한 턴을 넘기는 데 두 번 눌러야 한다). */
+  .hud {
+    inset: auto var(--sp-3) calc(var(--os-taskbar-h) + var(--sp-3)) auto;
+  }
+
+  .hud__col {
+    display: none;
+  }
+
+  /* ── 독 ────────────────────────────────────────────────
+   * 작업 표시줄 오른쪽 끝에 붙어 **창이 열려 있어도 늘 보인다** — 행동력을 보면서
+   * 공정을 고르는 것이 이 게임의 핵심 판단이라 그 값이 창 위에서도 닿아야 한다. */
+  .dock {
+    display: flex;
+    gap: var(--sp-1);
+    margin-left: auto;
+  }
+
+  .dock__btn {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: var(--sp-2) var(--sp-3);
+    border: 2px solid transparent;
+    border-radius: var(--sp-2);
+    background: transparent;
+    color: var(--color-on-primary);
+    font-family: var(--font-display);
+    font-size: var(--fs-sm);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  /* 열려 있는 동안 어느 버튼이 낸 판인지 보인다(`.taskbar__item--active`와 같은 표시). */
+  .dock__btn:hover,
+  .dock__btn:has(+ * [popover]:popover-open) {
+    border-color: var(--color-on-primary);
+  }
+
+  /* ⚠️ **최상위 레이어라 `z-index`가 필요 없다**(네이티브 popover) — 작업 표시줄 안에
+   *    있어도 열린 창 위로 올라선다. 위치만 정하면 된다.
+   * ⚠️ 판 자체(`--color-card`·테두리·그림자)는 `.hud__panel`이 이미 진다 — 여기서
+   *    다시 칠하지 않는다(팝오버는 자리만 잡는 껍데기다).
+   * ⚠️ 업무가 쌓이면 목록이 길어지므로 **높이를 재고 넘치면 스크롤**한다. */
+  .dock__pop {
+    position: fixed;
+    inset: auto var(--sp-3) calc(var(--os-taskbar-h) + var(--sp-2)) var(--sp-3);
+    width: auto;
+    max-height: 60dvh;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overscroll-behavior: contain;
+  }
 }

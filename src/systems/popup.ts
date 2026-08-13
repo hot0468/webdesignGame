@@ -147,6 +147,8 @@ export function claimMail(
     // 다른 형식이면 그 글이 게임 밖에서 온 것처럼 읽힌다.
     at: formatWeek(week),
     ad: true,
+    // 이 표식 하나가 **그 글에 사과 버튼을 세운다**(`JobActions`) — CS 스탯이 사는 자리다.
+    claim: true,
   }
 }
 

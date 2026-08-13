@@ -1,7 +1,9 @@
 import {
+  findKeyword,
   KEYWORD_SHIFT,
   KEYWORDS,
   MEETING_REVEAL,
+  MEETING_TALK,
   SITE_KEYWORDS,
   type KeywordId,
 } from '../data/keywords'
@@ -74,6 +76,24 @@ export const hitCount = (picked: readonly KeywordId[], wanted: readonly KeywordI
 export const keywordShift = (hits: number): number =>
   KEYWORD_SHIFT[Math.min(KEYWORD_SHIFT.length - 1, Math.max(0, hits))]!
 
+/** 미팅에서 오가는 말 한 줄. `who`가 말풍선의 좌우를 정한다. */
+export type MeetingLine = { who: 'client' | 'me'; text: string }
+
+/** 미팅 대화 대본. **알아낸 키워드가 곧 클라이언트가 하는 말이다** — 요구를 알아들은
+ *  만큼만 대사가 늘고, 못 알아들은 것은 애초에 말이 나오지 않는다(기획력이 정한다).
+ *
+ * ⚠️ 순수 함수다. 대사의 정본은 `data/keywords.ts`이고 여기서는 조립만 한다.
+ * ⚠️ 알아낸 것이 없어도 **인사는 오간다** — 빈 창을 띄우면 행동력만 버린 것처럼 보인다. */
+export function meetingScript(from: string, revealed: readonly KeywordId[]): MeetingLine[] {
+  return [
+    { who: 'client', text: MEETING_TALK.greet.replace('{from}', from) },
+    { who: 'me', text: MEETING_TALK.ask },
+    ...revealed.map((id): MeetingLine => ({ who: 'client', text: findKeyword(id).quote })),
+    { who: 'me', text: MEETING_TALK.wrap },
+    { who: 'client', text: MEETING_TALK.close },
+  ]
+}
+
 /** 미팅이 잡혔음을 알리는 글. ⚠️ `ad: true` 갈래다 — 미팅 알림에 견적보내기가 붙으면
  *  이미 수주한 업무를 다시 수주하게 된다(`replyMail`과 같은 이유).
  *
@@ -89,10 +109,13 @@ export function meetingMail(
     subject: `[미팅] ${job.title}`,
     body:
       '작업 시작 전에 저희가 원하는 분위기를 한번 말씀드리고 싶습니다.\n' +
-      '이번 주에 잠깐 시간 내 주실 수 있을까요? 피그마에서 미팅 잡아 주시면 됩니다.',
+      '이번 주에 잠깐 시간 내 주실 수 있을까요? 아래에서 바로 시작하시면 됩니다.',
     at: formatWeek(week),
     ad: true,
     jobId: job.id,
+    // 이 표식 하나가 **그 글에 미팅 버튼을 세운다**(`JobActions`). 글 id로 알아내지 않는다 —
+    // 관계는 한 방향으로 적고, id 규칙이 바뀌어도 화면이 조용히 어긋나지 않는다.
+    meeting: true,
   }
 }
 

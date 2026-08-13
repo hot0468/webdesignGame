@@ -16,22 +16,31 @@ export function Desktop({ children }: { children: ReactNode }) {
   const readIds = useGame((s) => s.readIds)
   // 클레임 메일도 안 읽은 수에 든다 — 뱃지의 단일 출처가 갈리지 않게 여기도 넘긴다.
   const mails = useGame((s) => s.mails)
+  // ⚠️ 아직 안 온 글은 뱃지에도 없다 — 창을 열었을 때 목록과 숫자가 어긋나면 안 된다.
+  const week = useGame((s) => s.week)
 
   return (
     <div className="desktop">
       <div className="desktop__icons">
         {(['left', 'right'] as const).map((col) => (
-          <div key={col} className="desktop__col">
+          // ⚠️ `data-*`는 **소개 창(`Intro`)이 조준하는 자리다** — 클래스·순서로 집으면
+          //    아이콘이 하나 늘 때 핀라이트가 엉뚱한 곳을 비춘다.
+          <div key={col} className="desktop__col" data-col={col}>
             {PROGRAMS.filter((p) => p.col === col).map((p) => {
-              const unread = 'badge' in p ? unreadCount(p.badge, readIds, mails) : 0
+              const unread = 'badge' in p ? unreadCount(p.badge, week, readIds, mails) : 0
               return (
                 <button
                   key={p.id}
                   type="button"
                   className="desktop-icon"
+                  data-program={p.id}
                   // 뱃지 숫자만으로는 스크린리더에서 "메일 3"으로 읽혀 뜻이 안 선다.
                   aria-label={unread ? `${p.title}, 새 글 ${unread}개` : undefined}
-                  onClick={() => openWindow(p.id)}
+                  // 화면 크기는 DOM만 안다 — 스토어가 스폰 위치를 자르는 데 쓴다
+                  // (`moveWindow`가 드래그 clamp에 같은 것을 받는 것과 같은 규칙).
+                  onClick={() =>
+                    openWindow(p.id, { w: window.innerWidth, h: window.innerHeight })
+                  }
                 >
                   {/* 다색 아이콘이다 — CSS color를 입히지 않는다 */}
                   <AppIcon name={p.icon} size={44} />

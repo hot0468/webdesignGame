@@ -8,10 +8,12 @@ import {
   LISTING_TIERS,
   findTier,
 } from '../data/bidding'
-import { REPUTATION_CRISIS } from '../data/game'
+import { INITIAL_GAME, REPUTATION_CRISIS } from '../data/game'
 import {
   asRequest,
   bidDeadline,
+  bidMinGrade,
+  canBid,
   eligibility,
   isOpen,
   listings,
@@ -50,6 +52,19 @@ describe('공고 목록', () => {
     // 높은 평판에서는 큰 단이 후보에 든다(같은 주차라도 목록이 달라진다).
     const high = listings(7, 90).map((l) => l.tier)
     expect(high.some((t) => t !== 'small')).toBe(true)
+  })
+})
+
+// ⚠️ 공고별 조건과 **다른 축**이다 — 회사 하나에 한 번 걸리는 문이라 조건 없는 공고에도
+//    적용된다. 초반의 수주 경로를 메일 하나로 묶어 두는 규칙이라 뒤집어서도 확인한다.
+describe('입찰 자격(회사등급)', () => {
+  it('소기업 미만은 입찰 자체가 막힌다', () => {
+    const need = bidMinGrade()
+    expect(canBid(need.minReputation - 1)).toBe(false)
+    expect(canBid(need.minReputation)).toBe(true)
+    expect(canBid(100)).toBe(true)
+    // 시작 평판(30)은 이미 소기업이라 열려 있다 — 첫 화면이 빈 채로 시작하지 않는다.
+    expect(canBid(INITIAL_GAME.reputation)).toBe(true)
   })
 })
 

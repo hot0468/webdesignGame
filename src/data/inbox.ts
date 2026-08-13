@@ -1,4 +1,4 @@
-/** 받은 의뢰 글. **신규 의뢰는 메일로, 유지보수 의뢰는 고객게시판으로** 온다 —
+﻿/** 받은 의뢰 글. **신규 의뢰는 메일로, 유지보수 의뢰는 고객게시판으로** 온다 —
  *  채널이 곧 의뢰의 종류라서 목록을 둘로 나누지 않고 `channel` 한 칸으로 가른다.
  *
  * ⚠️ 전부 게임 안의 가짜 정보다(company.ts와 같은 이유 — 실제 연락처를 넣지 않는다).
@@ -24,6 +24,17 @@ type Common = {
    *  곧 업무 id가 되기 때문이다. 회신 뒤에 오는 답장·완료 메일만 이것을 진다
    *  (그 글에서도 다음 회신을 보낼 수 있어야 스레드가 이어진다). */
   jobId?: string
+  /** **클레임 글**이라는 표식 — 그 글에서만 사과할 수 있다(`JobActions`).
+   *  ⚠️ 글 id로 알아내지 않는다(미팅 표식과 같은 이유). */
+  claim?: boolean
+  /** **미팅 요청 글**이라는 표식. 그 글에서만 미팅을 시작할 수 있다(`JobActions`).
+   *  ⚠️ 글 id로 알아내지 않는다 — id 규칙이 바뀌면 화면이 조용히 어긋난다. */
+  meeting?: boolean
+  /** **이 주차부터 받은편지함에 선다.** 없으면 게임 중에 생겨난 글이라 늘 보인다.
+   *  ⚠️ 시작(1주차)에는 채널마다 **한 통씩만** 둔다 — 처음 켠 판에 여덟 통이 쌓여 있으면
+   *     무엇부터 해야 하는지가 안 보이고, 마감이 다 같은 주에 몰려 초반이 즉사가 된다.
+   *  ⚠️ 마감(`dueWeeks`)은 **수주하는 주** 기준이라 여기와 무관하다. */
+  week?: number
   /** 목록에 뜨는 도착 시각. ⚠️ 게임에는 아직 시계가 없다(주 단위 턴뿐) — 분위기용
    *  문자열이다. 주차 진행이 생기면 도착 주차에서 계산한다. */
   at: string
@@ -78,6 +89,7 @@ export type Message = Request | Ad
 export const MESSAGES: Message[] = [
   {
     id: 'm-byeolbit',
+    week: 1,
     channel: 'mail',
     from: '별빛문구',
     subject: '문구점 홈페이지 새로 만들고 싶어요',
@@ -90,6 +102,7 @@ export const MESSAGES: Message[] = [
   //    팝업을 걸 수가 없다. 그래서 신규 의뢰라도 팝업은 계약 업체에서 온다.
   {
     id: 'm-dalbit-popup',
+    week: 2,
     channel: 'mail',
     from: CLIENTS[0].name,
     subject: '여름 신메뉴 팝업 하나만 급하게',
@@ -102,6 +115,7 @@ export const MESSAGES: Message[] = [
   },
   {
     id: 'm-chorok',
+    week: 4,
     channel: 'mail',
     from: '초록약국',
     subject: '건강강좌 발표자료 제작 문의',
@@ -112,6 +126,8 @@ export const MESSAGES: Message[] = [
   },
   {
     id: 'm-ad',
+    // 광고는 의뢰가 아니라 잡음이다 — 새 의뢰와 같은 주에 겹치지 않게 한 주 미룬다.
+    week: 3,
     channel: 'mail',
     from: '웹호스팅 알림',
     subject: '[광고] 서버 이전 이벤트 50% 할인',
@@ -121,6 +137,7 @@ export const MESSAGES: Message[] = [
   },
   {
     id: 'b-dalbit-banner',
+    week: 1,
     channel: 'board',
     from: CLIENTS[0].name,
     subject: '메인 배너 이미지 교체 요청',
@@ -131,6 +148,7 @@ export const MESSAGES: Message[] = [
   },
   {
     id: 'b-hanbit-hours',
+    week: 3,
     channel: 'board',
     from: CLIENTS[1].name,
     subject: '진료시간 변경 (토요일 오전만)',
@@ -141,6 +159,7 @@ export const MESSAGES: Message[] = [
   },
   {
     id: 'b-corner-popup',
+    week: 5,
     channel: 'board',
     from: CLIENTS[2].name,
     subject: '이번 주부터 휴무 안내 팝업 부탁드려요',
@@ -152,6 +171,7 @@ export const MESSAGES: Message[] = [
   },
   {
     id: 'b-corner-menu',
+    week: 6,
     channel: 'board',
     from: CLIENTS[2].name,
     subject: '메뉴 페이지에 사진 3장 추가',
@@ -166,10 +186,19 @@ export const MESSAGES: Message[] = [
  *  `claims`)이다 — 상수 목록과 같은 자리에 서야 메일 창이 하나의 받은편지함으로 보인다.
  *
  *  ⚠️ 새로 온 것이 **위**다. 클레임은 방금 일어난 일이라 아래로 밀리면 놓친다. */
-export const inbox = (channel: Channel, extra: Message[] = []) =>
-  [...extra, ...MESSAGES].filter((m) => m.channel === channel)
+/** ⚠️ **아직 안 온 글은 빼고 준다**(`week`). 처음 켠 판에 여덟 통이 쌓여 있으면
+ *  무엇부터 해야 하는지가 안 보이고, 마감이 다 같은 주에 몰린다.
+ *  생겨난 글(`extra`)에는 `week`가 없다 — 이미 도착한 것들이라 늘 선다. */
+export const inbox = (channel: Channel, week: number, extra: Message[] = []) =>
+  [...extra, ...MESSAGES].filter(
+    (m) => m.channel === channel && (m.week === undefined || m.week <= week),
+  )
 
 /** 안 읽은 수 — **뱃지 숫자의 단일 출처다**. 읽음의 정본은 스토어 `readIds` 하나이므로
  *  생겨난 글도 같은 규칙으로 세어진다(`extra`를 빼먹으면 뱃지만 조용히 어긋난다). */
-export const unreadCount = (channel: Channel, readIds: string[], extra: Message[] = []) =>
-  inbox(channel, extra).filter((m) => !readIds.includes(m.id)).length
+export const unreadCount = (
+  channel: Channel,
+  week: number,
+  readIds: string[],
+  extra: Message[] = [],
+) => inbox(channel, week, extra).filter((m) => !readIds.includes(m.id)).length

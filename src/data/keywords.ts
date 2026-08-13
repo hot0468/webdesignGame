@@ -16,17 +16,24 @@
  * ⚠️ 서로 반대인 것들(차분한 ↔ 강렬한, 많은 정보 ↔ 여백이 많은)이 일부러 함께 있다.
  *    무엇을 고르든 손해가 없으면 미팅으로 알아낼 이유가 없다. */
 export const KEYWORDS = [
-  { id: 'trust', label: '신뢰감있는' },
-  { id: 'calm', label: '차분한' },
-  { id: 'trendy', label: '트렌디한' },
-  { id: 'interactive', label: '많은 인터렉션' },
-  { id: 'dense', label: '많은 정보' },
-  { id: 'visual', label: '비주얼 위주' },
-  { id: 'bold', label: '강렬한' },
-  { id: 'airy', label: '여백이 많은' },
-  { id: 'warm', label: '따뜻한' },
-  { id: 'minimal', label: '미니멀한' },
-] as const satisfies readonly { id: string; label: string }[]
+  { id: 'trust', label: '신뢰감있는', quote: '무엇보다 믿음직해 보였으면 좋겠어요.' },
+  { id: 'calm', label: '차분한', quote: '너무 튀지 않고 차분했으면 합니다.' },
+  { id: 'trendy', label: '트렌디한', quote: '요즘 유행하는 느낌으로 가고 싶어요.' },
+  {
+    id: 'interactive',
+    label: '많은 인터렉션',
+    quote: '마우스 올리면 뭔가 움직이고 그런 거 있잖아요, 그런 게 있으면 좋겠어요.',
+  },
+  { id: 'dense', label: '많은 정보', quote: '정보는 한 화면에 최대한 많이 넣어 주세요.' },
+  { id: 'visual', label: '비주얼 위주', quote: '글보다 사진이 먼저 보였으면 해요.' },
+  { id: 'bold', label: '강렬한', quote: '한눈에 확 들어오게, 좀 세게 가 주세요.' },
+  { id: 'airy', label: '여백이 많은', quote: '답답하지 않게 여백을 넉넉히 뒀으면 합니다.' },
+  { id: 'warm', label: '따뜻한', quote: '차가운 느낌보다는 따뜻했으면 좋겠어요.' },
+  { id: 'minimal', label: '미니멀한', quote: '군더더기 없이 딱 필요한 것만요.' },
+  // ⚠️ `quote`는 **미팅 대화에서 그 키워드를 흘리는 말**이다(`systems/keywords.ts`의
+  //    `meetingScript`). 라벨을 그대로 읽어 주지 않는 이유는, 클라이언트는 키워드가 아니라
+  //    말로 요구하기 때문이다 — 알아들은 것을 결과 칸이 키워드로 옮겨 적는다.
+] as const satisfies readonly { id: string; label: string; quote: string }[]
 
 export type KeywordId = (typeof KEYWORDS)[number]['id']
 
@@ -35,6 +42,23 @@ export const findKeyword = (id: KeywordId) => KEYWORDS.find((k) => k.id === id)!
 /** 사이트 한 건에 걸린 키워드 수. **클라이언트가 원하는 수 = 플레이어가 고르는 수**다 —
  *  둘이 다르면 "몇 개까지 맞출 수 있나"가 화면마다 달라진다. */
 export const SITE_KEYWORDS = 5
+
+/** 미팅 대화의 고정 대사. 가운데의 요구사항만 그 업무의 키워드로 갈리고 앞뒤는 늘 같다
+ *  (`systems/keywords.ts`의 `meetingScript`가 조립한다).
+ *
+ * ⚠️ 문장을 컴포넌트에 적지 않는다 — 대사도 이 게임의 데이터다. */
+export const MEETING_TALK = {
+  /** `{from}`은 업체 이름으로 바뀐다. */
+  greet: '안녕하세요, {from}입니다. 시간 내 주셔서 감사합니다.',
+  ask: '네, 어떤 느낌이었으면 하시는지 편하게 말씀해 주세요.',
+  /** 요구를 다 들은 뒤 내가 하는 말. */
+  wrap: '말씀 주신 방향으로 시안 잡아 보겠습니다.',
+  close: '네, 잘 부탁드립니다.',
+} as const
+
+/** 말풍선 하나가 뜨는 간격(ms). ⚠️ `prefers-reduced-motion`에서는 **한 번에 다 뜬다** —
+ *  기다리게 하는 것이 연출이지 정보가 아니다(`components/Meeting.tsx`). */
+export const MEETING_LINE_MS = 700
 
 /** 클라이언트 미팅 1회 비용(행동력). ⚠️ 제작 공정이 아니므로 가장 싼 값 하나다 —
  *  미팅이 시안만큼 비싸면 아무도 하지 않고, 그러면 이 기능이 화면에만 남는다. */

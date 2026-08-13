@@ -6,14 +6,33 @@ import {
   revealCount,
   revealedKeywords,
   shiftGrade,
+  meetingScript,
   GRADE_LADDER,
 } from './keywords'
-import { KEYWORD_SHIFT, KEYWORDS, SITE_KEYWORDS } from '../data/keywords'
+import { findKeyword, KEYWORD_SHIFT, KEYWORDS, SITE_KEYWORDS } from '../data/keywords'
 import { GRADE_ORDER } from './pipeline'
 import { gradeOf } from './craft'
 
 /** ⚠️ 여기 있는 것은 **대금·평판을 만드는 불변식**뿐이다(키워드 적중 → 등급 → `GRADE_REWARD`).
  *  규칙을 뒤집어 확인하는 증명도 그 고리에만 쓴다. */
+
+describe('미팅 대화', () => {
+  // 알아들은 만큼만 대사가 는다 — 못 알아들은 요구는 애초에 말이 나오지 않는다.
+  it('인사·마무리는 늘 있고 요구는 알아낸 만큼만 선다', () => {
+    const none = meetingScript('달빛공방', [])
+    expect(none).toHaveLength(4) // 인사 · 물음 · 마무리 · 인사
+    expect(none[0]!.text).toContain('달빛공방')
+    expect(meetingScript('달빛공방', ['trendy', 'warm'])).toHaveLength(6)
+  })
+
+  it('요구는 라벨이 아니라 말이다 — 클라이언트는 키워드로 말하지 않는다', () => {
+    const lines = meetingScript('달빛공방', ['calm'])
+    expect(lines[2]).toEqual({ who: 'client', text: findKeyword('calm').quote })
+    expect(lines.some((l) => l.text === findKeyword('calm').label)).toBe(false)
+    // 내 말은 둘뿐(묻고, 마무리한다) — 나머지는 전부 클라이언트 쪽이다.
+    expect(lines.filter((l) => l.who === 'me')).toHaveLength(2)
+  })
+})
 
 describe('클라이언트가 원하는 키워드', () => {
   it('사이트당 SITE_KEYWORDS개이고 겹치지 않는다', () => {

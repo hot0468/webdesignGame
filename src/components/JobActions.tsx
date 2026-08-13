@@ -1,8 +1,14 @@
+import { useState } from 'react'
 import type { Message } from '../data/inbox'
+import { CS_REPLY_AP, csRecover } from '../data/game'
+import { MEETING_AP } from '../data/keywords'
 import { PROGRAMS, type ProgramId } from '../data/programs'
 import { formatDate, formatPeriod } from '../systems/calendar'
+import { isBusy } from '../systems/employee'
 import { canReply, isFinalReply, openStep, repliedStep, stepsOf } from '../systems/pipeline'
+import { personalityOf } from '../systems/followup'
 import { asStep, useGame, type Job } from '../store'
+import { Meeting } from './Meeting'
 
 /** 의뢰 하나에 대한 결정. 어느 쪽이든 수주하면 **같은 업무목록**에 쌓인다.
  *
@@ -29,10 +35,22 @@ export function JobActions({ message }: { message: Message }) {
   // 수주센터 낙찰 통보인가. ⚠️ **채널로는 못 가른다** — 낙찰 메일도 신규 건이라 `mail`이다.
   const won = message.ad === undefined && message.bid === true
 
+  // 클레임에는 **사과**가 붙는다 — 수주할 일은 아니지만 고를 것이 있는 유일한 `ad` 글이다.
+  if (message.claim) return <Apology mailId={message.id} />
+
   // 광고에는 고를 것이 없다. ⚠️ 업무에 매인 글(답장·완료 메일)은 `ad`여도 회신을 진다 —
   //    스레드가 이어지려면 마지막 글에서도 다음 회신을 보낼 수 있어야 한다.
   if (message.ad && !message.jobId) return null
 
+  // ⚠️ 미팅 요청 글에서는 **미팅이 먼저 서고 진행 안내가 그 아래에 붙는다** — 이 글이 받은
+  //    편지함 맨 위라, 여기서 회신까지 못 하면 아래로 내려가 원래 의뢰 글을 찾아야 한다.
+  if (job && message.meeting)
+    return (
+      <>
+        <MeetingAction job={job} />
+        <Progress job={job} week={week} care={care} />
+      </>
+    )
   if (job) return <Progress job={job} week={week} care={care} />
   if (message.ad) return null
   if (rejected) return <p className="jobact__decided">거절한 의뢰다.</p>
@@ -75,6 +93,107 @@ export function JobActions({ message }: { message: Message }) {
   )
 }
 
+/** 클레임 글의 자리. **CS 스탯이 사는 유일한 곳이다** — 사과하면 평판이 조금 돌아온다.
+ *
+ * ⚠️ 되돌아오는 양은 클레임이 깎은 것보다 **작다**(`CS_RECOVER`) — 같거나 크면 팝업을
+ *    어긋나게 걸고 사과만 하는 것이 최적이 된다. 실수의 대가는 남아야 한다.
+ * ⚠️ 한 글에 한 번뿐이다(스토어도 막는다). 여러 번 되면 행동력으로 평판을 사게 된다. */
+function Apology({ mailId }: { mailId: string }) {
+  const ap = useGame((s) => s.ap)
+  const cs = useGame((s) => s.cs)
+  const done = useGame((s) => s.apologized.includes(mailId))
+  const apologize = useGame((s) => s.apologize)
+
+  if (done) return <p className="jobact__decided">사과 메일을 보냈다 — 평판이 조금 돌아왔다.</p>
+
+  return (
+    <div className="jobact">
+      <button
+        type="button"
+        className="jobact__btn jobact__btn--go"
+        disabled={ap < CS_REPLY_AP}
+        onClick={() => apologize(mailId)}
+      >
+        사과하기
+      </button>
+      {/* ⚠️ **얼마나 돌아오는지 먼저 적는다** — 모르고 누르는 버튼은 선택이 아니다. */}
+      <span className="jobact__due">
+        행동력 {CS_REPLY_AP} · 평판 +{csRecover(cs)} (CS {cs})
+      </span>
+    </div>
+  )
+}
+
+/** 미팅 요청 글의 자리. **미팅은 여기서 시작한다**(피그마가 아니다 — 설계자 확정 2026-08-13).
+ *
+ * 누르면 그 자리에서 행동력을 물고(`holdMeeting`) **대화 창**이 뜬다. 창은 결과를 보여 줄
+ * 뿐이므로(`components/Meeting.tsx`) 도중에 닫아도 알아낸 것은 남는다.
+ *
+ * ⚠️ 이미 미팅을 한 업무면 버튼을 그리지 않는다 — 두 번 열면 행동력으로 정답을 살 수 있다.
+ * ⚠️ 직원 파견도 여기 있다: 내 행동력 대신 그 사람이 잡히고, 그때는 **대화 창이 뜨지 않는다**
+ *    (내가 간 자리가 아니라서다. 결과는 피그마의 `확인됨` 표식으로 확인한다). */
+function MeetingAction({ job }: { job: Job }) {
+  const ap = useGame((s) => s.ap)
+  const known = useGame((s) => s.meetings[job.id])
+  const holdMeeting = useGame((s) => s.holdMeeting)
+  const employees = useGame((s) => s.employees)
+  const orders = useGame((s) => s.orders)
+  const trainings = useGame((s) => s.trainings)
+  const [open, setOpen] = useState(false)
+  const free = employees.filter((e) => !isBusy(e.id, orders, trainings))
+
+  // ⚠️ **기획서(화면정의서)를 제출한 뒤에야 미팅을 간다**(설계자 확정 2026-08-13) —
+  //    그전에는 무엇을 만들지 정해지지도 않았고, 미팅에서 들은 말을 쓸 자리(시안)도 아직
+  //    열리지 않았다. 조건은 "지금 시안 차례인가" 하나다(`openStep`) — 제출이 끝나야 그 칸이
+  //    열리므로 새 플래그를 만들지 않는다. 시안을 이미 만든 뒤에도 닫힌다(들을 이유가 없다).
+  const ready = openStep(asStep(job))?.id === 'draft'
+
+  if (known) {
+    return (
+      <>
+        <p className="jobact__decided">
+          미팅은 끝났다 — 알아낸 것은 피그마의 시안 만들기에 표시된다.
+        </p>
+        {open && (
+          <Meeting from={job.from} revealed={known} onClose={() => setOpen(false)} />
+        )}
+      </>
+    )
+  }
+
+  // 아직 갈 때가 아니면 **버튼을 그리지 않는다**(눌러도 안 되는 버튼 대신 언제 열리는지 적는다).
+  if (!ready) {
+    return <p className="jobact__decided">기획서를 제출하면 미팅을 잡을 수 있다.</p>
+  }
+
+  return (
+    <div className="jobact">
+      <button
+        type="button"
+        className="jobact__btn jobact__btn--go"
+        disabled={ap < MEETING_AP}
+        onClick={() => {
+          holdMeeting(job.id)
+          setOpen(true)
+        }}
+      >
+        미팅 참석
+      </button>
+      <span className="jobact__due">행동력 {MEETING_AP}</span>
+      {free.map((e) => (
+        <button
+          key={e.id}
+          type="button"
+          className="jobact__btn"
+          onClick={() => holdMeeting(job.id, e.id)}
+        >
+          {e.name} 보내기
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /** 수주한 뒤의 자리. **여기가 회신하는 곳이다** — 공정은 프로그램에서 돌고, 그 결과는
  *  이 글에서 보내야 상대에게 간다(`systems/pipeline.ts`).
  *
@@ -89,12 +208,18 @@ function Progress({ job, week, care }: { job: Job; week: number; care: boolean }
   if (job.breached) return <p className="jobact__decided">기한이 지나 계약이 깨졌다.</p>
   if (job.done) return <p className="jobact__decided">납품까지 끝난 업무다.</p>
 
+  // 담당자 성격. ⚠️ **수주한 뒤에만 보인다** — 미리 보이면 픽셀간섭형 의뢰는 늘 거절이
+  //    정답이라 받을지 말지의 선택이 죽는다. 받고 나서 알게 되는 것이 이 축의 전부다.
+  const who = personalityOf(job.from)
   const sendable = canReply(step, week)
   const doneStep = repliedStep(step)
   const next = openStep(step)
 
   return (
     <div className="jobact">
+      <span className="jobact__due">
+        이 담당자는 {who.label}이다 — {who.desc}
+      </span>
       {sendable ? (
         <>
           <button type="button" className="jobact__btn jobact__btn--go" onClick={() => replyJob(job.id)}>

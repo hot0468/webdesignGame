@@ -265,3 +265,41 @@
   color: var(--mail-text-2);
   text-align: center;
 }
+
+/* ── 좁은 화면(폰) ──────────────────────────────────────
+ * ⚠️ 브레이크포인트는 `index.css`와 **같은 720px**이다 — 갈리면 창마다 다른 폭에서
+ *    접혀 중간 크기 화면이 깨진다. ⚠️ 모바일 규칙은 **이 블록 하나에** 모은다.
+ * 여기 있는 것은 전부 배치뿐이다 — 팔레트·타이포·간격 토큰은 그대로다.
+ *
+ * 세 칸은 크롬만으로 476px(176+300)이라 390px 화면에서 이미 넘친다.
+ * 폴더 레일은 `사내시스템` 메뉴와 **같은 관용구**로 눕고(오른쪽 테두리 → 아래 테두리),
+ * 목록과 읽는 칸은 **세로로 쌓인다** — 눕히는 것만으로는 칸이 하나 남기 때문이다.
+ * ⚠️ 읽는 칸을 목록과 **갈아 끼우지 않는다**(고른 글만 보이게 하면 되돌아갈 길이
+ *    필요해 `Mail.tsx`가 화면 상태를 하나 더 지게 된다 — 여기서는 CSS만으로 끝난다).
+ * ⚠️ `minmax(0, …)`가 아니면 칸의 기본 `min-height/width: auto` 때문에 목록이
+ *    내용만큼 부풀어 읽는 칸을 창 밖으로 밀어낸다. */
+@media (max-width: 720px) {
+  .mail {
+    grid-template-columns: minmax(0, 1fr);
+    /* 읽는 칸이 목록보다 크다 — 목록은 훑고 본문은 읽는다. */
+    grid-template-rows: auto minmax(0, 2fr) minmax(0, 3fr);
+  }
+
+  .mail__rail {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    align-content: center;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--mail-stroke);
+  }
+
+  .mail__list {
+    border-inline: 0;
+    border-bottom: 1px solid var(--mail-stroke);
+  }
+
+  /* 폭이 곧 화면이라 데스크톱의 여백이 본문을 반으로 줄인다. */
+  .mail__read {
+    padding: var(--sp-4);
+  }
+}

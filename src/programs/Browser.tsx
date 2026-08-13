@@ -6,6 +6,8 @@ import { normalizeUrl, resolveUrl, siteTitle, type Destination } from '../system
 import { useGame } from '../store'
 import { AdminSite } from './AdminSite'
 import { HireSite } from './HireSite'
+import { RefSite } from './RefSite'
+import { ShopSite } from './ShopSite'
 import { WorkSite } from './WorkSite'
 import './browser.css'
 
@@ -28,21 +30,39 @@ export function Browser() {
   const [asked, setAsked] = useState('')
   /** 주소창에 **치는 중인** 글자. 실제로 간 곳(`at`)과 다르다 — 엔터를 쳐야 옮겨 간다. */
   const [typed, setTyped] = useState<string>(SEARCH_HOME.url)
-  const [at, setAt] = useState<Destination>({ kind: 'home' })
+  /** 방문 기록. **한 칸이 주소 문자열 하나**이고 지금 있는 곳은 `cursor`가 가리킨다.
+   *  화면(`at`)·못 찾은 주소 문구·별의 상태는 전부 여기서 파생한다 — 따로 들고 있으면
+   *  뒤로 갈 때 한쪽만 옮겨 가는 사고가 난다(관계는 한 방향으로만 적는다). */
+  const [history, setHistory] = useState<string[]>([SEARCH_HOME.url])
+  const [cursor, setCursor] = useState(0)
+
+  /** 기록의 한 칸. 범위 밖은 첫 화면으로 떨어뜨린다(cursor는 늘 안쪽이지만 타입이 그것을 모른다). */
+  const urlAt = (i: number) => history[i] ?? SEARCH_HOME.url
   /** 지금 **와 있는** 주소. `typed`는 치는 중이라 별이 엉뚱한 곳을 가리킬 수 있다. */
-  const [atUrl, setAtUrl] = useState<string>(SEARCH_HOME.url)
+  const atUrl = urlAt(cursor)
+  const at: Destination = resolveUrl(atUrl)
   /** 못 찾은 주소를 그대로 되뇌어 준다(오타를 눈으로 잡게). */
-  const [badUrl, setBadUrl] = useState('')
+  const badUrl = at.kind === 'unknown' ? atUrl.trim() : ''
 
   const bookmarks = useGame((s) => s.bookmarks)
   const toggleBookmark = useGame((s) => s.toggleBookmark)
   const starred = bookmarks.includes(normalizeUrl(atUrl))
 
   const go = (raw: string) => {
-    const dest = resolveUrl(raw)
-    setAt(dest)
-    setAtUrl(raw)
-    setBadUrl(dest.kind === 'unknown' ? raw.trim() : '')
+    // ⚠️ 같은 주소로 다시 가는 것(새로고침·같은 주소 재입력)은 **기록을 쌓지 않는다** —
+    //    화면은 주소에서 파생하므로 바뀔 것이 없는데, 쌓으면 뒤로가기가 같은 화면을 두 번 거친다.
+    if (normalizeUrl(raw) === normalizeUrl(atUrl)) return
+    // ⚠️ 뒤로 간 뒤에 새 주소로 가면 **앞쪽 기록은 버린다**(실제 브라우저와 같다) —
+    //    남겨 두면 앞으로 가기가 가 본 적 없는 곳으로 데려간다.
+    setHistory([...history.slice(0, cursor + 1), raw])
+    setCursor(cursor + 1)
+  }
+
+  /** 기록 위를 걷는다(뒤로·앞으로). 주소창 글자도 함께 옮겨야 주소·별·화면이
+   *  같은 곳을 가리킨다. */
+  const jump = (to: number) => {
+    setCursor(to)
+    setTyped(urlAt(to))
   }
 
   /** 즐겨찾기에서 간다 — 주소창 글자도 같이 옮겨야 별과 주소가 어긋나지 않는다. */
@@ -54,11 +74,23 @@ export function Browser() {
   return (
     <div className="nv">
       <div className="nv__chrome">
-        {/* 뒤로·앞으로는 아직 방문 기록이 없다 — 살아 있는 척하지 않는다. */}
-        <button type="button" className="nv__nav" disabled aria-label="뒤로">
+        {/* 갈 곳이 없을 때만 꺼진다 — 첫 화면에서 뒤로, 기록 끝에서 앞으로. */}
+        <button
+          type="button"
+          className="nv__nav"
+          disabled={cursor === 0}
+          aria-label="뒤로"
+          onClick={() => jump(cursor - 1)}
+        >
           <AppIcon name={BROWSER_ICONS.back} size={18} />
         </button>
-        <button type="button" className="nv__nav" disabled aria-label="앞으로">
+        <button
+          type="button"
+          className="nv__nav"
+          disabled={cursor === history.length - 1}
+          aria-label="앞으로"
+          onClick={() => jump(cursor + 1)}
+        >
           <AppIcon name={BROWSER_ICONS.forward} size={18} />
         </button>
         {/* 새로고침은 실제로 동작한다 — 지금 주소를 다시 푼다. */}
@@ -123,10 +155,14 @@ export function Browser() {
         // key로 업체를 갈라 준다 — 다른 업체로 옮기면 로그인이 따라가지 않는다.
         <AdminSite key={at.clientId} clientId={at.clientId} />
       ) : at.kind === 'site' ? (
-        // 화면을 가진 바로가기는 수주센터·채용사이트 둘이다. 나머지(쇼핑)는 `SHORTCUTS`에
-        // 주소가 없어 애초에 여기 닿지 않는다(준비 중 꼬리표가 그것을 말한다).
+        // 주소가 붙은 바로가기 셋. ⚠️ `SHORTCUTS`에 주소가 없는 칸은 애초에 여기 닿지
+        // 않는다(첫화면에 "준비 중" 글자로 남는다).
         at.siteId === 'work' ? (
           <WorkSite />
+        ) : at.siteId === 'shop' ? (
+          <ShopSite />
+        ) : at.siteId === 'reference' ? (
+          <RefSite />
         ) : (
           <HireSite />
         )
@@ -176,26 +212,19 @@ export function Browser() {
             </p>
           )}
 
-          {/* ⚠️ **주소가 붙은 칸만 버튼이다.** 나머지는 읽는 글자로 남는다 —
-              눌러도 아무 일 없는 버튼을 그리지 않는 것이 이 리포의 규칙이다. */}
+          {/* ⚠️ 지금은 **세 칸 모두 주소가 있다**(수주센터·인간인·웹디몰). 주소 없는 칸을
+              다시 만들면 `s.url`에서 타입 검사가 멈춘다 — 그때 "준비 중" 갈래를 되살린다
+              (눌러도 아무 일 없는 버튼을 그리지 않는 것이 이 리포의 규칙이다). */}
           <ul className="nv__shortcuts">
-            {SHORTCUTS.map((s) =>
-              'url' in s ? (
-                <li key={s.id} className="nv__shortcut">
-                  <button type="button" className="nv__shortcut-go" onClick={() => goTo(s.url)}>
-                    {/* 다색 아이콘이다 — CSS color를 입히지 않는다. */}
-                    <AppIcon name={SITE_ICONS[s.icon]} size={32} />
-                    <span className="nv__shortcut-name">{s.name}</span>
-                  </button>
-                </li>
-              ) : (
-                <li key={s.id} className="nv__shortcut">
+            {SHORTCUTS.map((s) => (
+              <li key={s.id} className="nv__shortcut">
+                <button type="button" className="nv__shortcut-go" onClick={() => goTo(s.url)}>
+                  {/* 다색 아이콘이다 — CSS color를 입히지 않는다. */}
                   <AppIcon name={SITE_ICONS[s.icon]} size={32} />
                   <span className="nv__shortcut-name">{s.name}</span>
-                  <span className="nv__soon">준비 중</span>
-                </li>
-              ),
-            )}
+                </button>
+              </li>
+            ))}
           </ul>
         </div>
       )}

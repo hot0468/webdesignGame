@@ -6,6 +6,10 @@ import { formatDate } from '../systems/calendar'
 import { gradeOf } from '../systems/craft'
 import { isTurnOf, showsIn } from '../systems/pipeline'
 import { asStep, useGame } from '../store'
+import { useWorking } from '../components/Working'
+
+/** 그 업무가 주문한 문서의 이름. 목록과 작업 창이 **같은 말**을 쓰게 한 곳에서 낸다. */
+const what = (kind: string) => (kind === 'site' ? '화면정의서' : '발표자료')
 
 /** `PPT` 창. 여기서 **두 가지**를 만든다: PPT 업무의 발표자료와, 신규 사이트 업무의 첫 공정인
  * **화면정의서**. 만드는 손이 같아서 화면도 하나다(무엇을 만든 것인지는 업무의 종류가 안다).
@@ -23,6 +27,7 @@ export function Ppt() {
   const design = useGame((s) => s.design)
   const makeSlides = useGame((s) => s.makeSlides)
   const [pickedId, setPicked] = useState<string | null>(null)
+  const work = useWorking()
 
   // 만든 뒤에도 **회신할 때까지는 남는다** — 방금 만든 파일과 등급을 볼 자리가 있어야 한다.
   const todo = jobs.filter((j) => showsIn(asStep(j), 'ppt'))
@@ -54,8 +59,7 @@ export function Ppt() {
           >
             <span className="ppt__title">{j.title}</span>
             <span className="ppt__meta">
-              {j.from} · {j.kind === 'site' ? '화면정의서' : '발표자료'} · 마감{' '}
-              {formatDate(j.due)}
+              {j.from} · {what(j.kind)} · 마감 {formatDate(j.due)}
             </span>
           </button>
         ))}
@@ -87,7 +91,16 @@ export function Ppt() {
                     type="button"
                     className="ppt__make"
                     disabled={ap < apCost(q.ap, skill)}
-                    onClick={() => makeSlides(picked.id, q.id)}
+                    onClick={() => {
+                      makeSlides(picked.id, q.id)
+                      // ⚠️ 만든 **뒤에** 스토어에서 결과를 집는다 — 등급의 정본은 파일이고
+                      //    화면이 미리 계산하면 두 번째 출처가 된다(`gradeOf`를 여기서 부르지 않는다).
+                      const made = useGame
+                        .getState()
+                        .slides.filter((d) => d.jobId === picked.id)
+                        .at(-1)
+                      if (made) work.show({ title: what(picked.kind), grade: made.grade })
+                    }}
                   >
                     {q.label}
                     <span className="ppt__cost">
@@ -105,6 +118,7 @@ export function Ppt() {
           </p>
         </>
       )}
+      {work.view}
     </div>
   )
 }

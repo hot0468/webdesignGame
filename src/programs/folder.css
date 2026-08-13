@@ -1,0 +1,48 @@
+/* `작업물` 창의 목록 줄. **셸 토큰만 쓴다**(`src/index.css`의 `--color-*`·`--sp-*`·`--fs-*`) —
+   이 창은 브랜드 앱이 아니라 OS의 파일 창이라 자기 팔레트를 만들지 않는다.
+   골격(사이드바 + 본문 + 요약 판)은 `사내시스템`의 `.company*`를 그대로 쓰므로 여기에는
+   그 창에 없는 것, 즉 **파일 목록 줄만** 산다. */
+
+/* 사이드바 갈래의 개수. ⚠️ 색을 주지 않는다 — 고른 줄은 primary 면이라
+   muted-foreground를 얹으면 그 자리에서만 대비가 무너진다(카드 위에서만 쓰는 색이다). */
+.folder__count {
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.folder__list {
+  display: grid;
+  gap: var(--sp-2);
+  list-style: none;
+}
+
+/* 줄 하나 = 파일 하나. 창 바탕이 이미 카드색이라 줄을 가르는 것은 면이 아니라 테두리다
+   (`.company__tab`과 같은 관용구). */
+.folder__item {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--sp-2);
+}
+
+.folder__name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+}
+
+/* 등급·제작 시점·업무는 한 줄로 눕는다. muted-foreground는 카드 위(=창 바탕) 위라 통과한다. */
+.folder__meta {
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+}
+
+/* 포트폴리오에 걸리는 작업물(`PORTFOLIO_MIN_GRADE` 이상).
+   ⚠️ 새 색을 만들지 않는다 — `.company__tab--on`과 같은 primary 테두리다.
+   ⚠️ 색 하나로만 말하지 않는다 — 줄 앞의 글리프가 별로 갈린다(`STAT_ICONS.reputation`). */
+.folder__item--star {
+  border-color: var(--color-primary);
+}

@@ -52,6 +52,8 @@
 - `Photoshop`도 같은 예외다(`src/programs/photoshop.css` — Photoshop CC Dark). ⚠️ 강조색(Adobe 파랑)은 **행동력을 무는 제작 버튼 하나**에만 선다 — 어두운 창에서 색이 여러 곳에 서면 어디를 눌러야 하는지가 흐려진다
 - 셋째 사례가 `Figma`다(`src/programs/figma.css` — 캔버스 뉴트럴 + 시스템 글꼴). ⚠️ **액센트 색을 들이지 않는다** — 제작 버튼은 팔레트의 가장 진한 값(썸네일 캔버스와 같은 값)으로 채운다. 사이드바 메뉴는 button이 아니라 표시다(갈 화면이 하나뿐). ⚠️ 고른 카드를 회색 면으로 칠하지 말 것 — 그 위에서 부제가 4.0:1로 미달한다(흰 면 + 진한 테두리로 말한다)
 - 같은 예외의 둘째 사례가 `Browser`다(`src/programs/browser.css` — 뉴트럴 그레이 + 링크 블루 + 시스템 글꼴). ⚠️ **크롬(주소 표시줄)은 무채색으로 물러난다** — 브라우저 UI가 색을 가지면 그 안의 사이트가 색을 못 가진다. 파랑은 링크와 초점, 그리고 **사이트 안의 주된 버튼**(`.nv-site__go`)에만 선다
+- ⚠️ 사이트라고 다 같은 폭이 아니다: **폼 화면**(관리자 로그인·팝업 등록)은 `.nv-site__panel`의 한 단(420px), **훑어 비교하는 목록**(수주센터 `.nv-bid*`, 채용사이트 `.nv-hire*`)은 880px이다 — 수주센터는 본문+결정 칸 두 단, 채용사이트는 카드 격자(`auto-fill minmax(240px,1fr)`). 목록에 폼 폭을 씌우면 공고마다 회색 줄이 세로로 쌓여 비교가 안 된다 — 반대로 `.nv-site__panel`을 넓히면 관리자 폼까지 같이 넓어진다
+- ⚠️ `--sp-5`는 **없는 토큰이다**(정의는 1·2·3·4·6·8·12뿐). 쓰면 그 선언이 통째로 죽어 padding이 0이 된다 — 겪었다. 새 값이 필요하면 감으로 만들지 말고 있는 토큰을 고른다
 - 브라우저 안의 **사이트**(업체 관리자 등)는 `.nv-site*`로 산다 — 자기 표면(흰 판)은 가지되 **색은 `--nv-*` 안에서 끝낸다**. ⚠️ 이 팔레트에 빨강이 없으므로 실패·경고는 색이 아니라 **아이콘 + 글자**가 말한다
 - 주소 표시줄은 **입력칸 + 이동 버튼**이다. ⚠️ 엔터만으로 끝내지 말 것 — 이 게임은 마우스로 굴러가고, 실측 하네스에도 Enter가 없다(`--click .nv__go`로 이동을 재현한다)
 - ⚠️ `--type`의 값은 **첫 `=`에서 갈린다** — `input[type=password]` 같은 셀렉터를 주면 조용히 엉뚱한 글자가 들어간다. 클래스로 집을 것(`.nv-site__field:last-of-type .nv-site__input`)
@@ -72,6 +74,45 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
   Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object { $_.CommandLine -match 'webdi-cdp' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
   ```
 
+## 모바일 (720px 이하) — 한 번에 앱 하나
+
+- 폰에는 겹치는 창이 없다. 그래서 데스크톱의 떠다니는 창을 **줄여 그리지 않고** 통째로 바꾼다:
+  **창은 전체화면**(`.window`가 `inset: 0 0 taskbar 0`, 인라인 transform은 `!important`로 덮는다)이고
+  **작업 표시줄이 앱 전환기**다. 좌표는 지우지 않으므로 화면이 넓어지면 있던 자리로 돌아간다
+- ⚠️ **브레이크포인트는 `720px` 하나다.** 셸(`index.css`)과 프로그램 CSS가 **같은 값**을 쓴다 —
+  갈리면 창마다 다른 폭에서 접혀 중간 크기에서 화면이 깨진다. 근거: 가장 넓은 창 크롬이
+  사이드바 둘로 476px을 먹는다(메일 `176+300`, 피그마 `232+244`)
+- ⚠️ **모바일 규칙은 파일마다 맨 끝 `@media` 블록 하나에 모은다.** 곳곳에 흩으면 "좁은 화면에서
+  무엇이 달라지는가"를 파일 전체를 훑어야 안다
+- **배치만 바꾼다** — 팔레트·타이포·간격 토큰은 그대로다. 새 색·간격·그림자가 필요해지면 그것은
+  시각 언어 변경이라 다른 절차를 탄다(CLAUDE.md)
+- 접는 관용구는 하나다: **세로 사이드바를 가로 스트립으로 눕힌다**(`grid-auto-flow: column` +
+  `overflow-x: auto`, 오른쪽 테두리 → 아래 테두리). 정본은 `index.css`의 `.company__menu`다
+- ⚠️ **가로 스트립의 `flex: none`은 진짜 flex 아이템에 건다** — 메신저는 `li`가 아이템이라
+  `.msgr__room`(버튼)에 걸면 아무 일도 안 하고 이름이 세로로 접힌다(겪었다)
+- ⚠️ 격자 칸의 기본 `min-width: auto`가 내용에 밀린다 — `minmax(0, 1fr)`이 이 리포의 관용구다
+- ⚠️ `100vh`가 아니라 **`100dvh`**다(모바일 브라우저 크롬이 vh보다 실제 높이를 작게 만든다)
+- 이미 `repeat(auto-fill, minmax(...))`인 격자(인간인·웹디몰·어워더즈)는 **손대지 않는다** — 이미 접힌다
+- ⚠️ **창을 여는 자리는 화면 크기를 받는다**(`openWindow(id, viewport)`). `WINDOW_SPAWN.x`가 고정
+  160이라 좁은 화면에서는 창이 화면 밖에서 태어나고, 그러면 잡아 끌 타이틀바까지 잘려 되찾을 수
+  없다(`WINDOW_FIT`이 자른다 — `maxW`는 `index.css`의 `.window--app` 폭 상한과 **같은 값**이다)
+- **계기판은 시간만 남는다**(설계자 확정 2026-08-14). 스탯·업무목록은 **작업 표시줄의 독**으로
+  내려가 팝오버로 열린다(`components/Taskbar.tsx`). 주차 판만 화면에 남기는 이유: **`다음 주`가
+  이 게임의 유일한 진행 손짓이라** 늘 손에 닿아야 한다(열어야 보이는 자리로 내리면 한 턴을
+  넘기는 데 두 번 눌러야 한다)
+- ⚠️ 팝오버는 **네이티브 `popover` 속성이다**(React 19). 바깥 클릭으로 닫히는 것도, **열린
+  전체화면 창 위로 올라서는 최상위 레이어**도 브라우저가 준다 — 바깥 클릭 핸들러·`z-index`·포털을
+  직접 만들지 마라(`Confirm`이 포털을 쓰는 이유가 여기서는 공짜다). 판의 생김새는 `.hud__panel`이
+  이미 지므로 팝오버는 **자리만 잡는 껍데기**다(다시 칠하지 않는다)
+- ⚠️ 독이 푸는 것이 **행동력을 보면서 공정을 고르는 일**이다 — 전체화면 창이 계기판을 가리는데
+  그 판단이 이 게임의 핵심이라, 값이 창 위에서도 닿아야 한다. 그래서 버튼에 `3/3`을 **그대로
+  적는다**(열어 보지 않고도 읽히면 손짓 하나가 준다)
+- ⚠️ 스탯·업무 판은 **`Hud`의 `Stats`·`Jobs`를 그대로 가져다 쓴다** — 두 벌로 그리면 줄이 늘 때
+  한쪽만 고친다. 어디에 서는지는 CSS가 정한다
+- **남은 맞바꿈**: 창이 열려 있으면 바탕화면 아이콘이 가려서 **앱을 바꾸려면 지금 창을 닫아야
+  한다**. "한 번에 앱 하나"의 필연이고, 고치려면 독에 프로그램 줄을 더하거나 시작 메뉴에 넣는
+  것이 자리다
+
 ## 파일 맵
 | 파일 | 역할 |
 |---|---|
@@ -88,7 +129,7 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/systems/request.ts` | 직원 요청 규칙의 정본 — 발생(`makeRequest`) · 확률 판정(`feedbackWorks`/`trainRequestWorks`) · 등급 한 칸(`raiseGrade`) · 불만(`grudged`/`fedUp`) · 기한(`expiredRequests`) + 요청·수락·거절·무시 문안과 `grudgeQuitMail`. ⚠️ `Math.random` 없음 |
 | `src/systems/hire.ts` | 지원자 생성(`applicants`) — **씨앗은 공고를 올린 주차**다(FNV-1a → mulberry32, `keywords.ts`와 같은 방식). ⚠️ `Math.random` 없음 |
 | `src/systems/employee.ts` | 직원 규칙의 정본 — 지시 가능(`canOrder`) · 점유(`isBusy`/`busyUntil`, **정본은 `orders`**) · 완료(`finishedOrders`) · 급여 합계(`payroll`) · 위기 퇴사 순서(`quitter`) + 메신저·퇴사 문안 |
-| `src/programs/HireSite.tsx` | 채용사이트(`인간인`). 공고 올리기 + 지원자 카드. ⚠️ `--nv-*` 안에서 끝낸다(빨강이 없어 정원 초과는 아이콘 + 글자가 말한다). ⚠️ 지원자를 셀렉터 안에서 만들지 말 것 — 새 배열이 나와 무한 렌더가 된다 |
+| `src/programs/HireSite.tsx` | 채용사이트(`인간인`). 구인 포털 얼개다: 메뉴 줄(⚠️ **표시다** — button 아님) + 눕는 공고 판 + **지원자 카드 격자**(880px). 카드에서 큰 값은 **월급 하나**다. ⚠️ `--nv-*` 안에서 끝낸다(빨강이 없어 정원 초과는 아이콘 + 글자가 말한다). ⚠️ 지원자를 셀렉터 안에서 만들지 말 것 — 새 배열이 나와 무한 렌더가 된다 |
 | `src/programs/editor.css` | `에디터` 창 전용 VS Code Dark+ 팔레트. ⚠️ **어두운 창**이라 대비 방향이 반대다 — 값을 다른 창과 주고받지 말 것 |
 | `src/programs/photoshop.css` | `포토샵` 창 전용 Photoshop CC Dark 팔레트. ⚠️ 어두운 창(에디터와 둘뿐). 보조 글자는 실제 포토샵의 #9A9A9A가 아니라 **#A0A0A0**이다 — 그 값이라야 패널 위에서 AA를 넘는다 |
 | `src/programs/figma.css` | `피그마` 창 전용 캔버스 뉴트럴 팔레트(액센트 없음 — 선택은 면으로 말한다). **이 파일 밖으로 새지 않는다** |
@@ -103,6 +144,15 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/systems/keywords.ts` | 키워드 규칙의 정본 — 씨앗(업무 id)에서 정답을 뽑는 `clientKeywords` · `revealedKeywords` · `hitCount`/`keywordShift` · `shiftGrade`/`GRADE_LADDER`(⚠️ `pipeline.ts`의 `GRADE_ORDER`와 같은 줄이어야 한다) · 미팅 알림 문안 |
 | `src/systems/craft.ts` | 제작 결과의 등급(`gradeOf` — 셋째 인자가 키워드 보정이고 **밴드 밖으로 나간다**) + 시안 파일 타입. **퀄리티가 밴드, 스탯이 칸**이고 무작위는 없다 |
 | `src/programs/Editor.tsx` | 퍼블리싱 공정(FTP 연결 → 업체 폴더 → 남은 업무 → 줄 클릭 = 실행). **행동력을 무는 둘째 자리다**(`PUBLISH_AP`) |
+| `src/components/Intro.tsx` | 첫 판의 소개(5장, 포털). **핀라이트**로 말하는 자리만 뚫는다 — 어둠은 오버레이가 아니라 **구멍 하나의 `box-shadow: 0 0 0 9999px`**다(마스크·SVG 금지, 둥근 모서리는 `border-radius`가 준다). 조준은 `data/intro.ts`의 `target`이고 **`data-*`로 집는다**(`nth-child`는 아이콘이 늘면 엉뚱한 곳을 비춘다). 못 찾으면 그 장은 가운데 카드로 떨어진다. 봤는지는 `seenIntro`(세이브에 들어간다 — 새로고침마다 뜨면 고장으로 읽힌다), 새 게임이면 다시 켜지고 **건너뛰기는 늘 있다** |
+| `src/components/Working.tsx` | 공정 실행 때 뜨는 진행 막대 창 + `useWorking()` 훅(공정을 돌리는 창 넷이 같은 연출을 쓴다). ⚠️ 결과는 열기 전에 이미 굳어 있다 — 창은 보여 줄 뿐이고 `prefers-reduced-motion`에서는 바로 끝난다. 막대 시간의 정본은 `WORK_ANIM_MS`(인라인 전환 시간으로 내려간다) |
+| `src/components/Meeting.tsx` | 클라이언트 미팅 채팅 창(포털 — 묻는 창과 같은 층·같은 판 `.confirm__panel`). 대사는 `data/keywords.ts`, 조립은 `systems/keywords.ts`의 `meetingScript`. ⚠️ `prefers-reduced-motion`에서는 한 번에 다 뜬다 |
+| `src/data/followup.ts` · `src/systems/followup.ts` | 납품 뒤 클라이언트가 **다시 말을 거는 축** — 성격 4종(`personalityOf`, 씨앗은 **업체 이름**) · 수정 요청 판정(`needsRevision`, 씨앗에 **주차가 안 들어간다**) · 버그 신고(`bugReport`, **`CLIENTS` 업체에만** — 신규 고객은 에디터에 못 떠서 못 고친다). ⚠️ 수정 요청은 새 축이 아니라 스토어가 **`step`을 1 내리는 것**이다 |
+| `src/systems/portfolio.ts` | 쌓인 작업물 → 낙찰 확률 보정(`showpieces`/`portfolioBonus`). **A 이상만 센다**(찍어 내는 것이 최적이 되지 않게). 화면(`Folder`)과 스토어(`bidStats`)가 같은 함수를 쓴다 |
+| `src/programs/Folder.tsx` · `folder.css` | `작업물` 창 — **읽기 전용**(버튼이 없다). 골격은 `사내시스템`의 `.company*`를 그대로 쓴다(둘 다 셸 언어의 `app` 창이고 그 클래스는 `index.css`에 산다) — `folder.css`에는 목록 줄만 있다 |
+| `src/data/reference.ts` · `src/systems/reference.ts` | 레퍼런스 사이트의 수치·문안 + 수상작 파생(`awardWorks`, **씨앗은 주차 하나**). ⚠️ 정신력을 회복시키지 않는다(쇼핑몰 소모품이 이미 그 축이다) |
+| `src/programs/RefSite.tsx` | 어워더즈(`awwwdi.kr`) — 수상작 카드 격자(880px). **썸네일은 CSS로 그린다**(외부 이미지 금지) 그리고 그 그라디언트 값만 `--nv-*` 밖이다(그림이라서 — 글자·테두리·버튼에는 안 쓴다). 구경 버튼은 **아직 안 본 주에만** 선다 |
+| `src/programs/ShopSite.tsx` | 쇼핑몰(`webdimall.kr`) — 상품 격자. 상품·값은 `data/shop.ts`, 살 수 있는지는 `systems/shop.ts`의 `buyBlock`(화면·스토어 공용) |
 | `src/systems/money.ts` | 대금·평판 변화(`reward`) · 파기(`breach`) · 월말 정산(`isSettleWeek`·`monthlyCost`) + 파기·정산 메일 문안. ⚠️ 수치는 전부 `data/game.ts`에서 온다 |
 | `src/systems/pipeline.ts` | **공정의 줄과 회신 규칙의 정본**(`PIPELINE`·`openStep`·`canReply`·`satisfaction` + 답장/완료 메일 문안). 창들은 `isTurnOf(job, 자기 프로그램)` 한 줄로 목록을 가른다 — 종류별 조건을 컴포넌트에 다시 적지 말 것 |
 | `src/programs/Ppt.tsx` | 화면정의서(사이트 첫 공정)와 발표자료(PPT 업무)를 **같은 손으로** 만든다(`makeSlides`). 셸 언어 그대로인 작은 창이다 |

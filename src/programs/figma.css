@@ -360,3 +360,42 @@
 .fig__delegate:hover {
   background: var(--fig-muted);
 }
+
+/* ── 좁은 화면 ────────────────────────────────────────────
+ * 브레이크포인트는 `index.css`와 **같은 720px이다** — 갈리면 창마다 다른 폭에서 접힌다.
+ * 여기서 하는 것은 **배치뿐이다**: 색·간격·글자 크기는 위 블록의 값을 그대로 쓴다.
+ * ⚠️ 모바일 규칙은 이 한 블록에 모은다(파일 곳곳에 흩지 않는다).
+ *
+ * 232+244=476px이 크롬만으로 나가서 390px 화면에서는 **파일 격자가 통째로 화면 밖**이었다.
+ * 사이드바는 `index.css`의 `사내시스템`과 **같은 관용구**로 눕히고(가로로 훑는다),
+ * 남은 둘은 세로로 쌓는다. */
+@media (max-width: 720px) {
+  /* ⚠️ 속성 패널이 **파일 격자보다 큰 몫(3fr)을 받는다** — 이 창이 존재하는 이유가
+   *    거기서 미팅에 가고 키워드를 골라 시안을 만드는 일이라, 격자에 자리를 먼저 주면
+   *    창이 못 쓰게 된다. 격자는 고르기만 하면 되므로 한 칸 남짓이면 족하다.
+   * ⚠️ `fr`로 나눈다(`auto` 금지) — 파일이 늘면 auto 칸이 부풀어 속성 패널을 0으로 눌러 버린다.
+   *    둘 다 이미 자기 `overflow-y: auto`가 있어 넘치는 만큼은 각자 구른다. */
+  .fig {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 2fr) minmax(0, 3fr);
+  }
+
+  .fig__side {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    align-content: center;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--fig-stroke);
+  }
+
+  /* 눕힌 줄에서는 위 여백이 이 항목만 아래로 내려앉힌다(세로 목록의 구분선이었다). */
+  .fig__group {
+    margin-top: 0;
+  }
+
+  .fig__right {
+    border-left: 0;
+    border-top: 1px solid var(--fig-stroke);
+  }
+}

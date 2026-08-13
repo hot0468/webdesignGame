@@ -4,6 +4,7 @@ import {
   BID_RESULT_WEEKS,
   BID_MAX,
   BID_MIN,
+  BID_MIN_GRADE,
   LISTINGS_PER_WEEK,
   LISTING_DUE_WEEKS,
   LISTING_KINDS,
@@ -18,7 +19,7 @@ import {
   type Requirement,
   type TierId,
 } from '../data/bidding'
-import { REPUTATION_CRISIS, type Grade } from '../data/game'
+import { companyGrade, COMPANY_GRADES, REPUTATION_CRISIS, type Grade } from '../data/game'
 import type { Request } from '../data/inbox'
 import { formatWeek } from './calendar'
 import { GRADE_ORDER, type JobKind } from './pipeline'
@@ -95,6 +96,19 @@ export const bestGrade = (grades: readonly Grade[]): Grade | undefined =>
   grades.length === 0
     ? undefined
     : grades.reduce((top, g) => (GRADE_ORDER.indexOf(g) > GRADE_ORDER.indexOf(top) ? g : top))
+
+/** 입찰할 수 있는 회사인가 — **소기업 이상**(`BID_MIN_GRADE`)이어야 한다.
+ *
+ * ⚠️ 공고마다 붙는 참가 조건(`eligibility`)과 **다른 축이다**: 저쪽은 이 공고를 할 수
+ *    있느냐이고, 이쪽은 이 회사가 입찰이라는 자리에 설 수 있느냐다. 그래서 조건이 없는
+ *    소규모 공고에도 이 문은 걸린다.
+ * ⚠️ 등급은 평판에서 파생하므로 이 판정도 저장하지 않는다(`companyGrade` 한 곳이 정본). */
+export const canBid = (reputation: number): boolean =>
+  COMPANY_GRADES.indexOf(companyGrade(reputation)) >=
+  COMPANY_GRADES.findIndex((g) => g.id === BID_MIN_GRADE)
+
+/** 입찰이 열리는 최소 등급(화면이 "무엇이 되어야 하는지" 적을 때 쓴다). */
+export const bidMinGrade = () => COMPANY_GRADES.find((g) => g.id === BID_MIN_GRADE)!
 
 /** 참가 자격. **셋을 다 맞춰야 추첨에 들어간다.** */
 export function eligibility(require: Requirement, have: Portfolio): Eligibility {

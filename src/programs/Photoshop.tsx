@@ -6,6 +6,7 @@ import { gradeOf } from '../systems/craft'
 import { formatPeriod } from '../systems/calendar'
 import { isTurnOf, showsIn } from '../systems/pipeline'
 import { asStep, useGame } from '../store'
+import { useWorking } from '../components/Working'
 import './photoshop.css'
 
 /** `포토샵` 창. 팝업 업무의 **제작 공정**이 여기서 돈다(그다음이 브라우저에서의 등록).
@@ -33,6 +34,7 @@ export function Photoshop() {
   const design = useGame((s) => s.design)
   const makePopup = useGame((s) => s.makePopup)
   const [openId, setOpenId] = useState<string | null>(null)
+  const work = useWorking()
 
   // **제작 차례인 팝업 업무만** 선다(`systems/pipeline.ts`) — 끝난 업무도, 이미 만들어 놓고
   // 아직 회신하지 않은 업무도 빠진다. 끝난 일의 버튼을 살려 두면 행동력만 새어 나간다.
@@ -124,7 +126,15 @@ export function Photoshop() {
                 type="button"
                 className="ps__make"
                 disabled={ap < apCost(q.ap, skill)}
-                onClick={() => makePopup(open.id, q.id)}
+                onClick={() => {
+                  makePopup(open.id, q.id)
+                  // ⚠️ 등급은 만든 **뒤에** 파일에서 집는다(등급의 정본은 파일이다).
+                  const made = useGame
+                    .getState()
+                    .files.filter((f) => f.jobId === open.id)
+                    .at(-1)
+                  if (made) work.show({ title: '팝업 이미지', grade: made.grade })
+                }}
               >
                 {q.label}
                 <span className="ps__cost">
@@ -136,6 +146,7 @@ export function Photoshop() {
           </div>
         )}
       </div>
+      {work.view}
     </div>
   )
 }

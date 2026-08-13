@@ -31,6 +31,9 @@ export const PROGRAMS = [
   { id: 'ppt', title: 'PPT', icon: 'fluent-color:slide-text-sparkle-32', col: 'right' },
   { id: 'messenger', title: '메신저', icon: 'fluent-color:chat-32', col: 'right', size: 'app' },
   { id: 'editor', title: '에디터', icon: 'devicon:vscode', col: 'right', size: 'app' },
+  // ⚠️ **오른쪽 줄이다** — 만든 것을 보는 창이라 만드는 프로그램들의 이웃이다.
+  //    ⚠️ folder에는 -32가 없다(16·20·24뿐). -NN은 디자인 크기라 렌더 크기와 무관하다.
+  { id: 'folder', title: '작업물', icon: 'fluent-color:document-folder-24', col: 'right', size: 'app' },
   // ⚠️ `satisfies`가 **줄을 빼먹은 항목에서 빌드를 실패시킨다** — 없으면 그 아이콘이
   //    화면에서 조용히 사라진다(어느 줄에도 안 걸려서).
 ] as const satisfies readonly {
