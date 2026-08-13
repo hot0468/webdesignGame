@@ -27,7 +27,8 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
-| 2026-08-13 | 수주센터 — 조건(직원수·시안 장수·기획안 랭크)을 갖춰야 응모하고, 확률은 평판·능력치가 정한다. 추첨 씨앗은 공고 id | src/data/bidding.ts·systems/bidding.ts·programs/WorkSite.tsx(신규), src/store.ts(+test), src/data/sites.ts |
+| 2026-08-13 | 입찰에 **기한**과 **익주 판정**을 붙였다 — 낙찰 메일의 `사업 시작`을 눌러야 업무가 되고, 메일 의뢰와 같은 고리를 탄다 | src/data/bidding.ts·systems/bidding.ts, src/store.ts(+test), src/components/JobActions.tsx, src/data/inbox.ts, src/programs/WorkSite.tsx |
+| 2026-08-13 | 수주센터 — 조건(직원수·시안 장수·기획안 랭크)을 갖춰야 **입찰**하고, 낙찰 확률은 평판·능력치가 정한다. 추첨 씨앗은 공고 id | src/data/bidding.ts·systems/bidding.ts·programs/WorkSite.tsx(신규), src/store.ts(+test), src/data/sites.ts |
 | 2026-08-13 | 숙련도 상승 — 내 손으로 공정을 돌릴 때마다 +3(상한 100). ⚠️ 직원 지시로는 안 오른다 | src/data/game.ts, src/store.ts(+test), src/employee.store.test.ts |
 | 2026-08-13 | 숙련도 3종 — `apCost(base, skill)` 한 함수가 공정 비용을 깎는다(40+ −1, 80+ −2, 하한 1). 등급 축과 갈라 표시 | src/data/game.ts, src/store.ts(+test), src/programs/Figma·Photoshop·Ppt·Editor·Company.tsx |
 | 2026-08-13 | 주말 돌발 의뢰 — 확률로 급한 의뢰가 오고 일할지 선택. 대가는 정신력이고 낮으면 다음 주 행동력 상한이 깎인다 | src/systems/weekend.ts(신규), src/data/game.ts(apMaxOf), src/store.ts(+test), src/programs/Schedule.tsx, src/components/Hud.tsx |
@@ -36,4 +37,3 @@
 | 2026-08-13 | 게임 오버 둘 — 파산(정산 뒤 소지금 음수)·폐업(위기 4주). 판정은 순수 함수, 끝난 판은 주차가 안 흐른다 | src/systems/gameover.ts·components/GameOver.tsx(신규), src/store.ts(+test), src/App.tsx, src/index.css |
 | 2026-08-13 | 직원 요청 — 휴가·급여협상·피드백·교육요청이 주차 넘김에 확률로 오고, 거절이 쌓이면 불만으로 퇴사 | src/systems/request.ts·seed.ts(신규), src/data/employees.ts, src/systems/employee.ts, src/store.ts(+test), src/programs/Messenger.tsx·messenger.css |
 | 2026-08-13 | 직원 스탯에 **기획** 추가(4종) → 막혀 있던 미팅 파견 개방. 가는 사람의 기획력이 알아내는 키워드 수를 정한다 | src/data/employees.ts·keywords.ts, src/systems/employee.ts·hire.ts, src/store.ts(+test), src/programs/Figma.tsx·figma.css·Messenger.tsx·HireSite.tsx |
-| 2026-08-13 | 직원 시스템 — 채용(인간인 공고→지원자)·지시(종류 제한, 등급은 직원 스탯)·급여(월말, 사람 수가 정본)·위기 퇴사 | src/data/employees.ts·systems/hire.ts·employee.ts·programs/HireSite.tsx(신규), Messenger.tsx, store.ts, money.ts |
