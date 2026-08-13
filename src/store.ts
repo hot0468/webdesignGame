@@ -42,6 +42,7 @@ import {
   type Training,
 } from './systems/employee'
 import { companyGrade, REPUTATION_CRISIS } from './data/game'
+import { judgeOver, type GameOver } from './systems/gameover'
 import type { Channel, Message, Request } from './data/inbox'
 import {
   canReply,
@@ -221,6 +222,11 @@ type Store = {
   /** 평판이 위기선 아래로 머문 주 수. `CRISIS_WEEKS_TO_SHUTDOWN`에 닿으면 폐업이다.
    *  ⚠️ 위기선 위로 오르면 **0으로 리셋**한다(설계 결정표). */
   crisisWeeks: number
+
+  /** 끝난 판. **undefined면 진행 중이다.**
+   *  ⚠️ 판정은 `systems/gameover.ts`가 낸다 — 스토어는 적용만 한다(클레임 판정과 같다).
+   *  ⚠️ 세이브에 들어간다 — 끝난 판을 불러왔는데 멀쩡히 굴러가면 안 된다. */
+  over?: GameOver
 
   windows: OpenWindow[]
 
@@ -408,6 +414,7 @@ const saveFields = (s: Store) => ({
   chats: s.chats,
   requests: s.requests,
   crisisWeeks: s.crisisWeeks,
+  over: s.over,
 })
 
 /** 게임을 처음 상태로 되돌릴 때 붓는 값. **새 게임과 불러오기가 같은 바닥을 쓴다** —
@@ -434,6 +441,7 @@ const emptyGame = () => ({
   chats: [],
   requests: [],
   crisisWeeks: 0,
+  over: undefined,
 })
 
 export const useGame = create<Store>()(
@@ -940,6 +948,9 @@ export const useGame = create<Store>()(
   // 다음 주로 넘기면 아무것도 안 하고 모았다가 한 주에 쏟는 전략이 최적이 된다.
   advanceWeek: () =>
     set((s) => {
+      // ⚠️ 끝난 판은 더 나아가지 않는다. 화면이 막아도 스토어가 다시 막지 않으면
+      //    결과 화면 뒤에서 주차가 계속 흘러 기록이 어긋난다.
+      if (s.over) return {}
       const next = s.week + 1
       const popupJobs: PopupJob[] = s.jobs
         .filter((j) => j.popup)
@@ -1134,10 +1145,15 @@ export const useGame = create<Store>()(
       const settling = isSettleWeek(next)
       const money = s.money - (settling ? monthlyCost(withGrudge) : 0)
 
+      // ⚠️ **정산을 치른 뒤의 잔액**으로 판정한다 — 정산 전 값을 보면 급여를 못 준 주가
+      //    파산으로 안 잡힌다. 판정 자체는 순수 함수가 진다(`systems/gameover.ts`).
+      const over = judgeOver(next, money, crisisWeeks)
+
       return {
         week: next,
         ap: s.apMax,
         money,
+        over,
         employees: withGrudge,
         orders: keptOrders,
         requests: [...pending, ...born],

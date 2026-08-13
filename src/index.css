@@ -78,6 +78,8 @@
      높아야 한다. ⚠️ 숫자를 감으로 올리지 말 것: 층은 taskbar < startmenu < confirm
      순서 하나이고, 새 층이 필요하면 여기 이름을 붙여 끼운다. */
   --z-confirm: 1200;
+  /* 결과 화면. ⚠️ **확인 창보다도 위**다 — 게임이 끝났으면 그 어떤 물음보다 먼저 온다. */
+  --z-over: 1300;
 
   --dur-fast: 200ms;
   --dur-slow: 300ms;
@@ -1372,4 +1374,71 @@ body {
 .confirm__btn--go:hover {
   background: var(--color-primary);
   opacity: 0.88;
+}
+
+/* ── 게임 오버 ─────────────────────────────────────────────
+   ⚠️ 창이 아니다(닫거나 옮길 수 있으면 끝난 판을 계속 만진다). `.confirm`과 같은 포털이고
+      **맨 앞 층**에 선다. 뒤를 확인 창보다 더 짙게 덮는 이유는 되돌릴 수 있는 물음이
+      아니라 **끝난 사실**을 알리는 자리이기 때문이다. */
+.over {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-over);
+  display: grid;
+  place-items: center;
+  /* ⚠️ 팔레트에 오버레이 색을 새로 만들지 않는다 — 검정의 투명도다(.confirm과 같은 규칙). */
+  background: rgb(0 0 0 / 0.62);
+}
+
+.over__panel {
+  display: grid;
+  gap: var(--sp-3);
+  width: min(420px, calc(100vw - var(--sp-8)));
+  padding: var(--sp-8) var(--sp-6);
+  border: 2px solid var(--color-border);
+  border-radius: var(--os-window-radius);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  box-shadow: var(--el-window);
+  text-align: center;
+}
+
+.over__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+}
+
+/* 왜 끝났는가. ⚠️ **판(--color-card) 안이라** muted-foreground를 쓸 수 있다. */
+.over__why {
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+/* 유일한 기록이다(점수·도감 없음 — 설계 결정표). 그래서 이 줄만 크게 선다. */
+.over__survived {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  color: var(--color-primary);
+}
+
+.over__btn {
+  padding: var(--sp-3) var(--sp-4);
+  border: 0;
+  border-radius: var(--sp-2);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-size: var(--fs-md);
+  transition: opacity 200ms ease-out;
+}
+
+.over__btn:hover {
+  opacity: 0.9;
+}
+
+.over__note {
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
 }

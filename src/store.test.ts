@@ -8,6 +8,7 @@ import {
   INITIAL_GAME,
   WEEKS_PER_MONTH,
   WINDOW_DRAG,
+  CRISIS_WEEKS_TO_SHUTDOWN,
 } from './data/game'
 import { monthlyCost } from './systems/money'
 import { MESSAGES, type Request } from './data/inbox'
@@ -44,6 +45,15 @@ beforeEach(() => {
     slides: [],
     popups: [],
     mails: [],
+    // ⚠️ 직원·요청·끝난 판까지 되돌린다. 빠뜨리면 앞 테스트가 남긴 직원의 급여가
+    //    다음 테스트의 월말 정산에서 빠져 엉뚱한 파산이 난다(실제로 겪었다).
+    employees: [],
+    orders: [],
+    trainings: [],
+    requests: [],
+    chats: [],
+    crisisWeeks: 0,
+    over: undefined,
   })
 })
 
@@ -794,5 +804,64 @@ describe('직원 요청사항', () => {
   it('세이브 대상에 들어 있다', () => {
     seed({ requests: [ask('leave')] })
     expect(makeSlot(useGame.getState(), 0).data).toHaveProperty('requests')
+  })
+})
+
+/** 게임 오버. ⚠️ 여기서 지키는 것은 **끝난 판이 계속 굴러가지 않는다**이다 —
+ *  판정만 있고 멈추지 않으면 결과 화면 뒤에서 주차가 흘러 기록이 어긋난다. */
+describe('게임 오버 (스토어)', () => {
+  it('월말 정산에서 소지금이 음수가 되면 파산한다', () => {
+    // 정산 주차 직전 + 고정 지출도 못 낼 잔고.
+    useGame.setState({ week: WEEKS_PER_MONTH - 1, money: 1_000, employees: [] })
+    useGame.getState().advanceWeek()
+    const s = useGame.getState()
+    expect(s.money).toBeLessThan(0)
+    expect(s.over?.kind).toBe('bankrupt')
+  })
+
+  it('위기가 이어지면 폐업한다', () => {
+    useGame.setState({
+      week: 1,
+      reputation: 0,
+      crisisWeeks: CRISIS_WEEKS_TO_SHUTDOWN - 1,
+      // ⚠️ 파산이 먼저 걸리지 않게 잔고를 넉넉히 둔다 — 이 테스트가 보려는 것은 폐업이다.
+      money: 10_000_000,
+      employees: [],
+      jobs: [],
+    })
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().over?.kind).toBe('shutdown')
+  })
+
+  // 뒤집기: 막지 않으면 결과 화면 뒤에서 주차가 계속 흘러 "몇 주 버텼는가"가 거짓이 된다.
+  it('끝난 판은 더 나아가지 않는다', () => {
+    useGame.setState({
+      week: 1,
+      reputation: 0,
+      crisisWeeks: CRISIS_WEEKS_TO_SHUTDOWN - 1,
+      money: 10_000_000,
+      employees: [],
+      jobs: [],
+    })
+    useGame.getState().advanceWeek()
+    const at = useGame.getState().week
+    useGame.getState().advanceWeek()
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().week).toBe(at)
+  })
+
+  it('새 게임을 하면 끝난 상태가 풀린다', () => {
+    useGame.setState({
+      week: 1,
+      reputation: 0,
+      crisisWeeks: CRISIS_WEEKS_TO_SHUTDOWN - 1,
+      money: 10_000_000,
+      employees: [],
+      jobs: [],
+    })
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().over).toBeDefined()
+    useGame.getState().newGame()
+    expect(useGame.getState().over).toBeUndefined()
   })
 })

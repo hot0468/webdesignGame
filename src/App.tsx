@@ -6,6 +6,7 @@
 import '@fontsource/jua'
 import '@fontsource-variable/noto-sans-kr'
 import { Desktop } from './components/Desktop'
+import { GameOver } from './components/GameOver'
 import { Window } from './components/Window'
 import { findProgram, type ProgramId } from './data/programs'
 import { Browser } from './programs/Browser'
@@ -47,6 +48,9 @@ export default function App() {
           </Window>
         )
       })}
+      {/* ⚠️ 포털이라 어디에 두든 화면 맨 앞에 선다. 창 목록 **밖**에 두는 이유는
+          끝난 판에서도 늘 그려져야 하기 때문이다(창은 닫힐 수 있다). */}
+      <GameOver />
     </Desktop>
   )
 }

@@ -43,6 +43,7 @@ beforeEach(() => {
     hiredApplicantIds: [],
     chats: [],
     crisisWeeks: 0,
+    over: undefined,
   })
 })
 
