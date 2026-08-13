@@ -22,9 +22,11 @@ import { CLIENTS } from './data/company'
 import { EMPLOYEE_LEVEL, FEEDBACK_AP, ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP, TRAIN_COST } from './data/employees'
 import type { Applicant } from './systems/hire'
 import {
-  asRequest,
-  bidMail,
   eligibility,
+  isOpen,
+  loseMail,
+  resultWeek,
+  winMail,
   wins,
   winChance,
   type Listing,
@@ -139,6 +141,29 @@ export type Job = {
 /** 평판을 자르는 **유일한 자리**. 0~100 밖의 평판에는 뜻이 없고 위기 판정만 흐려진다. */
 const clampReputation = (v: number) => Math.min(REPUTATION_MAX, Math.max(0, v))
 
+/** 내가 건 입찰 하나. **결과를 기다리는 상태가 여기 산다.**
+ *
+ * ⚠️ **공고를 통째로 든다.** 뜬 공고 목록은 그 주차에서 파생하는데(`listings`), 판정은
+ *    익주에 돌므로 그때는 이미 지난 주의 목록이라 다시 만들려면 `week`을 되짚어야 한다 —
+ *    그러느니 건 순간의 공고를 그대로 들고 있는 편이 한 방향이다(지원자·키워드와 달리
+ *    "내가 건 것"은 파생물이 아니라 **내가 한 일**이라서 저장하는 것이 맞다).
+ * ⚠️ **`chance`를 굳혀 든다.** 확률은 입찰하는 그 순간의 평판·능력치가 정한다(화면이
+ *    그때 적어 보여 준 값이다) — 판정 때 다시 재면 기다리는 사이 평판이 움직였을 때
+ *    적힌 것과 다른 확률로 굴리게 된다.
+ * ⚠️ 그래도 **추첨 씨앗은 공고 id 하나다**(`wins`) — 저장·불러오기로 결과를 굴려 뽑을 수
+ *    없는 근거가 그것이다. */
+export type Bid = {
+  listing: Listing
+  /** 건 주차. 결과는 `resultWeek(week)`에 온다. */
+  week: number
+  /** 입찰하는 순간 굳은 낙찰 확률. */
+  chance: number
+  /** 판정이 끝났는가. ⚠️ `undefined`가 **아직 기다리는 중**이다 — `false`(낙방)와
+   *  구분되어야 한다. 판정한 뒤에도 지우지 않는 이유는 같은 공고에 두 번 걸지 못하게
+   *  막는 것이 이 목록이기 때문이다. */
+  won?: boolean
+}
+
 /** 열려 있는 창 하나. 위치는 transform으로만 적용한다(레이아웃 속성 애니메이션 금지). */
 export type OpenWindow = {
   id: ProgramId
@@ -227,11 +252,11 @@ type Store = {
    *  지울 자리가 없고, 한 번 뽑은 사람이 같은 공고에 다시 서면 두 번 뽑힌다. */
   hiredApplicantIds: string[]
 
-  /** 수주센터에 **응모한 공고의 id**. ⚠️ 공고 목록 자체는 저장하지 않는다 — 주차에서
+  /** 수주센터에 **입찰한 것들**. ⚠️ 뜬 공고 목록 자체는 저장하지 않는다 — 주차에서
    *  파생한다(`systems/bidding.ts`의 `listings`). 여기 사는 것은 **내가 건 것뿐**이다.
-   *  ⚠️ 목록에서 지우지 않는다: 지우면 떨어진 공고에 다시 응모해 추첨을 굴릴 수 있다
+   *  ⚠️ 목록에서 지우지 않는다: 지우면 떨어진 공고에 다시 입찰해 추첨을 굴릴 수 있다
    *  (추첨 씨앗이 공고 id라 결과 자체는 안 바뀌지만, 행동력만 계속 태우는 죽은 길이 된다). */
-  bids: string[]
+  bids: Bid[]
   /** 메신저에 쌓인 직원의 말. **방은 `employeeId`로 갈린다**(방 하나 = 직원 하나).
    *  ⚠️ 내가 한 말은 쌓지 않는다 — 지시는 `orders`에 이미 남아 있고, 같은 사실을 두 벌로
    *     적으면 둘이 어긋난다. */
@@ -336,14 +361,14 @@ type Store = {
    *  0이면 매주 몇 번이고 눌러 지원자를 새로 볼 수 있어 공고가 선택이 아니게 된다.
    *  ⚠️ 지원자는 저장하지 않는다 — 올린 주차만 남고 목록은 그 주차에서 파생한다. */
   postHiring: () => void
-  /** 수주센터의 공고에 **응모한다**(브라우저 수주센터). **행동력 `BID_AP`를 문다** —
-   *  공짜면 조건이 맞는 공고에 전부 응모하는 것이 늘 정답이라 선택이 아니게 된다.
+  /** 수주센터의 공고에 **입찰한다**(브라우저 수주센터). **행동력 `BID_AP`를 문다** —
+   *  공짜면 조건이 맞는 공고에 전부 입찰하는 것이 늘 정답이라 선택이 아니게 된다.
    *
-   *  ⚠️ **확정 수주가 아니라 추첨이다.** 당첨이면 그 자리에서 평범한 `Request`가 되어
-   *     `acceptJob`을 그대로 탄다(새 업무 축이 아니다). 어느 쪽이든 결과 메일이 온다.
-   *  ⚠️ **조건 미달이면 아무 일도 일어나지 않는다** — 버튼 disabled만으로는 경로가 남는다
-   *     (이 리포의 확립된 규칙). 이미 응모한 공고도 마찬가지다.
-   *  ⚠️ 추첨 씨앗은 **공고 id**라 다시 눌러 굴릴 수 없다(`systems/bidding.ts`의 `wins`). */
+   *  ⚠️ **여기서 결과가 나오지 않는다.** 답은 이 순간 이미 정해지지만(씨앗이 공고 id라
+   *     굳혀 둔다) 읽히는 것은 **익주 주차 넘김**이다(`advanceWeek` — 판정이 도는 자리는
+   *     거기 하나다). 그래야 기한이 뜻을 가지고, 눌러 보고 마음에 안 들면 되돌리는 길이 없다.
+   *  ⚠️ **입찰 기한이 지났으면 아무 일도 일어나지 않는다**(`isOpen`). 조건 미달·행동력
+   *     부족·이미 건 공고도 마찬가지다 — 버튼 disabled만으로는 경로가 남는다. */
   bidListing: (listing: Listing) => void
   /** 지원자를 고용한다. ⚠️ **정원(`companyGrade().hireMax`)을 넘으면 아무 일도 일어나지 않는다** —
    *  버튼 disabled만으로는 정원 초과 경로가 남는다(이 리포의 확립된 규칙). */
@@ -871,37 +896,37 @@ export const useGame = create<Store>()(
     set((s) => (s.ap < POST_AP ? {} : { ap: s.ap - POST_AP, hirePostWeek: s.week })),
 
   // ── 수주센터(업무 수주 사이트) ───────────────────────────
-  // ⚠️ **메일 의뢰와 다른 고리다**: 조건을 맞춰야 응모할 수 있고, 응모해도 **추첨**이다.
-  //    판정(자격·확률·추첨)은 전부 `systems/bidding.ts`의 순수 함수가 진다 — 스토어는
-  //    값을 물고 결과를 적용할 뿐이다(팝업 판정과 같은 역할 분담).
-  // ⚠️ 당첨된 공고는 **평범한 `Request`가 되어 `acceptJob`을 그대로 탄다** — 새 업무 축을
-  //    만들지 않는다(주말 돌발 의뢰와 같은 규칙).
-  // ⚠️ 추첨 씨앗은 공고 id라 **다시 눌러도 답이 안 바뀐다**. 그래도 `bids`로 한 번만
-  //    걸게 막는 이유는, 안 막으면 떨어진 공고에 행동력만 계속 태우는 길이 남아서다.
-  bidListing: (listing) => {
-    const s = get()
-    if (s.bids.includes(listing.id)) return
-    if (s.ap < BID_AP) return
-    const tier = findTier(listing.tier)
-    const ok = eligibility(tier.require, {
-      employees: s.employees.length,
-      drafts: s.drafts.length,
-      slideGrades: s.slides.map((d) => d.grade),
-    }).ok
-    if (!ok) return
+  // ⚠️ **메일 의뢰와 다른 고리다**: 조건을 맞춰야 입찰할 수 있고, **기한**이 있고,
+  //    입찰해도 **추첨**이며, 결과는 **익주**에 온다.
+  //    판정(자격·기한·확률·추첨)은 전부 `systems/bidding.ts`의 순수 함수가 진다 —
+  //    스토어는 값을 물고 결과를 적용할 뿐이다(팝업 판정과 같은 역할 분담).
+  // ⚠️ **여기서는 결과를 적용하지 않는다.** 답은 이 순간 정해지지만(씨앗이 공고 id)
+  //    읽히는 자리는 `advanceWeek` 하나다 — 클레임·급여·요청 발생이 이미 거기서 돈다.
+  // ⚠️ 같은 공고에 두 번 걸지 못하게 막는 이유는, 안 막으면 떨어진 공고에 행동력만
+  //    계속 태우는 죽은 길이 남아서다(추첨 씨앗이 공고 id라 결과 자체는 안 바뀐다).
+  bidListing: (listing) =>
+    set((s) => {
+      if (s.bids.some((b) => b.listing.id === listing.id)) return {}
+      if (s.ap < BID_AP) return {}
+      // ⚠️ **기한이 지났으면 아무 일도 일어나지 않는다** — 화면이 버튼을 안 그리지만
+      //    disabled만으로는 경로가 남는다(이 리포의 확립된 규칙).
+      if (!isOpen(listing, s.week)) return {}
+      const tier = findTier(listing.tier)
+      const ok = eligibility(tier.require, {
+        employees: s.employees.length,
+        drafts: s.drafts.length,
+        slideGrades: s.slides.map((d) => d.grade),
+      }).ok
+      if (!ok) return {}
 
-    // 확률은 **응모하는 그 순간의** 평판·능력치가 정한다. 화면이 응모 전에 적는 값과
-    // 같은 함수·같은 인자여야 "적힌 것과 다르게 굴렸다"가 되지 않는다.
-    const won = wins(listing.id, winChance(tier, s.reputation, bidStats(s)))
-    set((cur) => ({
-      ap: cur.ap - BID_AP,
-      bids: [...cur.bids, listing.id],
-      mails: [bidMail(listing, cur.week, won), ...cur.mails],
-    }))
-    // ⚠️ `acceptJob`은 `set` 밖에서 부른다 — 안에서 부르면 위 `set`이 아직 반영되지
-    //    않은 상태를 덮어써 응모 기록이 사라진다(같은 함정을 `weekendWork`가 이미 푼다).
-    if (won) get().acceptJob(asRequest(listing, get().week))
-  },
+      // 확률은 **입찰하는 그 순간의** 평판·능력치가 정하고 그대로 굳는다. 화면이 입찰
+      // 전에 적는 값과 같은 함수·같은 인자여야 "적힌 것과 다르게 굴렸다"가 되지 않고,
+      // 굳혀 두어야 결과를 기다리는 사이 평판이 움직여도 그 말이 지켜진다.
+      return {
+        ap: s.ap - BID_AP,
+        bids: [...s.bids, { listing, week: s.week, chance: winChance(tier, s.reputation, bidStats(s)) }],
+      }
+    }),
 
   // ⚠️ **정원은 회사등급이 진다**(`companyGrade(reputation).hireMax`). 등급이 내려가
   //    정원을 넘겨도 **있는 직원은 자르지 않고 신규 채용만 막는다**(설계 결정) —
@@ -1134,6 +1159,22 @@ export const useGame = create<Store>()(
       const broken = s.jobs.filter((j) => isBreached(j, next))
       const breachMails = broken.map((j) => breachMail(j, next))
 
+      // ── 입찰 결과 ────────────────────────────────────────────
+      // ⚠️ **판정이 도는 자리는 여기 하나다**(설계 제약) — 입찰하는 순간이 아니라 익주
+      //    주차 넘김에서 결과가 읽힌다(사용자 원문: "기한 안에 입찰 넣으면 익주에 결과 옴").
+      // ⚠️ 추첨 씨앗은 **공고 id 하나**이고 확률은 입찰하는 순간 굳었다 — 그래서 저장했다
+      //    불러와도, 몇 주를 기다렸다 넘겨도 결과가 안 바뀐다.
+      // ⚠️ 낙찰 메일은 **`Request`다**(`ad`가 아니다) — 거기 붙는 `사업 시작`을 눌러야
+      //    업무가 된다. **여기서 `acceptJob`을 부르지 않는다**: 낙찰인데 착수하지 않는
+      //    것도 선택이어야 하고(설계 제약), 안 누르면 그냥 안 하는 것이다. 메일은 남으므로
+      //    나중에 눌러도 되고, 그때의 주차로 마감이 굳는다.
+      const ripe = s.bids.filter((b) => b.won === undefined && resultWeek(b.week) <= next)
+      const judged = ripe.map((b) => ({ ...b, won: wins(b.listing.id, b.chance) }))
+      const bidMails = judged.map((b) =>
+        b.won ? winMail(b.listing, next) : loseMail(b.listing, next),
+      )
+      const bids = s.bids.map((b) => judged.find((j) => j.listing.id === b.listing.id) ?? b)
+
       // ── 직원이 맡은 일이 끝난다 ──────────────────────────────
       // ⚠️ **공정만 오른다**(`step`). 회신은 여전히 사람의 손이다 — 직원이 대신 만들어도
       //    납품은 보내는 일이고, 그 규칙이 흔들리면 지시 하나로 업무가 통째로 끝나 버린다.
@@ -1343,6 +1384,7 @@ export const useGame = create<Store>()(
         orders: keptOrders,
         requests: [...pending, ...born],
         crisisWeeks,
+        bids,
         // 직원의 보고는 메신저 대화에 쌓인다. ⚠️ 나간 사람의 방은 통째로 사라지므로
         //    그 사람의 말도 함께 걷는다(없는 사람의 대화방을 열 자리가 없다).
         trainings: keptTrainings,
@@ -1366,6 +1408,7 @@ export const useGame = create<Store>()(
           ...fedUpLeavers.map((e) => grudgeQuitMail(e, next)),
           ...breachMails,
           ...claimMails,
+          ...bidMails,
           ...s.mails,
         ],
       }

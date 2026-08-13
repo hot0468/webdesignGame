@@ -10,6 +10,11 @@ import { asStep, useGame, type Job } from '../store'
  *    - **메일(신규 의뢰)** = 견적보내기 / 거절하기. 안 받아도 되는 남의 일이다.
  *    - **고객게시판(유지보수)** = 확인 하나뿐. **이미 계약된 업체의 요청이라 거절이 없다** —
  *      거절 버튼을 달면 "관리 중인 사이트를 안 고치겠다"는, 게임에 없는 선택지가 생긴다.
+ *    - **수주센터 낙찰 통보(`bid`)** = 사업 시작 / 나중에. 이미 심사를 통과해 딴 일이라
+ *      견적을 다시 낼 자리가 아니고, 그래서 **거절이 아니라 미루기다**: 낙찰인데 착수하지
+ *      않는 것도 선택이므로(설계 제약) 안 눌러도 메일이 남아 나중에 시작할 수 있다.
+ *      ⚠️ 그래서 이 갈래에는 **거절 버튼을 그리지 않는다** — 안 누르는 것이 곧 거절이라
+ *      두 벌로 만들면 "거절했다"와 "아직 안 했다"라는 같은 상태가 둘로 갈린다.
  *
  * ⚠️ **색을 여기서 정하지 않는다.** 감싸는 창이 `--jobact-*`를 준다(메일 창은 Fluent 파랑,
  *    사내시스템은 셸 인디고). 컴포넌트가 색을 쥐면 한 창 안에서 두 팔레트가 섞인다. */
@@ -21,6 +26,8 @@ export function JobActions({ message }: { message: Message }) {
   const week = useGame((s) => s.week)
   const { acceptJob, rejectJob } = useGame.getState()
   const care = message.channel === 'board'
+  // 수주센터 낙찰 통보인가. ⚠️ **채널로는 못 가른다** — 낙찰 메일도 신규 건이라 `mail`이다.
+  const won = message.ad === undefined && message.bid === true
 
   // 광고에는 고를 것이 없다. ⚠️ 업무에 매인 글(답장·완료 메일)은 `ad`여도 회신을 진다 —
   //    스레드가 이어지려면 마지막 글에서도 다음 회신을 보낼 수 있어야 한다.
@@ -37,13 +44,15 @@ export function JobActions({ message }: { message: Message }) {
         className="jobact__btn jobact__btn--go"
         onClick={() => acceptJob(message)}
       >
-        {care ? '확인' : '견적보내기'}
+        {won ? '사업 시작' : care ? '확인' : '견적보내기'}
       </button>
       {/* 기한을 받기 전에 보여 준다 — 받고 나서야 알면 고를 수가 없다. 여기서는 아직
           경고가 아니므로 빨갛게 하지 않는다(임박 표시는 업무목록의 몫).
           ⚠️ 수주하면 굳을 날짜(`store`의 `due`)와 **같은 식으로 계산해 같은 날을 적는다** —
           여기만 "3주"로 적으면 수주 전후로 다른 것을 말하는 것처럼 보인다. */}
       <span className="jobact__due">
+        {/* 낙찰 건의 기한은 **시작을 누르는 주부터** 센다 — 기다린 주는 기한을 먹지 않는다.
+            지금 누르면 언제까지인지를 적는 것이라 계산식은 다른 의뢰와 같다. */}
         기한 {formatDate(week + message.dueWeeks)}까지
         {/* 의뢰문은 "다음 주부터 2주간"처럼 상대로 말한다 — 그 말이 이번 주 기준으로
             **며칠부터 며칠까지인지** 여기서 못 박는다. 관리자 페이지에 적어 넣을 값이
@@ -55,7 +64,9 @@ export function JobActions({ message }: { message: Message }) {
           </>
         )}
       </span>
-      {!care && (
+      {/* ⚠️ 낙찰 건에는 거절이 없다 — **안 누르는 것이 곧 안 하는 것**이고, 메일은 남아
+          있으므로 나중에 시작해도 된다(그때의 주차로 마감이 굳는다). */}
+      {!care && !won && (
         <button type="button" className="jobact__btn" onClick={() => rejectJob(message.id)}>
           거절하기
         </button>

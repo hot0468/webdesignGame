@@ -2,12 +2,25 @@ import { describe, expect, it } from 'vitest'
 import {
   BID_MAX,
   BID_MIN,
+  BID_OPEN_WEEKS,
+  BID_RESULT_WEEKS,
   LISTINGS_PER_WEEK,
   LISTING_TIERS,
   findTier,
 } from '../data/bidding'
 import { REPUTATION_CRISIS } from '../data/game'
-import { asRequest, eligibility, listings, winChance, wins } from './bidding'
+import {
+  asRequest,
+  bidDeadline,
+  eligibility,
+  isOpen,
+  listings,
+  loseMail,
+  resultWeek,
+  winChance,
+  winMail,
+  wins,
+} from './bidding'
 import { PIPELINE } from './pipeline'
 
 const small = findTier('small')
@@ -65,7 +78,7 @@ describe('참가 자격', () => {
   })
 })
 
-describe('당첨 확률', () => {
+describe('낙찰 확률', () => {
   it('0~1 밖으로 나가지 않는다 — 양끝에서도 BID_MIN~BID_MAX 안이다', () => {
     for (const tier of LISTING_TIERS) {
       for (const rep of [0, 100]) {
@@ -105,7 +118,7 @@ describe('추첨', () => {
   })
 })
 
-describe('낙찰된 공고', () => {
+describe('낙찰 통보', () => {
   it('평범한 Request가 되어 평소 공정을 탄다 — 새 업무 축이 아니다', () => {
     const l = listings(5, 60)[0]!
     const req = asRequest(l, 5)
@@ -117,5 +130,36 @@ describe('낙찰된 공고', () => {
     // 팝업은 공고에 뜨지 않는다(게시 기간 불변식 때문).
     expect(req.kind).not.toBe('popup')
     expect(req.popup).toBeUndefined()
+  })
+})
+
+describe('입찰 기한', () => {
+  it('뜬 주부터 BID_OPEN_WEEKS주 동안 열려 있고 그 뒤로는 닫힌다', () => {
+    const l = listings(5, 60)[0]!
+    expect(bidDeadline(l)).toBe(5 + BID_OPEN_WEEKS - 1)
+    expect(isOpen(l, 5)).toBe(true)
+    expect(isOpen(l, bidDeadline(l))).toBe(true)
+    // 뒤집어 확인한다: 한 주만 더 가면 닫힌다.
+    expect(isOpen(l, bidDeadline(l) + 1)).toBe(false)
+  })
+
+  it('결과는 익주다 — 입찰한 주에는 나오지 않는다', () => {
+    expect(resultWeek(5)).toBe(5 + BID_RESULT_WEEKS)
+    expect(resultWeek(5)).toBeGreaterThan(5)
+  })
+})
+
+describe('결과 메일', () => {
+  it('낙찰은 고를 것이 있는 글(Request)이고 낙방은 알림(ad)이다', () => {
+    const l = listings(5, 60)[0]!
+    const won = winMail(l, 6)
+    // ⚠️ `ad`가 아니어야 `JobActions`가 사업 시작 버튼을 그린다.
+    expect(won.ad).toBeUndefined()
+    expect(won.bid).toBe(true)
+    expect(won.dueWeeks).toBeGreaterThan(0)
+    // id가 공고 id 그대로라 `acceptJob`이 만드는 업무 id가 공고 id가 된다.
+    expect(won.id).toBe(l.id)
+
+    expect(loseMail(l, 6).ad).toBe(true)
   })
 })
