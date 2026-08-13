@@ -2,7 +2,12 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AppIcon } from '../icons/AppIcon'
 import { PROGRAM_ICONS, STAT_ICONS } from '../data/icons'
-import { DEADLINE_URGENT_WEEKS, REPUTATION_CRISIS, REPUTATION_MAX } from '../data/game'
+import {
+  DEADLINE_URGENT_WEEKS,
+  mentalPenalty,
+  REPUTATION_CRISIS,
+  REPUTATION_MAX,
+} from '../data/game'
 import { formatDate, toCalendar } from '../systems/calendar'
 import { useGame } from '../store'
 
@@ -61,11 +66,24 @@ export function Hud() {
             value={`${g.ap}/${g.apMax}`}
             bar={<Ticks value={g.ap} max={g.apMax} tone="accent" />}
           />
+          {/* ⚠️ 정신력이 깎는 것은 **다음 주 행동력 상한**이라, 그 몫을 적지 않으면 다음
+              주에 칸이 왜 줄었는지 알 자리가 없다(깎일 때가 아니라 깎이기 전에 읽힌다).
+              깎을 것이 없으면 아무것도 붙지 않는다 — 늘 서 있는 라벨은 정보가 아니다.
+              ⚠️ 값(`stat__value`)에 이어 붙이지 마라. 그 줄은 `white-space: nowrap`이라
+              길어지면 `.hud__col`의 폭 상한을 뚫고 계기판이 화면 오른쪽 밖으로 밀려난다
+              (겪었다) — 막대와 같은 자리에 **자기 줄로** 선다. */}
           <Stat
             icon={STAT_ICONS.mental}
             label="정신력"
             value={`${g.mental}/${g.mentalMax}`}
-            bar={<Bar value={g.mental} max={g.mentalMax} tone="success" />}
+            bar={
+              <>
+                <Bar value={g.mental} max={g.mentalMax} tone="success" />
+                {mentalPenalty(g.mental) > 0 && (
+                  <p className="stat__warn">다음 주 행동력 −{mentalPenalty(g.mental)}</p>
+                )}
+              </>
+            }
           />
           {/* 평판만 기본색(primary)을 쓴다 — 위기에 destructive로 튀는 변화가 가장 커야 한다. */}
           <Stat

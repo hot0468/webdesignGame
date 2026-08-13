@@ -42,6 +42,7 @@ beforeEach(() => {
     hirePostWeek: undefined,
     hiredApplicantIds: [],
     chats: [],
+    weekendWorked: [],
     crisisWeeks: 0,
     over: undefined,
   })

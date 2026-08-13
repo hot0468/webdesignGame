@@ -12,11 +12,20 @@ import {
   UNPAID_MONTHS_TO_BANKRUPT,
   COMPANY_LEVELS,
   companyLevel,
+  AP_MIN,
+  apMaxOf,
+  MENTAL_PENALTY,
+  MENTAL_RECOVERY,
+  mentalPenalty,
+  WEEKEND_DUE_WEEKS,
+  WEEKEND_MENTAL_COST,
 } from './data/game'
 import { monthlyCost } from './systems/money'
 import { MESSAGES, type Request } from './data/inbox'
 import type { ProgramId } from './data/programs'
-import { focusedWindowId, useGame } from './store'
+import { asStep, focusedWindowId, useGame } from './store'
+import { openStep, stepsOf } from './systems/pipeline'
+import { weekendEvent } from './systems/weekend'
 import { KEYWORDS, MEETING_AP, SITE_KEYWORDS } from './data/keywords'
 import {
   FEEDBACK_AP,
@@ -55,6 +64,7 @@ beforeEach(() => {
     trainings: [],
     requests: [],
     chats: [],
+    weekendWorked: [],
     crisisWeeks: 0,
     revenue: 0,
     unpaidMonths: 0,
@@ -952,5 +962,97 @@ describe('회사레벨', () => {
     // 대금이 들어오는 자리를 직접 흉내 낸다(완료 회신은 공정을 다 거쳐야 해서 길다).
     useGame.setState({ revenue: level2.minRevenue, apMax: level2.apMax })
     expect(useGame.getState().ap).toBe(before)
+  })
+})
+
+// ── 주말 돌발 이벤트 + 정신력 ──────────────────────────────────────
+// 정신력 → 행동력과 주차 진행은 이 게임의 불변식이라 규칙을 뒤집어 확인한다.
+describe('주말 근무와 정신력', () => {
+  /** 돌발 의뢰가 실제로 뜨는 주차. */
+  const eventWeek = (() => {
+    for (let w = 1; w <= 60; w++) if (weekendEvent(w)) return w
+    throw new Error('60주 안에 주말 이벤트가 없다')
+  })()
+
+  it('주말에 일하면 정신력이 줄고 그 의뢰가 평소 업무로 선다', () => {
+    useGame.setState({ week: eventWeek })
+    const before = useGame.getState().mental
+    useGame.getState().workWeekend()
+    const s = useGame.getState()
+    expect(s.mental).toBe(before - WEEKEND_MENTAL_COST)
+    // ⚠️ **새 업무 축이 아니다** — `jobs`에 평범한 한 줄이 서고 공정의 줄을 그대로 탄다.
+    const job = s.jobs.find((j) => j.id === `we:${eventWeek}`)!
+    expect(job).toBeDefined()
+    expect(job.step).toBe(0)
+    expect(job.replied).toBe(0)
+    expect(job.due).toBe(eventWeek + WEEKEND_DUE_WEEKS)
+    expect(openStep(asStep(job))).toEqual(stepsOf(job.kind)[0])
+  })
+
+  // 뒤집기: 안 고르는 것도 선택이다. 강제로 소모시키면 "주말은 선택"이 거짓이 된다.
+  it('주말에 안 일하면 아무 일도 일어나지 않는다', () => {
+    useGame.setState({ week: eventWeek })
+    const before = useGame.getState()
+    expect(before.mental).toBe(INITIAL_GAME.mental)
+    expect(before.jobs).toEqual([])
+    expect(before.weekendWorked).toEqual([])
+  })
+
+  it('한 주말에 두 번 일할 수 없다 — 정신력을 두 번 물지 않는다', () => {
+    useGame.setState({ week: eventWeek })
+    useGame.getState().workWeekend()
+    const once = useGame.getState().mental
+    useGame.getState().workWeekend()
+    expect(useGame.getState().mental).toBe(once)
+    expect(useGame.getState().jobs).toHaveLength(1)
+  })
+
+  it('돌발 의뢰가 없는 주말에는 눌러도 아무 일이 없다', () => {
+    const quiet = Array.from({ length: 60 }, (_, i) => i + 1).find((w) => !weekendEvent(w))!
+    useGame.setState({ week: quiet })
+    useGame.getState().workWeekend()
+    const s = useGame.getState()
+    expect(s.mental).toBe(INITIAL_GAME.mental)
+    expect(s.jobs).toEqual([])
+  })
+
+  it('주차를 넘기면 정신력이 회복된다 — 줄기만 하지 않는다', () => {
+    useGame.setState({ mental: 40 })
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().mental).toBe(40 + MENTAL_RECOVERY)
+    // ⚠️ 최대 위로는 안 올라간다.
+    useGame.setState({ mental: INITIAL_GAME.mentalMax })
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().mental).toBe(INITIAL_GAME.mentalMax)
+  })
+
+  // 뒤집기: 페널티가 안 걸리면 주말 근무는 대가 없이 돈만 버는 길이 된다.
+  it('정신력이 낮으면 다음 주 행동력이 실제로 깎인다', () => {
+    // 회복까지 마친 뒤에도 페널티 구간에 남을 만큼 낮은 값에서 시작한다.
+    const low = MENTAL_PENALTY[MENTAL_PENALTY.length - 1]!.maxMental - MENTAL_RECOVERY
+    useGame.setState({ mental: low, revenue: 0 })
+    useGame.getState().advanceWeek()
+    const s = useGame.getState()
+    expect(mentalPenalty(s.mental)).toBeGreaterThan(0)
+    expect(s.apMax).toBe(apMaxOf(0, s.mental))
+    expect(s.apMax).toBeLessThan(COMPANY_LEVELS[0]!.apMax)
+    // 그 주에 실제로 쓸 수 있는 행동력도 깎인 상한만큼이다(칸만 줄고 값이 남으면 안 된다).
+    expect(s.ap).toBe(s.apMax)
+  })
+
+  it('⚠️ 행동력 상한이 1 밑으로 안 내려간다 — 0이면 죽은 판이다', () => {
+    useGame.setState({ mental: 0, revenue: 0 })
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().apMax).toBeGreaterThanOrEqual(AP_MIN)
+  })
+
+  it('정신력이 회복되면 상한도 돌아온다 — 되돌아올 길이 있다', () => {
+    useGame.setState({ mental: 0, revenue: 0 })
+    useGame.getState().advanceWeek()
+    const hurt = useGame.getState().apMax
+    useGame.setState({ mental: INITIAL_GAME.mentalMax })
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().apMax).toBe(COMPANY_LEVELS[0].apMax)
+    expect(hurt).toBeLessThan(COMPANY_LEVELS[0].apMax)
   })
 })

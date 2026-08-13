@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import {
+  apMaxOf,
   CLAIM_REPUTATION_LOSS,
-  companyLevel,
   findQuality,
   INITIAL_GAME,
   PUBLISH_AP,
@@ -59,6 +59,7 @@ import {
   type StepJob,
 } from './systems/pipeline'
 import { breach, breachMail, isSettleWeek, monthlyCost, reward, settleMail } from './systems/money'
+import { recovered, weekendEvent, worked } from './systems/weekend'
 import type { ProgramId } from './data/programs'
 import {
   claimMail,
@@ -139,7 +140,13 @@ export type OpenWindow = {
 type Store = {
   week: number
   ap: number
+  /** 이번 주 행동력 상한. **파생값이고 정본은 `apMaxOf(revenue, mental)` 한 함수다** —
+   *  회사레벨(누적 매출)이 상한을 정하고 낮은 정신력이 거기서 깎는다(`data/game.ts`).
+   *  ⚠️ 여기에 직접 값을 적지 마라. 두 곳이 각자 상한을 계산하면 반드시 어긋난다. */
   apMax: number
+  /** 정신력(0~`mentalMax`). **주말 근무로 줄고 주차 진행으로 회복한다.**
+   *  ⚠️ 0은 게임 오버가 아니다 — 패배는 파산·폐업 둘뿐이고, 정신력은 **행동력 상한을
+   *     깎아** 갚는다(`MENTAL_PENALTY`). 죽이지 않고 느리게 만드는 축이다. */
   mental: number
   mentalMax: number
   money: number
@@ -218,6 +225,15 @@ type Store = {
    *  ⚠️ 답한 요청은 여기서 **지운다**(대신 대화에 결과 한 줄이 남는다) — 상태를 두 곳에
    *     적으면 답한 요청이 목록에 계속 서 있는 사고가 난다. */
   requests: EmployeeRequest[]
+
+  /** **이번 주말에 일하기로 한 주차의 목록.** 값이 아니라 주차를 담는 이유:
+   *  "이번 주말에 이미 일했는가"는 `includes(week)` 한 줄이고, 주차가 넘어가도 지난
+   *  주말의 기록이 남아 무엇을 했는지 되짚을 수 있다.
+   *  ⚠️ 돌발 의뢰가 **없는 주말은 여기 오르지 않는다** — 일할 것이 없는 주말에
+   *     정신력을 태울 길을 만들지 않는다(주말 근무는 늘 의뢰가 여는 것이다).
+   *  ⚠️ 주말 근무는 **선택이다** — 이 목록에 없는 주는 아무 일도 일어나지 않았다는 뜻이고,
+   *     그것이 정상이다(강제로 소모시키지 않는다). */
+  weekendWorked: number[]
 
   /** 평판이 위기선 아래로 머문 주 수. `CRISIS_WEEKS_TO_SHUTDOWN`에 닿으면 폐업이다.
    *  ⚠️ 위기선 위로 오르면 **0으로 리셋**한다(설계 결정표). */
@@ -315,6 +331,13 @@ type Store = {
    *  닿으면 **다음 주차 넘김에서** 나간다(퇴사가 도는 자리는 `advanceWeek` 하나다 —
    *  위기 퇴사와 같은 자리라 두 규칙이 서로를 안다). */
   refuseRequest: (id: string) => void
+
+  /** **이번 주말에 일한다.** 돌발 의뢰(`systems/weekend.ts`의 `weekendEvent`)를 그대로
+   *  수주하고 정신력 `WEEKEND_MENTAL_COST`를 문다.
+   *  ⚠️ **행동력은 안 든다** — 주말은 주중 밖의 이틀이고, 대가는 정신력 하나다.
+   *  ⚠️ 이번 주말에 의뢰가 없거나 이미 일했으면 **아무 일도 일어나지 않는다**
+   *     (버튼 disabled만으로는 경로가 남는다 — 이 리포의 확립된 규칙). */
+  workWeekend: () => void
 
   /** 다음 주로. **팝업 판정이 도는 유일한 자리다** — 행동력을 채우고, 어긋난 팝업이
    *  있으면 항의 메일이 들어오며 평판이 깎인다. */
@@ -423,6 +446,7 @@ const saveFields = (s: Store) => ({
   hiredApplicantIds: s.hiredApplicantIds,
   chats: s.chats,
   requests: s.requests,
+  weekendWorked: s.weekendWorked,
   crisisWeeks: s.crisisWeeks,
   revenue: s.revenue,
   unpaidMonths: s.unpaidMonths,
@@ -452,6 +476,7 @@ const emptyGame = () => ({
   hiredApplicantIds: [],
   chats: [],
   requests: [],
+  weekendWorked: [],
   crisisWeeks: 0,
   revenue: 0,
   unpaidMonths: 0,
@@ -744,7 +769,8 @@ export const useGame = create<Store>()(
         revenue,
         // ⚠️ 상한만 올린다. **이번 주의 남은 행동력(`ap`)은 건드리지 않는다** —
         //    레벨업으로 그 자리에서 행동력이 차면 회신을 미뤘다가 몰아 쓰는 것이 최적이 된다.
-        apMax: companyLevel(revenue).apMax,
+        // ⚠️ 정신력도 이 값에 걸린다 — `apMaxOf` 하나가 상한의 정본이다.
+        apMax: apMaxOf(revenue, s.mental),
         reputation: clampReputation(s.reputation + reputation),
         mails: [doneMail(job, grade, fee, s.week), ...s.mails],
       }
@@ -959,6 +985,26 @@ export const useGame = create<Store>()(
         requests: s.requests.filter((q) => q.id !== id),
         employees: s.employees.map((e) => (e.id === req.employeeId ? { ...e, grudge } : e)),
         chats: [...s.chats, { employeeId: req.employeeId, week: s.week, text: refusedText(grudge) }],
+      }
+    }),
+
+  // 주말 근무. ⚠️ **의뢰를 만드는 것은 여기가 아니다** — `systems/weekend.ts`의 순수
+  //    함수가 주차 하나를 씨앗으로 내고 스토어는 **적용만** 한다(팝업 판정과 같은 분담).
+  // ⚠️ 만들어진 것은 평범한 `Request`라 `acceptJob`을 그대로 탄다 — 받은 뒤의 진행이
+  //    평소 업무와 같아야 "급한 의뢰"가 나머지 규칙을 전부 물려받는다.
+  // ⚠️ 정신력이 0이어도 **일할 수는 있다**(0에서 잘릴 뿐이다) — 막으면 정신력이
+  //    바닥난 순간 주말이 사라져 회복 외에 할 것이 없는 구간이 생긴다. 벌은 이미
+  //    다음 주 행동력 상한이 진다.
+  workWeekend: () =>
+    set((s) => {
+      if (s.over || s.weekendWorked.includes(s.week)) return {}
+      const event = weekendEvent(s.week)
+      // 돌발 의뢰가 없는 주말에는 태울 것이 없다(화면도 버튼을 그리지 않는다).
+      if (!event || s.jobs.some((j) => j.id === event.id)) return {}
+      get().acceptJob(event)
+      return {
+        mental: worked(s.mental),
+        weekendWorked: [...s.weekendWorked, s.week],
       }
     }),
 
@@ -1178,12 +1224,24 @@ export const useGame = create<Store>()(
           ? s.unpaidMonths + 1
           : 0
 
+      // ── 정신력 ────────────────────────────────────────────────
+      // ⚠️ **회복은 주차 진행이 준다**(주말 근무에서만 줄면 결국 늘 바닥이라 축이 아니라
+      //    카운트다운이 된다). 회복량은 주말 한 번의 소모보다 작아서 주말 근무가 대가를 진다.
+      // ⚠️ 새 상한은 **회복한 뒤의** 정신력으로 잰다 — 다음 주에 실제로 쓸 값이라야
+      //    계기판의 막대와 칸 수가 같은 순간을 말한다.
+      const mental = recovered(s.mental, s.mentalMax)
+      // **행동력 상한의 정본은 이 함수 하나다**(회사레벨이 상한, 정신력이 그 상한에서
+      // 깎는다). ⚠️ `s.apMax`를 그대로 쓰지 마라 — 정신력이 움직여도 칸이 안 변한다.
+      const apMax = apMaxOf(s.revenue, mental)
+
       // 판정 자체는 순수 함수가 진다(`systems/gameover.ts`).
       const over = judgeOver(next, unpaidMonths, crisisWeeks)
 
       return {
         week: next,
-        ap: s.apMax,
+        mental,
+        apMax,
+        ap: apMax,
         money,
         unpaidMonths,
         over,
