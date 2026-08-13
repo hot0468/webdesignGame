@@ -13,6 +13,8 @@ import { monthlyCost } from './systems/money'
 import { MESSAGES, type Request } from './data/inbox'
 import type { ProgramId } from './data/programs'
 import { focusedWindowId, useGame } from './store'
+import { KEYWORDS, MEETING_AP, SITE_KEYWORDS } from './data/keywords'
+import { clientKeywords, GRADE_LADDER, revealedKeywords } from './systems/keywords'
 
 beforeEach(() => {
   useGame.setState({
@@ -20,6 +22,7 @@ beforeEach(() => {
     windows: [],
     jobs: [],
     readIds: [],
+    meetings: {},
     rejectedIds: [],
     files: [],
     drafts: [],
@@ -41,6 +44,7 @@ describe('초기 수치', () => {
       money: s.money,
       reputation: s.reputation,
       design: s.design,
+      planning: s.planning,
     }).toEqual({ ...INITIAL_GAME })
   })
 })
@@ -436,5 +440,83 @@ describe('주차 진행', () => {
     useGame.getState().advanceWeek()
     const ids = useGame.getState().mails.map((c) => c.id)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
+
+/** 클라이언트 미팅. ⚠️ 여기서 지키는 것은 **행동력이 음수로 새지 않는다**와
+ *  **정답을 저장하지 않는다** 둘이다 — 화면의 disabled만으로는 음수 경로가 남는다. */
+describe('클라이언트 미팅', () => {
+  const site = MESSAGES.find((m) => !m.ad && m.kind === 'site') as Request
+
+  it('행동력 1을 물고 기획력만큼 알아낸다', () => {
+    useGame.getState().acceptJob(site)
+    const ap = useGame.getState().ap
+    useGame.getState().holdMeeting(site.id)
+    const s = useGame.getState()
+    expect(s.ap).toBe(ap - MEETING_AP)
+    expect(s.meetings[site.id]).toEqual(revealedKeywords(site.id, INITIAL_GAME.planning))
+  })
+
+  // 뒤집기: 막지 않으면 행동력이 음수로 넘어가 다음 주까지 빚이 이어진다.
+  it('행동력이 0이면 미팅이 열리지 않는다', () => {
+    useGame.getState().acceptJob(site)
+    useGame.setState({ ap: 0 })
+    useGame.getState().holdMeeting(site.id)
+    const s = useGame.getState()
+    expect(s.ap).toBe(0)
+    expect(s.meetings[site.id]).toBeUndefined()
+  })
+
+  // 뒤집기: 두 번 열리면 행동력만 내고 5개를 다 알 수 있어 기획력 스탯이 뜻을 잃는다.
+  it('업무당 한 번뿐이다', () => {
+    useGame.getState().acceptJob(site)
+    useGame.getState().holdMeeting(site.id)
+    const ap = useGame.getState().ap
+    useGame.getState().holdMeeting(site.id)
+    expect(useGame.getState().ap).toBe(ap)
+  })
+
+  it('사이트 업무를 수주하면 미팅 알림이 그 채널로 온다', () => {
+    useGame.getState().acceptJob(site)
+    const mail = useGame.getState().mails.find((m) => m.jobId === site.id)
+    expect(mail?.channel).toBe(site.channel)
+  })
+})
+
+/** 시안 등급이 키워드로 움직이는 것이 **대금·평판을 만드는 불변식**이다
+ *  (등급 → `GRADE_REWARD` → 대금·평판). 규칙을 뒤집어 확인한다. */
+describe('키워드가 시안 등급을 민다', () => {
+  const site = MESSAGES.find((m) => !m.ad && m.kind === 'site') as Request
+
+  /** 화면정의서를 만들고 회신해 **시안 차례**까지 민다(사이트의 둘째 공정). */
+  const toDraftStep = () => {
+    useGame.getState().acceptJob(site)
+    useGame.getState().makeSlides(site.id, 'light')
+    useGame.getState().replyJob(site.id)
+    useGame.setState({ ap: INITIAL_GAME.apMax })
+  }
+
+  it('다 맞히면 오르고, 다 틀리면 안 오른다', () => {
+    const answer = clientKeywords(site.id)
+    const wrong = KEYWORDS.map((k) => k.id).filter((k) => !answer.includes(k)).slice(0, SITE_KEYWORDS)
+
+    toDraftStep()
+    useGame.getState().makeDraft(site.id, 'light', answer)
+    const hit = useGame.getState().drafts.at(-1)!.grade
+
+    useGame.setState({ jobs: [], drafts: [], slides: [], mails: [], meetings: {} })
+    toDraftStep()
+    useGame.getState().makeDraft(site.id, 'light', wrong)
+    const miss = useGame.getState().drafts.at(-1)!.grade
+
+    expect(GRADE_LADDER.indexOf(hit)).toBeGreaterThan(GRADE_LADDER.indexOf(miss))
+  })
+
+  // ⚠️ 정답이 세이브에 들어가면 두 번째 출처가 생기고 세이브를 뜯어 답을 볼 수 있다.
+  it('정답 5개는 스토어에 저장되지 않는다 — 아는 것만 남는다', () => {
+    useGame.getState().acceptJob(site)
+    useGame.getState().holdMeeting(site.id)
+    expect(useGame.getState().meetings[site.id]!.length).toBeLessThan(SITE_KEYWORDS)
   })
 })

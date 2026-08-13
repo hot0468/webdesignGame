@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import {
   CLAIM_REPUTATION_LOSS,
   findQuality,
@@ -11,6 +11,8 @@ import {
   type QualityId,
 } from './data/game'
 import { gradeOf, type Draft } from './systems/craft'
+import { MEETING_AP, type KeywordId } from './data/keywords'
+import { clientKeywords, hitCount, keywordShift, meetingMail, revealedKeywords } from './systems/keywords'
 import { CLIENTS } from './data/company'
 import type { Channel, Message, Request } from './data/inbox'
 import {
@@ -38,6 +40,7 @@ import {
   type PopupJob,
 } from './systems/popup'
 import { normalizeUrl } from './systems/url'
+import { makeSlot, parseSlot, slotKey } from './systems/save'
 
 /** 수주한 업무 한 건. `id`는 그 의뢰 글의 id다 — 한 의뢰가 두 업무가 되지 않는다.
  *
@@ -95,6 +98,18 @@ type Store = {
   /** 디자인 스탯(0~100). **작업물 등급을 정하는 축**이고, 올리는 길은 아직 없다
    *  (성장이 붙으면 여기에 더한다 — 축을 미리 여러 개 만들지 않는다). */
   design: number
+  /** 기획력 스탯(0~100). **미팅에서 알아내는 키워드 수를 정하는 축**이고, 올리는 길은
+   *  아직 없다(design과 같다 — 성장이 붙으면 두 값이 같은 자리에서 는다). */
+  planning: number
+
+  /** 클라이언트 미팅에서 **알아낸** 키워드. 업무 id → 알아낸 키워드 목록이다.
+   *
+   *  ⚠️ 클라이언트가 **정말 원하는 5개는 저장하지 않는다** — 업무 id에서 파생하므로
+   *     (`systems/keywords.ts`의 `clientKeywords`) 저장하면 두 번째 출처가 생기고
+   *     세이브를 뜯어 정답을 볼 수 있게 된다. 여기 사는 것은 **플레이어가 아는 것**뿐이다.
+   *  ⚠️ 키가 있으면 미팅을 한 것이다 — 별도의 '미팅함' 플래그를 두지 않는다
+   *     (관계를 한 방향으로만 적는다). */
+  meetings: Record<string, KeywordId[]>
 
   /** 읽은 글의 id(메일·고객게시판 공용). 뱃지 숫자는 여기서만 나온다. */
   readIds: string[]
@@ -128,6 +143,12 @@ type Store = {
 
   windows: OpenWindow[]
 
+  /** 슬롯 목록이 바뀔 때마다 오르는 수. ⚠️ **슬롯 내용은 스토어에 들이지 않는다** —
+   *  들이면 세이브 안에 세이브가 들어가 자동저장이 판마다 배로 불어난다. 화면은 이 수가
+   *  바뀔 때 저장소를 다시 읽는다(정본은 localStorage 쪽이다).
+   *  ⚠️ `saveFields`에 넣지 않는다 — 판이 아니라 화면을 다시 그리는 신호다. */
+  slotsRevision: number
+
   openWindow: (id: ProgramId) => void
   closeWindow: (id: ProgramId) => void
   focusWindow: (id: ProgramId) => void
@@ -138,8 +159,17 @@ type Store = {
   completeJob: (id: string) => void
   /** 팝업 이미지 제작(포토샵). **비용은 여기가 진다**(고른 퀄리티의 `ap`). */
   makePopup: (jobId: string, quality: QualityId) => void
-  /** 시안 제작(피그마). 팝업과 **같은 퀄리티 표·같은 등급 규칙**을 쓴다. */
-  makeDraft: (jobId: string, quality: QualityId) => void
+  /** 클라이언트 미팅(피그마). **행동력 `MEETING_AP`를 물고** 기획력에 따라 정해진 개수의
+   *  키워드를 알아낸다. ⚠️ 업무당 한 번뿐이다 — 여러 번 열면 행동력만 내고 5개를 다 알 수
+   *  있어 미팅이 '기다리는 값'이 아니라 '사는 값'이 된다.
+   *  ⚠️ 직원 파견(행동력 대신 직원이 참석)은 아직 없다 — 직원 시스템이 생기면 **이 액션
+   *     옆에** `sendToMeeting(jobId, employeeId)`을 붙인다(같은 자리에서 `meetings`를 채우고
+   *     알아내는 개수는 직원의 기획력이 정한다). */
+  holdMeeting: (jobId: string) => void
+  /** 시안 제작(피그마). 팝업과 **같은 퀄리티 표·같은 등급 규칙**을 쓴다.
+   *  ⚠️ `keywords`는 플레이어가 고른 분위기 키워드다 — 맞춘 수가 **등급을 민다**
+   *     (`systems/keywords.ts`). 대금·평판을 따로 곱하지 않는다: 등급이 이미 그리로 흐른다. */
+  makeDraft: (jobId: string, quality: QualityId, keywords?: readonly KeywordId[]) => void
   /** PPT 창의 제작 — **발표자료(`ppt`)와 화면정의서(`site`의 첫 공정)를 같은 손으로 만든다.**
    *  둘 다 "PPT 파일을 만든다"는 같은 일이라 액션을 나누지 않는다(무엇을 만든 것인지는
    *  그 업무의 종류가 이미 안다). */
@@ -166,6 +196,20 @@ type Store = {
   /** 다음 주로. **팝업 판정이 도는 유일한 자리다** — 행동력을 채우고, 어긋난 팝업이
    *  있으면 항의 메일이 들어오며 평판이 깎인다. */
   advanceWeek: () => void
+
+  /** 지금 판을 슬롯 n에 남긴다. **자동저장과 다른 자리다**(`systems/save.ts`) —
+   *  자동저장은 늘 직전 한 순간만 들고 있어 지나간 판으로 돌아갈 수 없다.
+   *  ⚠️ 이미 찬 슬롯은 **덮어쓴다** — 덮을지 묻는 것은 화면(`StartMenu`)의 몫이다. */
+  saveSlot: (n: number) => void
+  /** 슬롯 n의 판으로 되돌아간다. **지금 판은 사라진다** — 그래서 화면이 반드시 한 번 묻는다.
+   *  ⚠️ 빈 슬롯·깨진 슬롯이면 **아무 일도 일어나지 않는다**(false를 돌려준다). */
+  loadSlot: (n: number) => boolean
+  /** 슬롯 n을 비운다. 되돌릴 수 없으므로 화면이 묻는다. */
+  clearSlot: (n: number) => void
+  /** 처음부터 다시. `INITIAL_GAME` + 빈 목록으로 되돌린다.
+   *  ⚠️ **슬롯은 지우지 않는다** — 새 게임은 지금 판을 버리는 일이지 남겨 둔 판을
+   *  버리는 일이 아니다(그것까지 날리면 되돌아올 자리가 없다). */
+  newGame: () => void
 }
 
 /** 드래그 clamp에 필요한 화면 크기. 스토어는 DOM을 모르므로 호출자가 준다. */
@@ -205,17 +249,54 @@ export function focusedWindowId(windows: OpenWindow[]): ProgramId | null {
  *    쓴다(그래야 순수 로직 테스트가 브라우저 API에 묶이지 않는다). */
 const SAVE_KEY = 'webdi.save.v1'
 
-const noopStorage: StateStorage = {
+const noopStorage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = {
   getItem: () => null,
   setItem: () => {},
   removeItem: () => {},
 }
 
-export const useGame = create<Store>()(
-  persist(
-    (set) => ({
+/** 저장소. ⚠️ `persist`와 **이름 있는 슬롯이 같은 것을 쓴다** — 한쪽만 localStorage를
+ *  쓰면 테스트(node)에서 슬롯 액션이 터진다.
+ *
+ * ⚠️ 돌려주는 타입은 `Storage`(동기)다. zustand의 `StateStorage`는 `getItem`이
+ *    Promise여도 되는 넓은 타입이라 슬롯 쪽에서 그대로 쓸 수 없다 — **여기서 좁힌다**
+ *    (슬롯은 버튼을 누른 그 자리에서 읽고 써야 하므로 비동기 저장소를 애초에 안 받는다). */
+const saveStorage = (): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> =>
+  typeof localStorage === 'undefined' ? noopStorage : localStorage
+
+/** **저장 대상을 고르는 유일한 자리.** 자동저장(`partialize`)과 이름 있는 슬롯이 둘 다
+ *  이것을 쓴다 — 목록을 두 벌로 두면 슬롯에만 안 담기는 축이 조용히 생긴다.
+ *  ⚠️ 새 상태 축을 더하면 **여기**에 더한다. 열린 창(`windows`)은 화면을 보는 방식이라 뺀다. */
+const saveFields = (s: Store) => ({
+  week: s.week,
+  ap: s.ap,
+  apMax: s.apMax,
+  mental: s.mental,
+  mentalMax: s.mentalMax,
+  money: s.money,
+  reputation: s.reputation,
+  design: s.design,
+  planning: s.planning,
+  readIds: s.readIds,
+  meetings: s.meetings,
+  jobs: s.jobs,
+  rejectedIds: s.rejectedIds,
+  files: s.files,
+  drafts: s.drafts,
+  slides: s.slides,
+  popups: s.popups,
+  mails: s.mails,
+  bookmarks: s.bookmarks,
+  ftpClients: s.ftpClients,
+})
+
+/** 게임을 처음 상태로 되돌릴 때 붓는 값. **새 게임과 불러오기가 같은 바닥을 쓴다** —
+ *  불러오기는 이 위에 슬롯의 값을 덮으므로, 옛 세이브에 없는 축도 반드시 초기값을 갖는다.
+ *  ⚠️ `windows`와 `slotsRevision`은 여기 없다 — 판이 아니라 화면이다(호출자가 따로 준다). */
+const emptyGame = () => ({
   ...INITIAL_GAME,
   readIds: [],
+  meetings: {},
   jobs: [],
   rejectedIds: [],
   files: [],
@@ -225,7 +306,14 @@ export const useGame = create<Store>()(
   mails: [],
   bookmarks: [],
   ftpClients: [],
+})
+
+export const useGame = create<Store>()(
+  persist(
+    (set, get) => ({
+  ...emptyGame(),
   windows: [],
+  slotsRevision: 0,
 
   connectFtp: (clientId) =>
     set((s) => (s.ftpClients.includes(clientId) ? {} : { ftpClients: [...s.ftpClients, clientId] })),
@@ -297,11 +385,17 @@ export const useGame = create<Store>()(
   //    나중에 공정·대금이 붙었을 때 한 건으로 두 번 받는 구멍이 된다.
   // 마감은 **받는 순간** 굳는다(이번 주 + 기한). 상대값으로 들고 있으면 주가 지나도
   // 남은 기한이 줄지 않아 데드라인이 뜻을 잃는다.
+  // ⚠️ **사이트 업무는 수주한 그 주에 미팅이 잡힌다** — 알림이 그 업무가 온 채널로
+  //    새 글이 되어 들어온다(참석은 피그마에서 한다). 미팅을 화면 어디에도 알리지 않으면
+  //    이 기능이 있다는 것 자체를 알 길이 없다.
   acceptJob: (m) =>
     set((s) =>
       s.jobs.some((j) => j.id === m.id)
         ? {}
         : {
+            ...(m.kind === 'site' && {
+              mails: [meetingMail({ id: m.id, from: m.from, title: m.subject, channel: m.channel }, s.week), ...s.mails],
+            }),
             jobs: [
               ...s.jobs,
               {
@@ -370,12 +464,18 @@ export const useGame = create<Store>()(
 
   // 팝업과 **같은 규칙**이다(비용·등급 모두 퀄리티가 정하고, 모자라면 아무 일도 없다).
   // ⚠️ 갈라져 있는 것은 목록뿐이다 — 시안은 팝업 등록 화면에 뜨지 않아야 한다.
-  makeDraft: (jobId, quality) =>
+  makeDraft: (jobId, quality, keywords = []) =>
     set((s) => {
       const q = findQuality(quality)
       const job = turnOf(s.jobs, jobId, 'figma')
       if (!job || s.ap < q.ap) return {}
       const seq = s.drafts.filter((d) => d.jobId === jobId).length + 1
+      // 맞춘 키워드가 등급을 민다. ⚠️ **정답은 여기서도 저장하지 않는다** — 업무 id에서
+      //    그때그때 파생한다(`clientKeywords`). 그래서 세이브를 뜯어도 정답이 안 보이고,
+      //    같은 업무는 몇 번을 다시 계산해도 같은 답이다.
+      // ⚠️ 보정은 **등급 하나로만** 흐른다(대금·평판을 따로 곱하지 않는다 —
+      //    `GRADE_REWARD`가 이미 등급을 대금·평판으로 옮긴다).
+      const shift = keywordShift(hitCount(keywords, clientKeywords(jobId)))
       return {
         ap: s.ap - q.ap,
         jobs: bumpStep(s.jobs, jobId),
@@ -386,9 +486,28 @@ export const useGame = create<Store>()(
             jobId,
             name: `${job.from}_시안${seq > 1 ? seq : ''}.fig`,
             madeWeek: s.week,
-            grade: gradeOf(quality, s.design),
+            grade: gradeOf(quality, s.design, shift),
+            // 고른 키워드를 파일에 굳힌다 — 무엇을 골라서 이 등급이 나왔는지가
+            // 나중에도 읽혀야 다음 시안에서 선택을 고칠 수 있다.
+            keywords: [...keywords],
           },
         ],
+      }
+    }),
+
+  // 미팅. ⚠️ **행동력이 모자라거나 이미 했으면 아무 일도 일어나지 않는다** — 버튼
+  //    disabled만으로는 음수 경로가 남고(제작 액션들과 같은 규칙), 두 번 열면 행동력을
+  //    내는 대가로 5개를 다 알 수 있어 기획력 스탯이 뜻을 잃는다.
+  // ⚠️ 사이트 업무만 미팅이 있다 — 배너 한 장 바꾸는 일에 분위기 미팅은 없다.
+  holdMeeting: (jobId) =>
+    set((s) => {
+      const job = s.jobs.find((j) => j.id === jobId)
+      if (!job || job.done || job.kind !== 'site') return {}
+      if (s.meetings[jobId] || s.ap < MEETING_AP) return {}
+      return {
+        ap: s.ap - MEETING_AP,
+        // 알아내는 개수는 **기획력**이 정한다(`data/keywords.ts`의 `MEETING_REVEAL`).
+        meetings: { ...s.meetings, [jobId]: revealedKeywords(jobId, s.planning) },
       }
     }),
 
@@ -534,33 +653,44 @@ export const useGame = create<Store>()(
         ],
       }
     }),
+
+  // ── 이름 있는 슬롯 ────────────────────────────────────────
+  // ⚠️ 저장소를 만지는 것은 **여기뿐이다**. 판정(믿을 수 있는 세이브인가)과 요약 만들기는
+  //    `systems/save.ts`의 순수 함수가 진다 — 팝업 판정과 같은 역할 분담이다.
+  saveSlot: (n) => {
+    const slot = makeSlot(saveFields(get()), Date.now())
+    saveStorage().setItem(slotKey(n), JSON.stringify(slot))
+    // 목록을 다시 그리게 하는 것은 이 값 하나다. ⚠️ 슬롯 내용을 스토어에 들이지 않는다 —
+    //    들이면 세이브 안에 세이브가 들어가 자동저장이 판마다 배로 불어난다.
+    set((s) => ({ slotsRevision: s.slotsRevision + 1 }))
+  },
+
+  // ⚠️ **되돌릴 수 없다** — 지금 판이 슬롯의 판으로 통째로 갈린다. 그래서 화면이 한 번 묻고,
+  //    여기서는 묻지 않는다(같은 질문을 두 곳에서 하면 어느 쪽이 진짜 결정인지가 흐려진다).
+  // ⚠️ 못 믿을 세이브(빈 칸·깨진 JSON·남의 판)는 `parseSlot`이 null로 떨어뜨린다 —
+  //    부어 넣고 나서 죽으면 되돌릴 자리가 없으므로 **붓기 전에** 막는다.
+  loadSlot: (n) => {
+    const slot = parseSlot(saveStorage().getItem(slotKey(n)))
+    if (!slot) return false
+    // 빠진 축은 `INITIAL_GAME`과 빈 목록이 메운다 — 옛 세이브라도 게임이 서야 한다.
+    // 열린 창은 슬롯에 없으므로 **바탕화면부터 시작한다**(자동저장과 같은 규칙).
+    set({ ...emptyGame(), ...(slot.data as Partial<Store>), windows: [] })
+    return true
+  },
+
+  clearSlot: (n) => {
+    saveStorage().removeItem(slotKey(n))
+    set((s) => ({ slotsRevision: s.slotsRevision + 1 }))
+  },
+
+  // ⚠️ 슬롯은 건드리지 않는다(남겨 둔 판까지 날리면 되돌아올 자리가 없다).
+  newGame: () => set({ ...emptyGame(), windows: [] }),
   }),
   {
     name: SAVE_KEY,
-    storage: createJSONStorage(() =>
-      typeof localStorage === 'undefined' ? noopStorage : localStorage,
-    ),
-    // ⚠️ 함수(액션)는 저장하지 않는다 — 저장 대상을 **여기 한 곳에서** 고른다.
-    //    새 상태 축을 더하면 이 목록에도 더해야 한다(빠뜨리면 그 축만 조용히 안 남는다).
-    partialize: (s) => ({
-      week: s.week,
-      ap: s.ap,
-      apMax: s.apMax,
-      mental: s.mental,
-      mentalMax: s.mentalMax,
-      money: s.money,
-      reputation: s.reputation,
-      design: s.design,
-      readIds: s.readIds,
-      jobs: s.jobs,
-      rejectedIds: s.rejectedIds,
-      files: s.files,
-      drafts: s.drafts,
-      slides: s.slides,
-      popups: s.popups,
-      mails: s.mails,
-      bookmarks: s.bookmarks,
-      ftpClients: s.ftpClients,
-    }),
+    storage: createJSONStorage(saveStorage),
+    // ⚠️ 함수(액션)는 저장하지 않는다. 목록의 정본은 `saveFields` 하나다 —
+    //    이름 있는 슬롯도 같은 것을 담아야 "불러오면 그때로 돌아온다"가 성립한다.
+    partialize: saveFields,
   },
 ))

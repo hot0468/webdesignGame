@@ -220,6 +220,64 @@
   font-weight: 700;
 }
 
+/* ── 분위기 키워드 ─────────────────────────────────
+   ⚠️ **이 창에는 액센트 색이 없다**(파일 머리말) — 고른 키워드는 색이 아니라
+   **면**으로 말한다(사이드바의 `--on`과 같은 규칙). 새 색을 만들지 말 것. */
+.fig__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  list-style: none;
+  padding: 0;
+}
+
+.fig__key {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
+  border: 0;
+  border-radius: var(--sp-1);
+  background: var(--fig-surface);
+  box-shadow: inset 0 0 0 1px var(--fig-stroke);
+  color: var(--fig-text);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+/* 고른 것. 캔버스색으로 채운다 — 제작 버튼과 같은 값이라 팔레트가 늘지 않는다. */
+.fig__key--on {
+  background: var(--fig-canvas);
+  box-shadow: none;
+  color: var(--fig-surface);
+  font-weight: 600;
+}
+
+/* 다 골랐을 때 못 고르는 것들. ⚠️ 회색 면 위 --fig-text-2는 4.1:1로 미달이므로
+   (파일 머리말) **흰 면 + 흐린 글자**로 물러난다(4.76:1). */
+.fig__key:disabled {
+  color: var(--fig-text-2);
+  cursor: not-allowed;
+}
+
+/* 미팅에서 알아낸 표식. ⚠️ 색으로 말하지 않는다 — 글자가 진다. */
+.fig__got {
+  padding-inline: var(--sp-1);
+  border-radius: var(--sp-1);
+  background: var(--fig-muted);
+  color: var(--fig-text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+/* ⚠️ 켜진 키워드 안에서는 표식이 어두운 면 위에 선다 — 그 위에서 --fig-text는
+   보이지 않으므로 면을 걷고 글자만 남긴다. */
+.fig__key--on .fig__got {
+  background: transparent;
+  color: var(--fig-surface);
+}
+
 .fig__makes {
   display: grid;
   gap: var(--sp-1);

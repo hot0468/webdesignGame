@@ -99,7 +99,7 @@ export const isBreached = (job: { due: number; done: boolean }, week: number) =>
 
 /** 등급을 낮은 것부터. **만족도는 새 축이 아니라 여기서 파생한다**(약한 고리 규칙 —
  *  가장 낮은 등급이 그 업무의 인상을 정한다). */
-const GRADE_ORDER: readonly Grade[] = ['F', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS']
+export const GRADE_ORDER: readonly Grade[] = ['F', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS']
 
 /** 그 업무에서 나온 산출물들의 등급 중 **가장 낮은 것**. 산출물이 없으면 undefined. */
 export function satisfaction(grades: readonly Grade[]): Grade | undefined {

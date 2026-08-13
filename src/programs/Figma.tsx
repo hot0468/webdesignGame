@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { FIGMA_ICONS } from '../data/icons'
 import { QUALITY } from '../data/game'
+import { KEYWORDS, MEETING_AP, SITE_KEYWORDS, type KeywordId } from '../data/keywords'
 import { formatDate } from '../systems/calendar'
 import { gradeOf } from '../systems/craft'
 import { isTurnOf, showsIn } from '../systems/pipeline'
@@ -25,8 +26,13 @@ export function Figma() {
   const drafts = useGame((s) => s.drafts)
   const ap = useGame((s) => s.ap)
   const design = useGame((s) => s.design)
+  const meetings = useGame((s) => s.meetings)
   const makeDraft = useGame((s) => s.makeDraft)
+  const holdMeeting = useGame((s) => s.holdMeeting)
   const [pickedId, setPicked] = useState<string | null>(null)
+  // 고른 키워드는 **창을 보는 방식**이라 스토어에 넣지 않는다(세이브에 들어가고 버전이
+  // 올라간다 — `shell.md`의 규칙). 굳는 것은 만든 순간 시안 파일에 적히는 쪽이다.
+  const [picks, setPicks] = useState<KeywordId[]>([])
 
   // **시안 차례인 업무만** 선다(`systems/pipeline.ts`). 화면정의서가 아직 안 끝난 사이트
   // 업무나 팝업·PPT 업무는 여기 오지 않는다 — 공정의 줄을 건너뛰지 못하게 하는 자리다.
@@ -34,6 +40,21 @@ export function Figma() {
   // 고르지 않았으면 첫 파일이 열려 있다(포토샵의 문서 탭과 같은 규칙 — 빈 패널을 보이지 않는다).
   const picked = files.find((j) => j.id === pickedId) ?? files[0]
   const mine = picked ? drafts.filter((d) => d.jobId === picked.id) : []
+  // 미팅에서 알아낸 키워드. **키가 있으면 미팅을 한 것이다**(관계는 한 방향).
+  const known = picked ? meetings[picked.id] : undefined
+  const full = picks.length === SITE_KEYWORDS
+
+  // 파일을 바꾸면 고르던 키워드는 버린다 — 남의 업무에 이 업무의 선택이 따라가면
+  // 무엇을 골랐는지 모르는 채로 시안이 나간다.
+  const pickFile = (id: string) => {
+    setPicked(id)
+    setPicks([])
+  }
+
+  // 켜고 끄기. ⚠️ `SITE_KEYWORDS`개를 넘겨 고를 수 없다(넘치면 이 업무에 몇 개가 걸려
+  //    있는지가 화면마다 달라진다). 이미 고른 것을 다시 누르면 꺼진다.
+  const toggle = (id: KeywordId) =>
+    setPicks((p) => (p.includes(id) ? p.filter((k) => k !== id) : full ? p : [...p, id]))
 
   return (
     <div className="fig">
@@ -85,7 +106,7 @@ export function Figma() {
                   type="button"
                   className={`fig__file${j.id === picked?.id ? ' fig__file--on' : ''}`}
                   aria-pressed={j.id === picked?.id}
-                  onClick={() => setPicked(j.id)}
+                  onClick={() => pickFile(j.id)}
                 >
                   {/* 썸네일 안의 줄은 시안의 뼈대다. 장식이 아니므로 읽는 이름은 주지 않는다. */}
                   <span className="fig__thumb" aria-hidden="true">
@@ -137,26 +158,90 @@ export function Figma() {
                 회신해야 다음으로 넘어간다.
               </p>
             ) : (
-              <div className="fig__makes">
-                {/* ⚠️ 얼마나 공들일지를 **누르기 전에** 알 수 있어야 고를 수 있다 —
-                    버튼마다 무는 행동력과 지금 스탯이면 나올 등급을 함께 적는다. */}
-                <p className="fig__prop">시안 만들기</p>
-                {QUALITY.map((q) => (
-                  <button
-                    key={q.id}
-                    type="button"
-                    className="fig__make"
-                    disabled={ap < q.ap}
-                    onClick={() => makeDraft(picked.id, q.id)}
-                  >
-                    {q.label}
-                    <span className="fig__cost">
-                      행동력 {q.ap} · {gradeOf(q.id, design)}
-                    </span>
-                  </button>
-                ))}
-                {ap < QUALITY[0].ap && <p className="fig__short">행동력이 모자란다.</p>}
-              </div>
+              <>
+                {/* ── 클라이언트 미팅 ─────────────────────────────────
+                    ⚠️ 미팅 전에는 **무엇을 원하는지 모른다고 말한다.** 5개를 흐리게라도
+                       보여 주면 미팅이 값을 잃는다 — 여기 없는 것이 곧 이 기능이다. */}
+                <p className="fig__prop">클라이언트가 원하는 분위기</p>
+                {!known ? (
+                  <>
+                    <p className="fig__short">
+                      아직 무엇을 원하는지 모른다. 미팅에서 몇 가지를 알아낼 수 있다.
+                    </p>
+                    <button
+                      type="button"
+                      className="fig__make"
+                      disabled={ap < MEETING_AP}
+                      onClick={() => holdMeeting(picked.id)}
+                    >
+                      미팅 참석
+                      <span className="fig__cost">행동력 {MEETING_AP}</span>
+                    </button>
+                    {/* 직원 파견 자리. 직원 시스템이 생기면 여기에 "직원 보내기"가 선다
+                        (행동력 대신 직원이 그 주를 쓰고, 알아내는 개수는 그 직원의
+                        기획력이 정한다 — `store.holdMeeting` 주석 참고). */}
+                  </>
+                ) : (
+                  <p className="fig__short">
+                    {SITE_KEYWORDS}개 중 {known.length}개를 알아냈다. 나머지는 감으로 골라야 한다.
+                  </p>
+                )}
+
+                {/* ── 키워드 고르기 ───────────────────────────────────
+                    ⚠️ 미팅과 무관하게 **늘 고를 수 있다** — 모르는 채로 찍는 것도 선택이고,
+                       미팅은 그 확률을 올려 줄 뿐이다. */}
+                <p className="fig__prop">
+                  분위기 키워드 {picks.length}/{SITE_KEYWORDS}
+                </p>
+                <ul className="fig__keys">
+                  {KEYWORDS.map((k) => {
+                    const on = picks.includes(k.id)
+                    return (
+                      <li key={k.id}>
+                        <button
+                          type="button"
+                          className={`fig__key${on ? ' fig__key--on' : ''}`}
+                          aria-pressed={on}
+                          // 다 골랐으면 켜진 것만 누를 수 있다(끄기는 늘 열려 있다).
+                          disabled={!on && full}
+                          onClick={() => toggle(k.id)}
+                        >
+                          {/* 미팅에서 알아낸 키워드에는 표식이 선다. ⚠️ 색이 아니라
+                              글자가 말한다 — 이 창에는 액센트 색이 없다(figma.css). */}
+                          {k.label}
+                          {known?.includes(k.id) && <span className="fig__got">확인됨</span>}
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+
+                <div className="fig__makes">
+                  {/* ⚠️ 얼마나 공들일지를 **누르기 전에** 알 수 있어야 고를 수 있다 —
+                      버튼마다 무는 행동력과 지금 스탯이면 나올 등급을 함께 적는다.
+                      ⚠️ 여기 적는 등급은 **키워드 보정 전**이다 — 맞췄는지는 만들기 전에
+                         알 수 없고, 알 수 있으면 미팅이 뜻을 잃는다. */}
+                  <p className="fig__prop">시안 만들기</p>
+                  {QUALITY.map((q) => (
+                    <button
+                      key={q.id}
+                      type="button"
+                      className="fig__make"
+                      disabled={ap < q.ap || !full}
+                      onClick={() => makeDraft(picked.id, q.id, picks)}
+                    >
+                      {q.label}
+                      <span className="fig__cost">
+                        행동력 {q.ap} · {gradeOf(q.id, design)}
+                      </span>
+                    </button>
+                  ))}
+                  {!full && (
+                    <p className="fig__short">키워드 {SITE_KEYWORDS}개를 골라야 만들 수 있다.</p>
+                  )}
+                  {ap < QUALITY[0].ap && <p className="fig__short">행동력이 모자란다.</p>}
+                </div>
+              </>
             )}
           </>
         )}
