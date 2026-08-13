@@ -1,3 +1,4 @@
+import { salaryOf } from '../data/employees'
 import {
   BASE_FEE,
   BREACH_REPUTATION_LOSS,
@@ -8,6 +9,7 @@ import {
 } from '../data/game'
 import type { Channel, Message } from '../data/inbox'
 import { formatWeek } from './calendar'
+import { payroll, type Employee } from './employee'
 import type { JobKind } from './pipeline'
 
 /** 돈과 평판이 움직이는 규칙. **완료 · 파기 · 월말 정산 셋뿐이다.**
@@ -31,8 +33,13 @@ export const breach = () => ({ fee: 0, reputation: -BREACH_REPUTATION_LOSS })
  *  월말 주차가 달마다 흔들리지 않는 이유가 이 한 줄이다. */
 export const isSettleWeek = (week: number) => week % WEEKS_PER_MONTH === 0
 
-/** 월말에 나가는 고정 지출 합계. */
-export const monthlyCost = () => SUBSCRIPTIONS.reduce((sum, s) => sum + s.cost, 0)
+/** 월말에 나가는 고정 지출 합계 — **월정액 + 직원 급여**다.
+ *
+ * ⚠️ 급여를 `SUBSCRIPTIONS`에 더하지 않는다(`data/game.ts` 주석) — 그 표는 늘 같은 두 줄이고
+ *    급여는 **사람 수와 레벨이 매달 바뀐다**. 정본은 직원 목록 하나여야 뽑고 내보낸 결과가
+ *    다음 정산에 그대로 나타난다. */
+export const monthlyCost = (employees: readonly Employee[] = []) =>
+  SUBSCRIPTIONS.reduce((sum, s) => sum + s.cost, 0) + payroll(employees)
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
 
@@ -55,15 +62,23 @@ export function breachMail(
 
 /** 월말 정산 통보 — 스펙의 **"유지보수보고서"**다. 지출 내역과 남은 소지금을 함께 적는다.
  *  ⚠️ 소지금이 음수가 되는 것이 곧 파산이므로, **이 메일이 그 사실을 알리는 자리**다. */
-export function settleMail(week: number, moneyAfter: number): Message {
-  const lines = SUBSCRIPTIONS.map((s) => `- ${s.label} ${won(s.cost)}`).join('\n')
+export function settleMail(
+  week: number,
+  moneyAfter: number,
+  employees: readonly Employee[] = [],
+): Message {
+  // 급여는 **사람마다 한 줄**이다 — 합계만 적으면 누구를 내보내면 얼마가 주는지 알 수 없다.
+  const lines = [
+    ...SUBSCRIPTIONS.map((s) => `- ${s.label} ${won(s.cost)}`),
+    ...employees.map((e) => `- ${e.name} 급여 ${won(salaryOf(e.level))}`),
+  ].join('\n')
   return {
     id: `settle:${week}`,
     channel: 'mail',
     from: '유지보수보고서',
     subject: `${formatWeek(week)} 월말 정산`,
     body:
-      `이번 달 고정 지출입니다.\n${lines}\n합계 ${won(monthlyCost())}\n\n` +
+      `이번 달 고정 지출입니다.\n${lines}\n합계 ${won(monthlyCost(employees))}\n\n` +
       (moneyAfter < 0
         ? `정산 후 잔액 ${won(moneyAfter)} — 지급하지 못한 금액이 있습니다.`
         : `정산 후 잔액 ${won(moneyAfter)}.`),

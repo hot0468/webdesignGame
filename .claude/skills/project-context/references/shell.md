@@ -80,7 +80,11 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/components/MessageList.tsx` | 받은 글 목록(고객게시판이 쓴다 — 셸 언어). 메일은 자기 세 칸 화면을 따로 가진다 |
 | `src/programs/mail.css` | `메일` 창 전용 Fluent 팔레트. **이 파일 밖으로 새지 않는다** |
 | `src/programs/browser.css` | `브라우저` 창 전용 검색 포털 팔레트. **이 파일 밖으로 새지 않는다** |
-| `src/programs/messenger.css` | `메신저` 창 전용 카카오톡 팔레트. **이 파일 밖으로 새지 않는다** |
+| `src/programs/messenger.css` | `메신저` 창 전용 카카오톡 팔레트. **이 파일 밖으로 새지 않는다**. ⚠️ 지시 칸(`.msgr__order`)의 높이 상한은 **px(`--msgr-order-max`)이다** — `grid-template-rows`의 `auto` 칸에서 `max-height: %`는 부모 높이가 정해지기 전에 재어져 버튼이 반쯤 잘린다(겪었다) |
+| `src/data/employees.ts` | 직원 수치·이름 풀의 단일 출처 — 종류→공정(`EMPLOYEE_ROLES[].programs`·`canHandle`) · 레벨→주차(`LEVEL_SPEEDUP`·`orderWeeks`, 하한 1) · 급여(`salaryOf`) · `ORDER_AP`/`ORDER_QUALITY`/`POST_AP` · 지원자 이름 재료 |
+| `src/systems/hire.ts` | 지원자 생성(`applicants`) — **씨앗은 공고를 올린 주차**다(FNV-1a → mulberry32, `keywords.ts`와 같은 방식). ⚠️ `Math.random` 없음 |
+| `src/systems/employee.ts` | 직원 규칙의 정본 — 지시 가능(`canOrder`) · 점유(`isBusy`/`busyUntil`, **정본은 `orders`**) · 완료(`finishedOrders`) · 급여 합계(`payroll`) · 위기 퇴사 순서(`quitter`) + 메신저·퇴사 문안 |
+| `src/programs/HireSite.tsx` | 채용사이트(`인간인`). 공고 올리기 + 지원자 카드. ⚠️ `--nv-*` 안에서 끝낸다(빨강이 없어 정원 초과는 아이콘 + 글자가 말한다). ⚠️ 지원자를 셀렉터 안에서 만들지 말 것 — 새 배열이 나와 무한 렌더가 된다 |
 | `src/programs/editor.css` | `에디터` 창 전용 VS Code Dark+ 팔레트. ⚠️ **어두운 창**이라 대비 방향이 반대다 — 값을 다른 창과 주고받지 말 것 |
 | `src/programs/photoshop.css` | `포토샵` 창 전용 Photoshop CC Dark 팔레트. ⚠️ 어두운 창(에디터와 둘뿐). 보조 글자는 실제 포토샵의 #9A9A9A가 아니라 **#A0A0A0**이다 — 그 값이라야 패널 위에서 AA를 넘는다 |
 | `src/programs/figma.css` | `피그마` 창 전용 캔버스 뉴트럴 팔레트(액센트 없음 — 선택은 면으로 말한다). **이 파일 밖으로 새지 않는다** |

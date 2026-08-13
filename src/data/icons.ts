@@ -107,6 +107,8 @@ export const BROWSER_ICONS = {
   popup: 'mdi:image-plus-outline',
   logout: 'mdi:logout',
   warn: 'mdi:alert-circle-outline',
+  /** 채용사이트 — 공고 올리기. 관리자 페이지 글리프와 같은 단색 mdi 세트다. */
+  post: 'mdi:file-document-plus-outline',
   /** 즐겨찾기. ⚠️ 켜짐만 **꽉 찬 별**이다 — 같은 자리에서 윤곽↔채움이 갈려야 상태가 보인다. */
   star: 'mdi:star-outline',
   starOn: 'mdi:star',

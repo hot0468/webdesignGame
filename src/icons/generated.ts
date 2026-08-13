@@ -1,5 +1,5 @@
 // 이 파일은 `npm run icons`(scripts/build-icon-subset.mjs)가 생성한다. 직접 수정하지 말 것.
-// src/에서 실제로 쓰는 아이콘 64개만 담은 축소 세트다 —
+// src/에서 실제로 쓰는 아이콘 65개만 담은 축소 세트다 —
 // 전체 세트(8천여 개)를 번들에 넣지 않기 위한 것이다.
 import type { IconifyJSON } from '@iconify/react/offline'
 
@@ -21,7 +21,7 @@ export const devicon: IconifyJSON = {
   "height": 128
 }
 
-/** mdi — 사용 중인 52개 */
+/** mdi — 사용 중인 53개 */
 export const mdi: IconifyJSON = {
   "prefix": "mdi",
   "icons": {
@@ -90,6 +90,9 @@ export const mdi: IconifyJSON = {
     },
     "file-code-outline": {
       "body": "<path fill=\"currentColor\" d=\"M14 2H6a2 2 0 0 0-2 2v16c0 1.11.89 2 2 2h12c1.11 0 2-.89 2-2V8zm4 18H6V4h7v5h5zm-8.46-4.35l2.09 2.09L10.35 19L7 15.65l3.35-3.35l1.28 1.26zm7.46 0L13.65 19l-1.27-1.26l2.09-2.09l-2.09-2.09l1.27-1.26z\"/>"
+    },
+    "file-document-plus-outline": {
+      "body": "<path fill=\"currentColor\" d=\"M23 18h-3v-3h-2v3h-3v2h3v3h2v-3h3M6 2a2 2 0 0 0-2 2v16c0 1.11.89 2 2 2h7.81c-.36-.62-.61-1.3-.73-2H6V4h7v5h5v4.08c.33-.05.67-.08 1-.08c.34 0 .67.03 1 .08V8l-6-6M8 12v2h8v-2m-8 4v2h5v-2Z\"/>"
     },
     "file-image-outline": {
       "body": "<path fill=\"currentColor\" d=\"m14 2l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm4 18V9h-5V4H6v16zm-1-7v6H7l5-5l2 2m-4-5.5A1.5 1.5 0 0 1 8.5 12A1.5 1.5 0 0 1 7 10.5A1.5 1.5 0 0 1 8.5 9a1.5 1.5 0 0 1 1.5 1.5\"/>"

@@ -5,6 +5,7 @@ import { SHORTCUTS, SEARCH_HOME } from '../data/sites'
 import { normalizeUrl, resolveUrl, siteTitle, type Destination } from '../systems/url'
 import { useGame } from '../store'
 import { AdminSite } from './AdminSite'
+import { HireSite } from './HireSite'
 import './browser.css'
 
 /** `브라우저` 창 — 주소 표시줄 + 그 주소가 가리키는 화면.
@@ -120,6 +121,10 @@ export function Browser() {
       {at.kind === 'admin' ? (
         // key로 업체를 갈라 준다 — 다른 업체로 옮기면 로그인이 따라가지 않는다.
         <AdminSite key={at.clientId} clientId={at.clientId} />
+      ) : at.kind === 'site' ? (
+        // 지금 화면을 가진 바로가기는 채용사이트 하나다. 나머지는 `SHORTCUTS`에 주소가
+        // 없어 애초에 여기 닿지 않는다(준비 중 꼬리표가 그것을 말한다).
+        <HireSite />
       ) : at.kind === 'unknown' ? (
         <div className="nv__lost">
           <AppIcon name={PROGRAM_ICONS.noSite} size={40} />
@@ -166,15 +171,26 @@ export function Browser() {
             </p>
           )}
 
+          {/* ⚠️ **주소가 붙은 칸만 버튼이다.** 나머지는 읽는 글자로 남는다 —
+              눌러도 아무 일 없는 버튼을 그리지 않는 것이 이 리포의 규칙이다. */}
           <ul className="nv__shortcuts">
-            {SHORTCUTS.map((s) => (
-              <li key={s.id} className="nv__shortcut">
-                {/* 다색 아이콘이다 — CSS color를 입히지 않는다. */}
-                <AppIcon name={SITE_ICONS[s.icon]} size={32} />
-                <span className="nv__shortcut-name">{s.name}</span>
-                <span className="nv__soon">준비 중</span>
-              </li>
-            ))}
+            {SHORTCUTS.map((s) =>
+              'url' in s ? (
+                <li key={s.id} className="nv__shortcut">
+                  <button type="button" className="nv__shortcut-go" onClick={() => goTo(s.url)}>
+                    {/* 다색 아이콘이다 — CSS color를 입히지 않는다. */}
+                    <AppIcon name={SITE_ICONS[s.icon]} size={32} />
+                    <span className="nv__shortcut-name">{s.name}</span>
+                  </button>
+                </li>
+              ) : (
+                <li key={s.id} className="nv__shortcut">
+                  <AppIcon name={SITE_ICONS[s.icon]} size={32} />
+                  <span className="nv__shortcut-name">{s.name}</span>
+                  <span className="nv__soon">준비 중</span>
+                </li>
+              ),
+            )}
           </ul>
         </div>
       )}

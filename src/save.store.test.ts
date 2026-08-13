@@ -39,6 +39,12 @@ beforeEach(() => {
     mails: [],
     bookmarks: [],
     ftpClients: [],
+    employees: [],
+    orders: [],
+    hirePostWeek: undefined,
+    hiredApplicantIds: [],
+    chats: [],
+    crisisWeeks: 0,
     slotsRevision: 0,
   })
 })
@@ -65,6 +71,51 @@ describe('이름 있는 슬롯', () => {
       money: 777_000,
       reputation: 44,
     })
+  })
+
+  // ⚠️ 새 상태 축을 `saveFields`에 넣지 않으면 **그 축만 조용히 안 담긴다** —
+  //    불러왔을 때 직원이 사라지고, 세이브가 깨진 것처럼 보인다.
+  it('직원 축이 전부 담긴다 — saveFields에서 빠지면 불러왔을 때 직원이 사라진다', () => {
+    useGame.setState({
+      employees: [
+        {
+          id: 'e1',
+          name: '김지훈',
+          role: 'dublisher',
+          level: 3,
+          stats: { design: 70, publishing: 60, cs: 40 },
+          hiredWeek: 2,
+        },
+      ],
+      orders: [
+        {
+          employeeId: 'e1',
+          jobId: 'j1',
+          program: 'figma',
+          label: '시안',
+          from: 2,
+          doneWeek: 4,
+          grade: 'B',
+        },
+      ],
+      hirePostWeek: 2,
+      hiredApplicantIds: ['ap:2:0'],
+      chats: [{ employeeId: 'e1', week: 2, text: '맡겠습니다' }],
+      crisisWeeks: 2,
+    })
+    useGame.getState().saveSlot(1)
+    useGame.getState().newGame()
+    expect(useGame.getState().employees).toHaveLength(0)
+
+    expect(useGame.getState().loadSlot(1)).toBe(true)
+    const s = useGame.getState()
+    expect(s.employees).toHaveLength(1)
+    expect(s.employees[0]!.level).toBe(3)
+    expect(s.orders).toHaveLength(1)
+    expect(s.hirePostWeek).toBe(2)
+    expect(s.hiredApplicantIds).toEqual(['ap:2:0'])
+    expect(s.chats).toHaveLength(1)
+    expect(s.crisisWeeks).toBe(2)
   })
 
   it('자동저장 키를 건드리지 않는다 — 섞이면 어느 쪽이 정본인지 사라진다', () => {

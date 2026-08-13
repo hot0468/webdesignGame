@@ -613,3 +613,71 @@
 .nv-site__body > .nv-site__panel + .nv-site__panel {
   margin-top: var(--sp-4);
 }
+
+/* 바로가기 중 **실제로 열리는 칸**은 버튼이다. 열리지 않는 칸(준비 중)은 그대로 글자다 —
+   눌러도 아무 일 없는 버튼을 그리지 않는다. */
+.nv__shortcut-go {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-2);
+  border: 0;
+  border-radius: var(--sp-2);
+  background: none;
+  color: inherit;
+  font: inherit;
+  transition: background-color 200ms ease-out;
+}
+
+.nv__shortcut-go:hover {
+  background: var(--nv-hover);
+}
+
+/* ── 채용사이트(인간인) ───────────────────────────────
+   ⚠️ 여전히 --nv-* 안이다 — 관리자 페이지와 같은 규칙이고, 이 팔레트에는 빨강이 없어서
+      정원 초과는 `.nv-site__fail`(아이콘 + 글자)이 말한다. 새 색을 만들지 말 것. */
+.nv-hire {
+  display: grid;
+  gap: var(--sp-3);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nv-hire__row {
+  display: grid;
+  gap: var(--sp-2);
+  justify-items: start;
+  padding: var(--sp-3);
+  border: 1px solid var(--nv-stroke);
+  border-radius: var(--sp-2);
+  background: var(--nv-bg);
+}
+
+.nv-hire__name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  color: var(--nv-text);
+  font-size: var(--fs-md);
+}
+
+/* 종류 꼬리표. ⚠️ 회색 알약 위 글자는 --nv-chrome이다(text-2는 4.11:1로 미달). */
+.nv-hire__role {
+  padding: 0 var(--sp-2);
+  border-radius: 999px;
+  background: var(--nv-hover);
+  color: var(--nv-chrome);
+  font-size: var(--fs-xs);
+}
+
+.nv-hire__meta {
+  margin: 0;
+  color: var(--nv-text-2);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+}

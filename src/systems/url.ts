@@ -1,5 +1,5 @@
 import { CLIENTS } from '../data/company'
-import { SEARCH_HOME } from '../data/sites'
+import { SEARCH_HOME, SHORTCUTS, type ShortcutId } from '../data/sites'
 
 /** 주소창에 친 글자 → 갈 곳. **브라우저의 라우터다.**
  *
@@ -12,6 +12,8 @@ import { SEARCH_HOME } from '../data/sites'
 export type Destination =
   | { kind: 'home' }
   | { kind: 'admin'; clientId: string }
+  /** 첫화면 바로가기가 가리키는 사이트(지금은 채용사이트 하나). 주소의 정본은 `SHORTCUTS`다. */
+  | { kind: 'site'; siteId: ShortcutId }
   | { kind: 'unknown' }
 
 /** 비교 전에 벗기는 껍데기: 앞뒤 공백 · `https?://` · `www.` · 끝 슬래시 · 대소문자.
@@ -37,6 +39,10 @@ export function resolveUrl(input: string): Destination {
 
   if (url === normalizeUrl(SEARCH_HOME.url)) return { kind: 'home' }
 
+  // 바로가기 사이트. ⚠️ 주소는 `SHORTCUTS`가 정본이다 — 여기 다시 적지 않는다.
+  const site = SHORTCUTS.find((s) => 'url' in s && normalizeUrl(s.url) === url)
+  if (site) return { kind: 'site', siteId: site.id }
+
   const hit = CLIENTS.find((c) => {
     const admin = adminUrl(c)
     return admin !== undefined && normalizeUrl(admin) === url
@@ -50,6 +56,10 @@ export function resolveUrl(input: string): Destination {
 export function siteTitle(input: string): string {
   const dest = resolveUrl(input)
   if (dest.kind === 'home') return SEARCH_HOME.name
+  if (dest.kind === 'site') {
+    const site = SHORTCUTS.find((s) => s.id === dest.siteId)
+    if (site) return site.name
+  }
   if (dest.kind === 'admin') {
     const client = CLIENTS.find((c) => c.id === dest.clientId)
     if (client) return `${client.name} 관리자`

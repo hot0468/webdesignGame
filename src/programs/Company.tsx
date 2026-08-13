@@ -11,6 +11,7 @@ import {
   companyGrade,
   nextGrade,
 } from '../data/game'
+import { payroll } from '../systems/employee'
 import { useGame } from '../store'
 
 /** `사내시스템` 창. 왼쪽 메뉴로 화면을 가르는 백오피스형이다.
@@ -77,6 +78,8 @@ export function Company() {
  *    토큰으로 덮는 방법이 브라우저마다 달라, 확정된 팔레트를 입힐 수가 없다. */
 function Status() {
   const reputation = useGame((s) => s.reputation)
+  const employees = useGame((s) => s.employees)
+  const crisisWeeks = useGame((s) => s.crisisWeeks)
   const inCrisis = reputation < REPUTATION_CRISIS
   const grade = companyGrade(reputation)
   const next = nextGrade(grade)
@@ -92,8 +95,13 @@ function Status() {
         <span className="company__value">{grade.label}</span>
       </div>
       <p className="company__note">
-        채용 가능 인원 {grade.hireMax}명
+        직원 {employees.length}명 / 채용 가능 인원 {grade.hireMax}명
         {next && ` · 평판 ${next.minReputation}부터 ${next.label}`}
+      </p>
+      {/* 급여 합계는 **여기에만** 선다 — 계기판은 소지금만 지고, 매달 얼마가 나가는지는
+          이 화면이 진다(`Hud`와 겹치는 숫자를 다시 늘어놓지 않는다는 규칙). */}
+      <p className="company__note">
+        월 급여 합계 {payroll(employees).toLocaleString('ko-KR')}원
       </p>
 
       <div className="company__head">
@@ -122,6 +130,9 @@ function Status() {
         <AppIcon name={PROGRAM_ICONS.crisis} />
         평판이 위기선 아래면 신규 수주가 끊기고 매주 직원이 떠난다.{' '}
         {CRISIS_WEEKS_TO_SHUTDOWN}주 연속이면 폐업이다.
+        {/* ⚠️ 카운터는 **위기 중일 때만** 적는다 — 평상시에 0/4가 서 있으면 늘 위험한 것처럼
+            읽히고, 정작 1이 됐을 때 눈에 띄지 않는다. */}
+        {crisisWeeks > 0 && ` 지금 ${crisisWeeks}/${CRISIS_WEEKS_TO_SHUTDOWN}주째다.`}
       </p>
     </div>
   )

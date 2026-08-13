@@ -14,6 +14,22 @@ import { gradeOf, type Draft } from './systems/craft'
 import { MEETING_AP, type KeywordId } from './data/keywords'
 import { clientKeywords, hitCount, keywordShift, meetingMail, revealedKeywords } from './systems/keywords'
 import { CLIENTS } from './data/company'
+import { ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP } from './data/employees'
+import type { Applicant } from './systems/hire'
+import {
+  canOrder,
+  doneReply,
+  finishedOrders,
+  orderDoneWeek,
+  orderReply,
+  quitMail,
+  quitter,
+  statOf,
+  type Chat,
+  type Employee,
+  type Order,
+} from './systems/employee'
+import { companyGrade, REPUTATION_CRISIS } from './data/game'
 import type { Channel, Message, Request } from './data/inbox'
 import {
   canReply,
@@ -21,6 +37,7 @@ import {
   isBreached,
   isFinalReply,
   isTurnOf,
+  openStep,
   repliedStep,
   replyMail,
   satisfaction,
@@ -141,6 +158,28 @@ type Store = {
    *  접속 정보를 옮겨 적는 왕복을 겪어야 퍼블리싱할 수 있다(관리자 페이지와 같은 규칙). */
   ftpClients: string[]
 
+  /** 고용된 직원. **메신저 대화방의 정본이고 급여의 정본이기도 하다**(사람 수가 곧 지출).
+   *  ⚠️ 정원은 `companyGrade(reputation).hireMax`가 정하고 저장하지 않는다. */
+  employees: Employee[]
+  /** 진행 중인 지시. **직원의 점유도 여기서 파생한다**(`systems/employee.ts`의 `isBusy`) —
+   *  직원 쪽에 `busy` 플래그를 두면 지시를 지우고 플래그를 남기는 사고가 난다. */
+  orders: Order[]
+  /** 채용 공고를 **마지막으로 올린 주차**. 지원자는 이 값 하나에서 파생한다
+   *  (`systems/hire.ts`의 `applicants` — 같은 주차는 늘 같은 사람들이다).
+   *  ⚠️ 지원자 목록을 저장하지 않는 이유: 저장하면 두 번째 출처가 생기고 세이브가 불어난다.
+   *  공고를 올린 적이 없으면 undefined다(0으로 두면 1주차에 올린 것과 구분되지 않는다). */
+  hirePostWeek?: number
+  /** 이미 고용했거나 놓친 지원자의 id. ⚠️ **목록에서 지우지 않는다** — 파생 목록이라
+   *  지울 자리가 없고, 한 번 뽑은 사람이 같은 공고에 다시 서면 두 번 뽑힌다. */
+  hiredApplicantIds: string[]
+  /** 메신저에 쌓인 직원의 말. **방은 `employeeId`로 갈린다**(방 하나 = 직원 하나).
+   *  ⚠️ 내가 한 말은 쌓지 않는다 — 지시는 `orders`에 이미 남아 있고, 같은 사실을 두 벌로
+   *     적으면 둘이 어긋난다. */
+  chats: Chat[]
+  /** 평판이 위기선 아래로 머문 주 수. `CRISIS_WEEKS_TO_SHUTDOWN`에 닿으면 폐업이다.
+   *  ⚠️ 위기선 위로 오르면 **0으로 리셋**한다(설계 결정표). */
+  crisisWeeks: number
+
   windows: OpenWindow[]
 
   /** 슬롯 목록이 바뀔 때마다 오르는 수. ⚠️ **슬롯 내용은 스토어에 들이지 않는다** —
@@ -162,9 +201,9 @@ type Store = {
   /** 클라이언트 미팅(피그마). **행동력 `MEETING_AP`를 물고** 기획력에 따라 정해진 개수의
    *  키워드를 알아낸다. ⚠️ 업무당 한 번뿐이다 — 여러 번 열면 행동력만 내고 5개를 다 알 수
    *  있어 미팅이 '기다리는 값'이 아니라 '사는 값'이 된다.
-   *  ⚠️ 직원 파견(행동력 대신 직원이 참석)은 아직 없다 — 직원 시스템이 생기면 **이 액션
-   *     옆에** `sendToMeeting(jobId, employeeId)`을 붙인다(같은 자리에서 `meetings`를 채우고
-   *     알아내는 개수는 직원의 기획력이 정한다). */
+   *  ⚠️ **직원을 미팅에 보낼 수는 없다**(직원 시스템이 생긴 뒤에도 그렇다). 직원 스탯은
+   *     디자인·퍼블리싱·CS 3종뿐이라 알아내는 개수를 정할 기획력이 없어서다 — 붙이려면
+   *     그 축을 먼저 정해야 한다. 직원이 맡는 것은 **공정**이고(`orderJob`) 미팅은 내 몫이다. */
   holdMeeting: (jobId: string) => void
   /** 시안 제작(피그마). 팝업과 **같은 퀄리티 표·같은 등급 규칙**을 쓴다.
    *  ⚠️ `keywords`는 플레이어가 고른 분위기 키워드다 — 맞춘 수가 **등급을 민다**
@@ -193,6 +232,16 @@ type Store = {
    *  이 공정이 사이트 업무의 마지막 공정이라 여기가 그 첫 호출자다.
    *  ⚠️ 팝업 업무는 여기서 끝내지 않는다(등록 → 주차 넘김 판정이 그쪽의 끝이다). */
   publishJob: (id: string) => void
+  /** 채용 공고를 올린다(브라우저 채용사이트). **행동력 `POST_AP`를 문다** —
+   *  0이면 매주 몇 번이고 눌러 지원자를 새로 볼 수 있어 공고가 선택이 아니게 된다.
+   *  ⚠️ 지원자는 저장하지 않는다 — 올린 주차만 남고 목록은 그 주차에서 파생한다. */
+  postHiring: () => void
+  /** 지원자를 고용한다. ⚠️ **정원(`companyGrade().hireMax`)을 넘으면 아무 일도 일어나지 않는다** —
+   *  버튼 disabled만으로는 정원 초과 경로가 남는다(이 리포의 확립된 규칙). */
+  hire: (applicant: Applicant) => void
+  /** 직원에게 그 업무의 열린 공정을 맡긴다(메신저). **행동력 `ORDER_AP` 고정**이고
+   *  결과는 `N주 뒤`에 나온다 — 등급은 **그 직원의 스탯**이 정한다(내가 고르지 않는다). */
+  orderJob: (employeeId: string, jobId: string) => void
   /** 다음 주로. **팝업 판정이 도는 유일한 자리다** — 행동력을 채우고, 어긋난 팝업이
    *  있으면 항의 메일이 들어오며 평판이 깎인다. */
   advanceWeek: () => void
@@ -222,6 +271,11 @@ export const asStep = (j: Job): StepJob => ({
   replied: j.replied,
   popupTo: j.popup?.to,
 })
+
+/** 직원이 만든 산출물에서 **어느 목록으로 갈지 가르는 칸**을 떼어 낸다.
+ *  ⚠️ `program`은 나누는 데만 쓰고 파일에는 남기지 않는다 — 파일은 이미 자기 목록에
+ *     들어가므로 그 칸이 두 번째 출처가 된다. */
+const strip = ({ program: _program, ...file }: Draft & { program: ProgramId }): Draft => file
 
 /** 그 공정을 실행할 차례인 업무만 통과시킨다 — 제작 액션 넷이 같은 문장을 쓴다. */
 const turnOf = (jobs: Job[], id: string, program: ProgramId) => {
@@ -288,6 +342,12 @@ const saveFields = (s: Store) => ({
   mails: s.mails,
   bookmarks: s.bookmarks,
   ftpClients: s.ftpClients,
+  employees: s.employees,
+  orders: s.orders,
+  hirePostWeek: s.hirePostWeek,
+  hiredApplicantIds: s.hiredApplicantIds,
+  chats: s.chats,
+  crisisWeeks: s.crisisWeeks,
 })
 
 /** 게임을 처음 상태로 되돌릴 때 붓는 값. **새 게임과 불러오기가 같은 바닥을 쓴다** —
@@ -306,6 +366,12 @@ const emptyGame = () => ({
   mails: [],
   bookmarks: [],
   ftpClients: [],
+  employees: [],
+  orders: [],
+  hirePostWeek: undefined,
+  hiredApplicantIds: [],
+  chats: [],
+  crisisWeeks: 0,
 })
 
 export const useGame = create<Store>()(
@@ -598,6 +664,70 @@ export const useGame = create<Store>()(
       popups: s.popups.map((p) => (p.id === popupId ? { ...p, from, to } : p)),
     })),
 
+  // ── 채용 ──────────────────────────────────────────────
+  // ⚠️ 지원자는 **저장하지 않는다** — 올린 주차 하나만 남고 목록은 그 주차에서 파생한다
+  //    (`systems/hire.ts`). 그래서 세이브를 불러와도 같은 사람들이 서 있다.
+  // ⚠️ 행동력이 모자라면 아무 일도 일어나지 않는다(제작 액션들과 같은 규칙).
+  postHiring: () =>
+    set((s) => (s.ap < POST_AP ? {} : { ap: s.ap - POST_AP, hirePostWeek: s.week })),
+
+  // ⚠️ **정원은 회사등급이 진다**(`companyGrade(reputation).hireMax`). 등급이 내려가
+  //    정원을 넘겨도 **있는 직원은 자르지 않고 신규 채용만 막는다**(설계 결정) —
+  //    평판이 흔들릴 때마다 사람이 잘려 나가면 회사를 굴리는 계획을 세울 수가 없다.
+  // ⚠️ 스토어에도 가드를 둔다: 버튼 disabled만으로는 정원 초과 경로가 남는다.
+  hire: (a) =>
+    set((s) => {
+      if (s.employees.length >= companyGrade(s.reputation).hireMax) return {}
+      if (s.hiredApplicantIds.includes(a.id)) return {}
+      return {
+        hiredApplicantIds: [...s.hiredApplicantIds, a.id],
+        employees: [
+          ...s.employees,
+          {
+            id: a.id,
+            name: a.name,
+            role: a.role,
+            level: a.level,
+            stats: { ...a.stats },
+            hiredWeek: s.week,
+          },
+        ],
+      }
+    }),
+
+  // ── 지시 ──────────────────────────────────────────────
+  // 직원 축의 전부가 여기 있다: **행동력 1 고정 · N주 뒤 · 그동안 점유 · 등급은 직원 스탯.**
+  // ⚠️ 퀄리티를 고르지 않는다(설계 확정) — 싸고 낮은 직원은 낮은 등급만 낸다.
+  //    그래서 "누구에게 맡기느냐"가 이 축의 유일한 선택이다.
+  // ⚠️ 등급은 반드시 `gradeOf`를 탄다(등급의 단일 출처) — 새 사다리를 만들지 않는다.
+  //    직원에게는 퀄리티가 없으므로 밴드는 **'열심히'(C~A) 고정**이다: 지시는 무난한
+  //    결과를 시간으로 사는 길이지, 최고를 사는 길이 아니다(최고는 내 손으로만 나온다).
+  orderJob: (employeeId, jobId) =>
+    set((s) => {
+      const emp = s.employees.find((e) => e.id === employeeId)
+      const job = s.jobs.find((j) => j.id === jobId)
+      if (!emp || !job || job.done) return {}
+      const step = openStep(asStep(job))
+      if (!step || !canOrder(emp, step.program, s.orders)) return {}
+      if (s.ap < ORDER_AP) return {}
+      const order: Order = {
+        employeeId,
+        jobId,
+        program: step.program,
+        label: step.label,
+        from: s.week,
+        doneWeek: orderDoneWeek(s.week, emp.level),
+        grade: gradeOf(ORDER_QUALITY, statOf(emp, step.program)),
+      }
+      return {
+        ap: s.ap - ORDER_AP,
+        orders: [...s.orders, order],
+        // 받았다는 대답이 그 방에 남는다 — 언제 끝나는지가 대화에 적혀야 메신저를
+        // 다시 열었을 때 무엇을 기다리는 중인지 알 수 있다.
+        chats: [...s.chats, { employeeId, week: s.week, text: orderReply(order) }],
+      }
+    }),
+
   // ⚠️ 판정은 여기서 하지 않는다 — `systems/popup.ts`의 순수 함수가 내고 스토어는
   //    **적용만** 한다(평판을 만드는 규칙이 테스트 밖으로 새지 않게).
   //
@@ -627,26 +757,109 @@ export const useGame = create<Store>()(
       const broken = s.jobs.filter((j) => isBreached(j, next))
       const breachMails = broken.map((j) => breachMail(j, next))
 
+      // ── 직원이 맡은 일이 끝난다 ──────────────────────────────
+      // ⚠️ **공정만 오른다**(`step`). 회신은 여전히 사람의 손이다 — 직원이 대신 만들어도
+      //    납품은 보내는 일이고, 그 규칙이 흔들리면 지시 하나로 업무가 통째로 끝나 버린다.
+      // ⚠️ 등급은 지시하는 순간 굳었다(`order.grade`) — 여기서 다시 계산하지 않는다.
+      const finished = finishedOrders(s.orders, next)
+      const byOrder = finished.reduce(
+        (acc, ord) => {
+          const job = acc.jobs.find((j) => j.id === ord.jobId)
+          // 그 사이 깨지거나 끝난 업무면 산출물만 버린다(공정을 억지로 올리지 않는다).
+          if (!job || job.done) return acc
+          const emp = s.employees.find((e) => e.id === ord.employeeId)
+          return {
+            jobs: acc.jobs.map((j) => (j.id === ord.jobId ? { ...j, step: j.step + 1 } : j)),
+            // 퍼블리싱은 산출 파일이 없다(에디터 공정과 같다 — 서버에 올리는 일이다).
+            made:
+              ord.program === 'editor'
+                ? acc.made
+                : [
+                    ...acc.made,
+                    {
+                      // ⚠️ id에 **공정까지** 들어간다 — 한 업무의 두 공정을 같은 직원에게
+                      //    맡겨도 파일 id가 겹치지 않는다.
+                      id: `emp:${ord.employeeId}:${ord.jobId}:${ord.program}`,
+                      jobId: ord.jobId,
+                      // 누가 만들었는지가 이름에 남는다 — 목록에서 내 손으로 만든 것과
+                      // 맡긴 것을 가르는 유일한 표식이다.
+                      name: `${job.from}_${ord.label}(${emp?.name ?? '직원'})${ORDER_FILE_EXT[ord.program] ?? ''}`,
+                      madeWeek: next,
+                      grade: ord.grade,
+                      program: ord.program,
+                    },
+                  ],
+          }
+        },
+        { jobs: s.jobs, made: [] as (Draft & { program: ProgramId })[] },
+      )
+
+      // 만든 것은 **그 공정의 프로그램이 쓰는 목록**으로 간다 — 시안은 피그마 목록에,
+      // 화면정의서·발표자료는 PPT 목록에, 팝업 이미지는 포토샵 목록에. 한 통에 몰아넣으면
+      // 팝업 등록 화면에 .fig가 뜬다(목록을 가른 이유가 그것이다).
+      const intoDrafts = byOrder.made.filter((m) => m.program === 'figma').map(strip)
+      const intoSlides = byOrder.made.filter((m) => m.program === 'ppt').map(strip)
+      const intoFiles = byOrder.made
+        .filter((m) => m.program === 'photoshop')
+        // 팝업 파일 id는 규약이 따로 있다(`popupFileId`) — 등록 판정이 출처를 그 id로 안다.
+        .map((m, i) => ({
+          ...strip(m),
+          id: popupFileId(m.jobId, s.files.filter((f) => f.jobId === m.jobId).length + i + 1),
+        }))
+
+      // 직원의 완료 보고는 **메신저 대화**로 간다(메일이 아니다 — 지시와 보고는 메신저다).
+      const reports = finished.map((ord) => ({
+        employeeId: ord.employeeId,
+        week: next,
+        text: doneReply(ord, next),
+      }))
+
+      // ── 평판 위기 ────────────────────────────────────────────
+      // ⚠️ 평판은 **이번 주 판정이 끝난 뒤의 값**으로 본다 — 클레임으로 위기선 아래로
+      //    떨어진 그 주부터 세어야 카운터가 한 주 늦게 돌지 않는다.
+      const rep = clampReputation(
+        s.reputation - claims.length * CLAIM_REPUTATION_LOSS + broken.length * breach().reputation,
+      )
+      const inCrisis = rep < REPUTATION_CRISIS
+      // 위기선 위로 오르면 **0으로 리셋**한다(설계 결정표) — 갚을 수 있는 빚이어야 한다.
+      const crisisWeeks = inCrisis ? s.crisisWeeks + 1 : 0
+      // 위기면 매주 **한 명**이 나간다(레벨 높은 순 — 갈 곳 있는 사람부터).
+      const leaving = inCrisis ? quitter(s.employees) : undefined
+      const employees = leaving ? s.employees.filter((e) => e.id !== leaving.id) : s.employees
+      // 끝난 지시는 목록에서 사라진다 — 직원의 점유가 이 목록에서만 파생하므로
+      // (`isBusy`) 지우는 것이 곧 "다시 일을 맡을 수 있다"이다.
+      // ⚠️ 나간 사람이 들고 있던 지시도 함께 사라진다 — 맡을 사람이 없는 일은 끝나지 않는다.
+      const keptOrders = s.orders
+        .filter((ord) => !finished.includes(ord))
+        .filter((ord) => !leaving || ord.employeeId !== leaving.id)
+
       // 월말 정산은 **마지막에** 편다 — 이번 주에 깨진 계약까지 반영한 잔액이 적혀야 한다.
+      // ⚠️ 급여는 **이번 주에 나간 사람을 뺀 목록**으로 낸다 — 떠난 사람에게 월급을 주지 않는다.
       const settling = isSettleWeek(next)
-      const money = s.money - (settling ? monthlyCost() : 0)
+      const money = s.money - (settling ? monthlyCost(employees) : 0)
 
       return {
         week: next,
         ap: s.apMax,
         money,
+        employees,
+        orders: keptOrders,
+        crisisWeeks,
+        // 직원의 보고는 메신저 대화에 쌓인다. ⚠️ 나간 사람의 방은 통째로 사라지므로
+        //    그 사람의 말도 함께 걷는다(없는 사람의 대화방을 열 자리가 없다).
+        chats: [...s.chats, ...reports].filter((c) => !leaving || c.employeeId !== leaving.id),
+        drafts: [...s.drafts, ...intoDrafts],
+        slides: [...s.slides, ...intoSlides],
+        files: [...s.files, ...intoFiles],
         // ⚠️ 업체당 한 번만 깎는다(같은 주에 세 갈래가 어긋나도 `claims`는 한 건이다).
         //    ⚠️ clamp는 **여기 한 곳**에서만 한다(완료 회신도 같은 함수를 쓴다).
-        reputation: clampReputation(
-          s.reputation -
-            claims.length * CLAIM_REPUTATION_LOSS +
-            broken.length * breach().reputation,
-        ),
+        reputation: rep,
         // 깨진 계약은 목록에서 지우지 않고 **끝난 것으로 표시**한다 — 지우면 무엇이
         // 어떻게 끝났는지가 사라지고, 같은 의뢰가 다시 새 글로 보인다.
-        jobs: s.jobs.map((j) => (isBreached(j, next) ? { ...j, done: true, breached: true } : j)),
+        jobs: byOrder.jobs.map((j) => (isBreached(j, next) ? { ...j, done: true, breached: true } : j)),
         mails: [
-          ...(settling ? [settleMail(next, money)] : []),
+          ...(settling ? [settleMail(next, money, employees)] : []),
+          ...(leaving ? [quitMail(leaving, next)] : []),
           ...breachMails,
           ...claimMails,
           ...s.mails,
