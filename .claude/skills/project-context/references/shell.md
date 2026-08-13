@@ -15,11 +15,14 @@
 
 ## 셸 구조
 - `Desktop`이 배경 + 아이콘 그리드 + 창 레이어 + `Taskbar` + `Hud`를 담는다
-- **작업 표시줄은 열린 창 목록만** 진다. 오른쪽 위 `Hud`가 **주차 판 + (스탯 판·업무목록 판)** 을 진다. ⚠️ 스탯·업무목록을 바탕화면 아이콘/창으로 빼지 말 것 — 항상 보여야 하는 계기판이다
+- **작업 표시줄은 시작 버튼 + 열린 창 목록**을 진다. ⚠️ 시작 버튼이 여는 것은 **세이브뿐**(`StartMenu`) — 프로그램 목록을 여기 또 만들지 말 것(여는 자리는 바탕화면 아이콘 하나다) 오른쪽 위 `Hud`가 **주차 판 + (스탯 판·업무목록 판)** 을 진다. ⚠️ 스탯·업무목록을 바탕화면 아이콘/창으로 빼지 말 것 — 항상 보여야 하는 계기판이다
 - 주차 판의 `다음 주`는 **묻는 창**(`.confirm`)을 띄운다. ⚠️ `window.confirm` 금지 — 가짜 OS의 시각 언어를 깨고 **JS를 멈춰 세워** 실측 하네스가 클릭도 스크린샷도 못 한다. ⚠️ 그 창은 `body`로 **포털**한다(계기판은 창이 덮는 층이라 안에 그리면 열린 창 뒤로 숨는다)
 - `Hud`는 **창이 아니다**(공용 `Window` 미사용). 닫거나 옮길 수 있으면 상태를 못 보는 판이 생기고 다시 여는 경로도 없다
 - ⚠️ 업무목록은 **스탯과 다른 판**이다(같은 칸에 세로로 선다) — 스탯은 늘 네 줄이고 업무는 늘어나는 목록이라, 한 판이면 스탯이 어디서 끝나는지가 흐려진다. 폭 상한은 `.hud__col`이 진다
 - ⚠️ **작업 표시줄과 `Hud`는 창 레이어 밖에 둔다.** 안에 넣으면 `--z-taskbar`가 창 레이어의 스택 컨텍스트에 갇혀 뜻을 잃는다
+- 층은 **taskbar(1000) < startmenu(1100) < confirm(1200)** 순서 하나다. 시작 메뉴는 작업 표시줄에서 솟으므로 그 위, 되돌릴 수 없는 일을 묻는 창은 **맨 앞**이다(메뉴도 못 누르게 덮어야 답이 하나로 정해진다). ⚠️ 새 층은 감으로 숫자를 올리지 말고 `--z-*`에 이름을 붙여 끼운다
+- 시작 메뉴도 `body`로 **포털**한다(작업 표시줄 안에 그리면 56px 막대에 갇힌다). 바깥 클릭(scrim)·Escape로 닫히되 **묻는 중에는 닫히지 않는다** — 질문이 먼저 답을 받는다
+- ⚠️ 묻는 창의 scrim 때문에 `--scan`이 **뒤에 깔린 글자를 전부 미달로 보고한다**(`rgb(173,173,173)` 위로 합성된다). 일부러 흐린 것이므로 허보다 — 창에 가린 계기판과 같은 건이다
 - ⚠️ 둘의 **z는 다르다**: 작업 표시줄은 `--z-taskbar`(항상 위), `Hud`는 `--z-desktop`(**창이 덮는다**). 계기판을 창 위로 되돌리지 말 것 — 큰 창의 오른쪽 위 내용을 가린다. 가려진 계기판은 창을 닫거나 옮겨서 본다
 - 창은 **위쪽 기준**으로 뜬다(`WINDOW_SPAWN.y` = 24, 바탕화면 아이콘과 같은 여백) — 큰 창일수록 아래로 쓸 높이가 필요하다
 - ⚠️ `Hud`가 글자를 실을 수 있는 것은 **판이 `--color-card`이기 때문**이다. 판을 없애고 바탕화면에 직접 얹으면 AA 미달이 된다
@@ -85,19 +88,23 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/systems/url.ts` | 주소창 글자 → 갈 곳(`resolveUrl`) + 관리자 로그인 대조(`checkLogin`). **주소·계정의 정본은 `CLIENTS`다** — 여기 다시 적지 않는다 |
 | `src/programs/AdminSite.tsx` | 업체별 관리자 페이지(로그인 + 팝업 목록 + 등록 폼). 로그인은 `useState`(창 닫으면 풀림), 걸린 팝업은 스토어 `popups`. ⚠️ 셀렉터 안에서 `filter`를 돌리지 말 것 — 새 배열이 나와 zustand가 무한 렌더로 화면을 하얗게 만든다(겪었다) |
 | `src/programs/Photoshop.tsx` | 팝업 이미지 제작(도구 막대 · 문서 탭 · 캔버스 · 레이어 패널). 팝업 제작이 행동력을 문다(고른 퀄리티 — 퍼블리싱은 에디터가 진다). 실제로 동작하는 것은 **탭과 제작 버튼 셋뿐**이고 도구 막대는 표시다 |
-| `src/systems/craft.ts` | 제작 결과의 등급(`gradeOf`) + 시안 파일 타입. **퀄리티가 밴드, 스탯이 칸**이고 무작위는 없다 |
+| `src/data/keywords.ts` | 분위기 키워드 목록 · `SITE_KEYWORDS`(5) · `MEETING_AP` · `MEETING_REVEAL`(기획력→개수) · `KEYWORD_SHIFT`(적중→등급 칸) |
+| `src/systems/keywords.ts` | 키워드 규칙의 정본 — 씨앗(업무 id)에서 정답을 뽑는 `clientKeywords` · `revealedKeywords` · `hitCount`/`keywordShift` · `shiftGrade`/`GRADE_LADDER`(⚠️ `pipeline.ts`의 `GRADE_ORDER`와 같은 줄이어야 한다) · 미팅 알림 문안 |
+| `src/systems/craft.ts` | 제작 결과의 등급(`gradeOf` — 셋째 인자가 키워드 보정이고 **밴드 밖으로 나간다**) + 시안 파일 타입. **퀄리티가 밴드, 스탯이 칸**이고 무작위는 없다 |
 | `src/programs/Editor.tsx` | 퍼블리싱 공정(FTP 연결 → 업체 폴더 → 남은 업무 → 줄 클릭 = 실행). **행동력을 무는 둘째 자리다**(`PUBLISH_AP`) |
 | `src/systems/money.ts` | 대금·평판 변화(`reward`) · 파기(`breach`) · 월말 정산(`isSettleWeek`·`monthlyCost`) + 파기·정산 메일 문안. ⚠️ 수치는 전부 `data/game.ts`에서 온다 |
 | `src/systems/pipeline.ts` | **공정의 줄과 회신 규칙의 정본**(`PIPELINE`·`openStep`·`canReply`·`satisfaction` + 답장/완료 메일 문안). 창들은 `isTurnOf(job, 자기 프로그램)` 한 줄로 목록을 가른다 — 종류별 조건을 컴포넌트에 다시 적지 말 것 |
 | `src/programs/Ppt.tsx` | 화면정의서(사이트 첫 공정)와 발표자료(PPT 업무)를 **같은 손으로** 만든다(`makeSlides`). 셸 언어 그대로인 작은 창이다 |
 | `src/systems/ftp.ts` | FTP 접속 정보 대조(`checkFtp`). **정본은 `CLIENTS[].ftp`** — 여기 값을 다시 적지 않는다. `ftp://`만 여기서 벗긴다(`normalizeUrl`은 http(s)만 안다) |
-| `src/programs/Figma.tsx` | 피그마 파일 브라우저(사이드바 + 파일 그리드 + 속성 패널). 카드를 고르면 오른쪽에서 **시안을 만든다**(행동력을 무는 셋째 자리). 만든 시안은 스토어 `drafts` — 팝업 `files`와 **다른 목록**이다(등록 화면에 .fig가 뜨면 안 된다) |
+| `src/programs/Figma.tsx` | 피그마 파일 브라우저(사이드바 + 파일 그리드 + 속성 패널). 속성 패널이 **미팅 참석 + 분위기 키워드 고르기**를 진다(고른 키워드는 `useState` — 세이브에 넣지 않는다). ⚠️ 미팅 전에는 **"아직 무엇을 원하는지 모른다"고 말한다** — 정답을 흐리게라도 보여 주면 미팅이 값을 잃는다. 키워드 `SITE_KEYWORDS`개를 다 골라야 제작 버튼이 열리고, 버튼에 적히는 등급은 **보정 전**이다(맞췄는지는 만들기 전에 알 수 없다). 카드를 고르면 오른쪽에서 **시안을 만든다**(행동력을 무는 셋째 자리). 만든 시안은 스토어 `drafts` — 팝업 `files`와 **다른 목록**이다(등록 화면에 .fig가 뜨면 안 된다) |
 | `src/systems/popup.ts` | 팝업 판정의 순수 함수(`judgePopups`) + 파일 id 규약(`popupFileId`/`isFileOf`) + 클레임 메일 문안 |
 | `src/components/JobActions.tsx` | 견적보내기/거절하기. ⚠️ **색이 없다** — 감싸는 창이 `--jobact-*`를 준다(그래서 메일과 사내시스템에서 각자 팔레트로 선다) |
 | `src/data/icons.ts` | 아이콘 이름 단일 출처 |
 | `src/icons/AppIcon.tsx` | 유일한 아이콘 창구(`@iconify/react/offline`). 다른 곳에서 `@iconify/react`를 import하지 않는다 |
 | `src/systems/` | 순수 함수(React·Math.random 금지). 지금은 `calendar.ts` — 주차 → 몇 년 몇 월 몇째 주 |
 | `src/store.ts` | zustand — 게임 5축 + 창 목록(x·y·z) |
-| `src/components/` | `Window` · `Desktop` · `Taskbar`(창 목록) · `Hud`(오른쪽 위 주차·스탯·업무목록 판) |
+| `src/components/` | `Window` · `Desktop` · `Taskbar`(시작 버튼 + 창 목록) · `Hud`(오른쪽 위 주차·스탯·업무목록 판) |
+| `src/components/StartMenu.tsx` | 시작 버튼 + 이름 있는 슬롯 3칸(저장·불러오기·삭제·새 게임). 되돌릴 수 없는 것은 전부 `.confirm`으로 묻는다(`Hud.tsx`와 **같은 클래스** — 같은 성격의 질문이 창마다 다르게 생기지 않는다) |
+| `src/systems/save.ts` | 슬롯 키(`webdi.slot.<n>`) · 요약 만들기 · **못 믿을 세이브 판정**(`parseSlot`). 순수 함수이고 저장소는 `store.ts`만 만진다 |
 | `src/programs/` | 창 내용. `ProgramId` → 컴포넌트 짝은 `App.tsx`의 `VIEWS` |
 | `scripts/build-icon-subset.mjs` | `src/`를 훑어 `src/icons/generated.ts` 생성(`npm run icons`) |

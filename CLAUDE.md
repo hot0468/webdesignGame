@@ -27,6 +27,8 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-13 | 시안 키워드 — 미팅(행동력 1)에서 기획력만큼 알아내고, 적중 수가 시안 등급을 민다. 정답은 업무 id 시드로 파생(저장 안 함) | src/data/keywords.ts·systems/keywords.ts(신규), systems/craft.ts, programs/Figma.tsx, store.ts |
+| 2026-08-13 | 작업 표시줄 시작 버튼 — 이름 있는 세이브 슬롯 3칸(자동저장 위에 얹는다), 되돌릴 수 없는 일은 포털 확인창이 묻는다 | src/systems/save.ts·components/StartMenu.tsx(신규), Taskbar.tsx, store.ts, index.css |
 | 2026-08-13 | 돈이 도는 고리 — 완료 회신이 대금·평판을 주고, 마감 초과는 계약 파기, 월말엔 유지보수보고서로 고정 지출. 세이브(`webdi.save.v1`)까지 | src/systems/money.ts(신규)·pipeline.ts, src/data/game.ts, src/store.ts(+test, persist), src/components/Hud.tsx·JobActions.tsx |
 | 2026-08-13 | `다음 주` 버튼을 되살리고 **묻는 창**을 붙였다(포털 · `window.confirm` 금지) — 행동력을 다 써도 그 주에 머물 수 있으므로 넘기는 것은 늘 선택이다 | src/components/Hud.tsx, src/index.css, project-context |
 | 2026-08-13 | 공정의 줄 + 회신 고리 — 업무에 `kind`·`step`·`replied`, 창은 자기 차례만, 회신해야 다음 공정이 열리고 마지막 회신에 만족도 메일이 온다 | src/systems/pipeline.ts(+test, 신규), src/store.ts(+test), src/data/inbox.ts·company.ts, src/programs/Ppt.tsx·Figma·Photoshop·Editor, src/components/JobActions.tsx·MessageList.tsx |
@@ -35,5 +37,3 @@
 | 2026-08-12 | 계기판의 `다음 주` 버튼 제거 — 주차를 미는 자리가 없어졌다(`advanceWeek`는 남아 있다) | src/components/Hud.tsx, src/index.css |
 | 2026-08-12 | 바탕화면에 `PPT` 아이콘 — 창은 아직 빈 상태다(업무에 종류 칸이 생기면 포토샵처럼 목록+퀄리티를 갖는다) | src/programs/Ppt.tsx(신규), src/data/programs.ts, src/App.tsx |
 | 2026-08-12 | 제작 퀄리티 세 갈래 — 간단하게/열심히/매우 신경써서로 행동력과 등급대(F~SSS)가 갈리고, 밴드 안 칸은 디자인 스탯이 정한다. 피그마 속성 패널에 시안 만들기 추가 | src/systems/craft.ts(신규), src/data/game.ts, src/store.ts, src/programs/Figma.tsx·Photoshop.tsx(+css) |
-| 2026-08-12 | 퍼블리싱 고리 — 에디터에서 FTP 연결(업체 정보 대조) → 업체 폴더 → 남은 업무 클릭 = 실행(행동력 2, 업무 완료) | src/systems/ftp.ts(신규), src/store.ts, src/programs/Editor.tsx·editor.css, src/data/game.ts·icons.ts, project-context |
-| 2026-08-12 | `포토샵`을 실제 포토샵처럼 — 도구 막대·문서 탭·아트보드·레이어 패널(CC Dark). 셸 언어 `.ps*`는 index.css에서 걷어냈다 | src/programs/Photoshop.tsx·photoshop.css(신규), src/index.css, src/data/icons.ts·programs.ts |
