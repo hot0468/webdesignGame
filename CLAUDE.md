@@ -27,6 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-13 | 숙련도 3종 — `apCost(base, skill)` 한 함수가 공정 비용을 깎는다(40+ −1, 80+ −2, 하한 1). 등급 축과 갈라 표시 | src/data/game.ts, src/store.ts(+test), src/programs/Figma·Photoshop·Ppt·Editor·Company.tsx |
 | 2026-08-13 | 주말 돌발 의뢰 — 확률로 급한 의뢰가 오고 일할지 선택. 대가는 정신력이고 낮으면 다음 주 행동력 상한이 깎인다 | src/systems/weekend.ts(신규), src/data/game.ts(apMaxOf), src/store.ts(+test), src/programs/Schedule.tsx, src/components/Hud.tsx |
 | 2026-08-13 | 파산 규칙 교체 — 잔액 음수가 아니라 **급여 3달 연속 밀림**(착수금·대출로 한 달은 버틴다). 정산 메일이 몇 달째인지 경고 | src/data/game.ts, src/systems/gameover.ts·money.ts, src/store.ts(+test) |
 | 2026-08-13 | 회사레벨 — 누적 매출에서 파생해 **행동력 상한**을 민다(평판이 지는 회사등급과 다른 축, 줄지 않는다) | src/data/game.ts, src/store.ts(+test), src/programs/Company.tsx |
@@ -36,4 +37,3 @@
 | 2026-08-13 | 직원 시스템 — 채용(인간인 공고→지원자)·지시(종류 제한, 등급은 직원 스탯)·급여(월말, 사람 수가 정본)·위기 퇴사 | src/data/employees.ts·systems/hire.ts·employee.ts·programs/HireSite.tsx(신규), Messenger.tsx, store.ts, money.ts |
 | 2026-08-13 | 직원 교육 — 레벨을 올리는 유일한 길(돈 + 그 사람의 1주 점유), 레벨 +1과 세 스탯 +5가 한 자리에서 오른다 | src/data/employees.ts, src/systems/employee.ts(+test), src/store.ts(+test), src/programs/Messenger.tsx·messenger.css |
 | 2026-08-13 | 시안 키워드 — 미팅(행동력 1)에서 기획력만큼 알아내고, 적중 수가 시안 등급을 민다. 정답은 업무 id 시드로 파생(저장 안 함) | src/data/keywords.ts·systems/keywords.ts(신규), systems/craft.ts, programs/Figma.tsx, store.ts |
-| 2026-08-13 | 작업 표시줄 시작 버튼 — 이름 있는 세이브 슬롯 3칸(자동저장 위에 얹는다), 되돌릴 수 없는 일은 포털 확인창이 묻는다 | src/systems/save.ts·components/StartMenu.tsx(신규), Taskbar.tsx, store.ts, index.css |
