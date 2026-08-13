@@ -3,6 +3,12 @@ import { AppIcon } from '../icons/AppIcon'
 import { MESSENGER_ICONS } from '../data/icons'
 import { findRole, ORDER_AP, ORDER_QUALITY,
   EMPLOYEE_LEVEL,
+  FEEDBACK_AP,
+  GRUDGE_QUIT,
+  LEAVE_WEEKS,
+  RAISE_AMOUNT,
+  REQUEST_EXPIRE_WEEKS,
+  salaryOf,
   TRAIN_COST,
   TRAIN_STAT_GAIN,
 } from '../data/employees'
@@ -18,6 +24,7 @@ import {
 } from '../systems/employee'
 import { gradeOf } from '../systems/craft'
 import { openStep } from '../systems/pipeline'
+import { leaveDoneWeek, raiseGrade, type EmployeeRequest } from '../systems/request'
 import { asStep, useGame } from '../store'
 import './messenger.css'
 
@@ -95,13 +102,22 @@ function Room({
 }) {
   const orders = useGame((s) => s.orders)
   const trainings = useGame((s) => s.trainings)
+  const requests = useGame((s) => s.requests)
   const until = busyUntil(employee.id, orders, trainings)
+  // ⚠️ 셀렉터 안에서 `find`를 돌리지 않는다(새 값이 나와 무한 렌더가 된다 — `AdminSite`).
+  const asking = requests.some((q) => q.employeeId === employee.id)
 
   return (
     <button type="button" className={`msgr__room${on ? ' msgr__room--on' : ''}`} onClick={onPick}>
       <span className="msgr__room-face">{employee.name.slice(0, 1)}</span>
       <span className="msgr__room-body">
-        <span className="msgr__room-name">{employee.name}</span>
+        <span className="msgr__room-name">
+          {employee.name}
+          {/* ⚠️ 답할 것이 있으면 **목록에서** 보여야 한다 — 방을 하나씩 열어 보게 하면
+              요청이 조용히 기한을 넘겨 불만만 쌓인다(무시의 벌은 알아챌 수 있어야 벌이다).
+              색이 아니라 **글자**가 말한다(이 팔레트에 상태를 칠할 색이 없다). */}
+          {asking && <span className="msgr__ask-dot">답변 대기</span>}
+        </span>
         {/* 상태는 **글자로** 말한다 — 이 팔레트에 상태를 칠할 색이 없다. */}
         <span className="msgr__room-note">
           {until !== undefined
@@ -129,6 +145,8 @@ function Chat({ employee }: { employee: Employee }) {
   const trainings = useGame((s) => s.trainings)
   const train = useGame((s) => s.train)
   const money = useGame((s) => s.money)
+  const requests = useGame((s) => s.requests)
+  const request = requests.find((q) => q.employeeId === employee.id)
 
   const role = findRole(employee.role)
   const busy = busyUntil(employee.id, orders, trainings)
@@ -167,6 +185,12 @@ function Chat({ employee }: { employee: Employee }) {
           </p>
         ))}
       </div>
+
+      {/* ── 요청 판 ──────────────────────────────────────────────
+          ⚠️ 지시·교육 판과 **다른 칸**이고 그 둘보다 **위**에 선다 — 답을 기다리는 것이
+             있으면 그것이 먼저 눈에 들어와야 한다(기한을 넘기면 불만이 쌓인다).
+          ⚠️ 답하면 이 판이 통째로 사라진다(요청은 답하면 목록에서 지워진다). */}
+      {request && <RequestPanel employee={employee} request={request} />}
 
       <div className="msgr__order">
         {busy !== undefined ? (
@@ -243,6 +267,84 @@ function Chat({ employee }: { employee: Employee }) {
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+/** 답을 기다리는 요청 하나. **받거나 거절한다 — 세 번째 길은 없다.**
+ *
+ * ⚠️ 거절 버튼은 **늘 눌린다**(받는 쪽만 막힌다) — 낼 것이 없어 받을 수 없을 때도
+ *    거절은 할 수 있어야 한다. 그리고 답하지 않는 것도 길이지만 그건 버튼이 아니라
+ *    시간이 정한다(기한을 넘기면 거절과 **같은 값**을 문다 — 그래서 무시가 싼 길이 아니다).
+ * ⚠️ **못 누르는 이유를 글자가 말한다**(동작하지 않는 컨트롤 금지) — 행동력·소지금이
+ *    모자라면 그 문장이 버튼 아래 선다. */
+function RequestPanel({ employee, request }: { employee: Employee; request: EmployeeRequest }) {
+  const week = useGame((s) => s.week)
+  const ap = useGame((s) => s.ap)
+  const money = useGame((s) => s.money)
+  const accept = useGame((s) => s.acceptRequest)
+  const refuse = useGame((s) => s.refuseRequest)
+
+  // 갈래마다 **무엇을 내고 무엇이 되는지**를 누르기 전에 적는다 — 이 두 줄이 없으면
+  // 받는 것과 거절하는 것 중 무엇이 나은지 저울에 올릴 수가 없다.
+  const spec: Record<EmployeeRequest['kind'], { title: string; cost: string; note: string; can: boolean; why?: string }> = {
+    leave: {
+      title: '휴가 요청',
+      cost: `${LEAVE_WEEKS}주 자리 비움`,
+      note: `받아 주면 ${formatDate(leaveDoneWeek(week))}까지 일을 맡길 수 없다.`,
+      can: true,
+    },
+    raise: {
+      title: '급여 협상',
+      cost: `월 +${RAISE_AMOUNT.toLocaleString()}원`,
+      note: `받아 주면 월급이 ${(salaryOf(employee.level, employee.raise) + RAISE_AMOUNT).toLocaleString()}원이 된다. 되돌릴 수 없다.`,
+      can: true,
+    },
+    feedback: {
+      title: '작업 피드백 요청',
+      cost: `행동력 ${FEEDBACK_AP}`,
+      // 확률이라는 것을 **적는다** — 실패했을 때 버그로 읽히지 않아야 한다.
+      note: `${request.target?.name ?? '작업물'}(${request.target?.grade})을 봐 준다. 잘되면 ${
+        request.target ? raiseGrade(request.target.grade) : ''
+      }로 오르지만 확실하지는 않다.`,
+      can: ap >= FEEDBACK_AP,
+      why: '행동력이 모자라다.',
+    },
+    training: {
+      title: '교육 요청',
+      cost: `${TRAIN_COST.toLocaleString()}원`,
+      note: `내가 보내는 교육과 값도 기간도 같지만, 잘되면 스탯이 ${TRAIN_STAT_GAIN}보다 더 오른다(확실하지는 않다).`,
+      can: money >= TRAIN_COST,
+      why: '교육비가 모자라다.',
+    },
+  }
+  const it = spec[request.kind]
+
+  return (
+    <div className="msgr__ask">
+      <p className="msgr__ask-title">{it.title}</p>
+      <p className="msgr__note">{it.note}</p>
+      <div className="msgr__ask-row">
+        <button
+          type="button"
+          className="msgr__ask-yes"
+          disabled={!it.can}
+          onClick={() => accept(request.id)}
+        >
+          들어준다
+          <span className="msgr__ask-cost">{it.cost}</span>
+        </button>
+        {/* ⚠️ 거절은 **막지 않는다** — 늘 고를 수 있는 답이고, 그 대가(불만)는 아래 글자가 적는다. */}
+        <button type="button" className="msgr__ask-no" onClick={() => refuse(request.id)}>
+          거절한다
+        </button>
+      </div>
+      {!it.can && it.why && <p className="msgr__note">{it.why}</p>}
+      {/* 거절의 대가를 **누르기 전에** 적는다 — 몰래 쌓이면 어느 날 갑자기 퇴사 메일만 온다. */}
+      <p className="msgr__note">
+        거절하거나 {REQUEST_EXPIRE_WEEKS + 1}주 안에 답하지 않으면 불만이 쌓인다. 지금까지{' '}
+        <b>{employee.grudge ?? 0}번</b> 거절당했고, {GRUDGE_QUIT}번이면 그만둔다.
+      </p>
     </div>
   )
 }

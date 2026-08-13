@@ -351,3 +351,102 @@
   flex: none;
   font-size: var(--fs-xs);
 }
+
+/* ── 요청 판 ──────────────────────────────────────────────
+   답을 기다리는 직원 요청. ⚠️ 지시 판(`.msgr__order`)·교육 판(`.msgr__train`)보다 **위**에
+   서고, 셋 중 유일하게 **회색 대화 칸 위에 뜬다** — 흰 판 둘이 아래에 붙어 있어 같은 흰
+   면으로 그리면 어디까지가 답할 것인지가 안 갈린다. 대신 인디고 테두리가 이 판을 가른다.
+   ⚠️ 새 색을 만들지 않는다 — 이미 있는 --msgr-rail(인디고)·--msgr-surface(흰 면)뿐이다. */
+.msgr__ask {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-4) var(--sp-4) 0;
+  padding: var(--sp-3);
+  border: 2px solid var(--msgr-rail);
+  border-radius: var(--sp-2);
+  background: var(--msgr-surface);
+}
+
+.msgr__ask-title {
+  margin: 0;
+  color: var(--msgr-rail);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+/* 두 답이 **나란히** 선다 — 위아래로 쌓으면 아래쪽이 덜 중요한 답처럼 읽힌다.
+   받는 쪽이 넓은 것은 무엇을 내는지가 버튼 안에 적히기 때문이다(거절은 낼 것이 없다). */
+.msgr__ask-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-2);
+}
+
+/* 받는 버튼. 지시 버튼(`.msgr__give`)과 **같은 얼굴**이다 — 둘 다 값을 내는 행동이라
+   같은 무게로 서야 한다. */
+.msgr__ask-yes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 0;
+  border-radius: var(--sp-2);
+  background: var(--msgr-rail);
+  color: var(--msgr-surface);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  transition: opacity 200ms ease-out;
+}
+
+.msgr__ask-yes:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+/* ⚠️ 못 누르는 이유는 흐린 색이 아니라 아래 글자가 말한다(.msgr__note). */
+.msgr__ask-yes:disabled {
+  background: var(--msgr-chat-bg);
+  color: var(--msgr-text-2);
+}
+
+/* 인디고 면 위 보조 글자 — 레일용으로 이미 4.8:1을 넘겨 둔 값을 그대로 쓴다. */
+.msgr__ask-cost {
+  flex: none;
+  color: var(--msgr-rail-ink);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+}
+
+.msgr__ask-yes:disabled .msgr__ask-cost {
+  color: var(--msgr-text-2);
+}
+
+/* 거절 버튼. ⚠️ **빨강이 없다** — 이 팔레트에 경고색이 없고, 거절은 사고가 아니라
+   늘 고를 수 있는 답이다. 무채색 테두리로 서고 대가는 아래 글자가 적는다. */
+.msgr__ask-no {
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--msgr-stroke);
+  border-radius: var(--sp-2);
+  background: var(--msgr-surface);
+  color: var(--msgr-text-2);
+  font: inherit;
+  transition: background-color 200ms ease-out;
+}
+
+.msgr__ask-no:hover {
+  background: var(--msgr-chat-bg);
+}
+
+/* 목록에서 "답할 것이 있다"를 말하는 표식. ⚠️ 점이 아니라 **글자**다 — 색만으로
+   말하면 이 팔레트에서는 인디고 점 하나가 되고, 그것이 무슨 뜻인지 알 길이 없다. */
+.msgr__ask-dot {
+  margin-left: var(--sp-2);
+  padding: 1px var(--sp-2);
+  border-radius: var(--sp-2);
+  background: var(--msgr-rail);
+  color: var(--msgr-surface);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  vertical-align: middle;
+}

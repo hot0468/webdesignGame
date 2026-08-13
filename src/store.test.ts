@@ -14,6 +14,21 @@ import { MESSAGES, type Request } from './data/inbox'
 import type { ProgramId } from './data/programs'
 import { focusedWindowId, useGame } from './store'
 import { KEYWORDS, MEETING_AP, SITE_KEYWORDS } from './data/keywords'
+import {
+  FEEDBACK_AP,
+  GRUDGE_PER_REFUSAL,
+  GRUDGE_QUIT,
+  LEAVE_WEEKS,
+  RAISE_AMOUNT,
+  REQUEST_EXPIRE_WEEKS,
+  salaryOf,
+  TRAIN_COST,
+  TRAIN_STAT_GAIN,
+  TRAIN_WEEKS,
+} from './data/employees'
+import { canOrder, isBusy, quitMail, trained, type Employee } from './systems/employee'
+import type { EmployeeRequest } from './systems/request'
+import { makeSlot } from './systems/save'
 import { clientKeywords, GRADE_LADDER, revealedKeywords } from './systems/keywords'
 
 beforeEach(() => {
@@ -585,5 +600,199 @@ describe('키워드가 시안 등급을 민다', () => {
     useGame.getState().acceptJob(site)
     useGame.getState().holdMeeting(site.id)
     expect(useGame.getState().meetings[site.id]!.length).toBeLessThan(SITE_KEYWORDS)
+  })
+})
+
+
+// ── 직원 요청사항 ────────────────────────────────────────────────────────
+// ⚠️ 이 게임의 불변식은 **확률·돈·퇴사**다. 규칙을 뒤집어 확인한다.
+describe('직원 요청사항', () => {
+  const worker: Employee = {
+    id: 'e1',
+    name: '김지훈',
+    role: 'designer',
+    level: 2,
+    stats: { design: 50, publishing: 40, planning: 30, cs: 30 },
+    hiredWeek: 1,
+  }
+
+  const ask = (
+    kind: EmployeeRequest['kind'],
+    over: Partial<EmployeeRequest> = {},
+  ): EmployeeRequest => ({
+    id: 'req:1:e1',
+    employeeId: worker.id,
+    kind,
+    week: 1,
+    expires: 1 + REQUEST_EXPIRE_WEEKS,
+    ...over,
+  })
+
+  const seed = (over: Record<string, unknown> = {}) =>
+    useGame.setState({
+      employees: [worker],
+      orders: [],
+      trainings: [],
+      chats: [],
+      requests: [],
+      ...over,
+    })
+
+  it('급여협상을 받으면 월급이 오르고, **레벨업 인상과 겹쳐도 어긋나지 않는다**', () => {
+    seed({ requests: [ask('raise')] })
+    const before = monthlyCost(useGame.getState().employees)
+    useGame.getState().acceptRequest('req:1:e1')
+
+    const raised = useGame.getState().employees[0]!
+    expect(monthlyCost([raised])).toBe(before + RAISE_AMOUNT)
+    // ⚠️ 여기가 핵심이다: 월급을 통째로 굳혔다면 레벨이 올라도 값이 그대로였을 것이다.
+    //    가산 칸만 두었으므로 두 인상이 **함께** 산다.
+    const grown = trained(raised)
+    // ⚠️ 레벨분 인상이 **가산 위에 그대로 더 붙는다**(둘이 서로를 지우지 않는다).
+    expect(monthlyCost([grown]) - monthlyCost([raised])).toBe(
+      salaryOf(worker.level + 1) - salaryOf(worker.level),
+    )
+    expect(monthlyCost([grown]) - before).toBe(
+      RAISE_AMOUNT + salaryOf(worker.level + 1) - salaryOf(worker.level),
+    )
+  })
+
+  it('휴가를 받으면 그 기간 잡히고 **지시를 못 받는다**', () => {
+    seed({ requests: [ask('leave')] })
+    useGame.getState().acceptRequest('req:1:e1')
+
+    const s = useGame.getState()
+    // ⚠️ 점유는 새 목록이 아니라 `trainings`(kind: 'leave')가 진다.
+    expect(s.trainings).toHaveLength(1)
+    expect(s.trainings[0]!.kind).toBe('leave')
+    expect(isBusy(worker.id, s.orders, s.trainings)).toBe(true)
+    expect(canOrder(worker, 'figma', s.orders, s.trainings)).toBe(false)
+
+    // 가드가 **스토어에도** 있다 — 버튼 disabled만으로는 경로가 남는다.
+    const job = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'popup')!
+    useGame.getState().acceptJob(job)
+    const ap = useGame.getState().ap
+    useGame.getState().orderJob(worker.id, job.id)
+    expect(useGame.getState().orders).toHaveLength(0)
+    expect(useGame.getState().ap).toBe(ap)
+  })
+
+  it('휴가가 끝나도 **레벨은 오르지 않는다** — 쉬다 온 것이 교육이 되면 안 된다', () => {
+    seed({ requests: [ask('leave')] })
+    useGame.getState().acceptRequest('req:1:e1')
+    for (let i = 0; i < LEAVE_WEEKS + 1; i++) useGame.getState().advanceWeek()
+
+    const s = useGame.getState()
+    expect(s.employees[0]!.level).toBe(worker.level)
+    expect(s.employees[0]!.stats.design).toBe(worker.stats.design)
+    expect(isBusy(worker.id, s.orders, s.trainings)).toBe(false)
+  })
+
+  it('피드백은 **행동력을 실제로 물고** 등급을 한 칸만 올린다', () => {
+    const file = { id: 'f1', jobId: 'j1', name: '팝업.png', madeWeek: 1, grade: 'C' as const }
+    const req = ask('feedback', { target: { fileId: 'f1', name: '팝업.png', grade: 'C' } })
+    seed({ requests: [req], files: [file], ap: 3 })
+    useGame.getState().acceptRequest(req.id)
+
+    const s = useGame.getState()
+    expect(s.ap).toBe(3 - FEEDBACK_AP)
+    // 성패는 요청 id가 씨앗이다 — 어느 쪽이든 **한 칸 이내**여야 한다.
+    const moved = GRADE_LADDER.indexOf(s.files[0]!.grade) - GRADE_LADDER.indexOf('C')
+    expect(moved === 0 || moved === 1).toBe(true)
+    expect(s.requests).toHaveLength(0)
+  })
+
+  it('행동력이 없으면 피드백은 **아무 일도 일어나지 않고 요청도 남는다**', () => {
+    const file = { id: 'f1', jobId: 'j1', name: '팝업.png', madeWeek: 1, grade: 'C' as const }
+    const req = ask('feedback', { target: { fileId: 'f1', name: '팝업.png', grade: 'C' } })
+    seed({ requests: [req], files: [file], ap: 0 })
+    useGame.getState().acceptRequest(req.id)
+
+    const s = useGame.getState()
+    expect(s.ap).toBe(0)
+    expect(s.files[0]!.grade).toBe('C')
+    // ⚠️ 낼 것이 없다고 요청을 지우면 답할 기회가 사라진다(그건 무시가 아니라 사고다).
+    expect(s.requests).toHaveLength(1)
+  })
+
+  it('피드백은 **사다리 밖(SSS 위)으로 나가지 않는다**', () => {
+    const file = { id: 'f1', jobId: 'j1', name: '최고.png', madeWeek: 1, grade: 'SSS' as const }
+    const req = ask('feedback', { target: { fileId: 'f1', name: '최고.png', grade: 'SSS' } })
+    seed({ requests: [req], files: [file], ap: 3 })
+    useGame.getState().acceptRequest(req.id)
+    expect(useGame.getState().files[0]!.grade).toBe('SSS')
+  })
+
+  it('교육요청은 교육비를 물고, 끝나면 **평소보다 덜 오르지는 않는다**', () => {
+    seed({ requests: [ask('training')], money: TRAIN_COST * 2 })
+    useGame.getState().acceptRequest('req:1:e1')
+    expect(useGame.getState().money).toBe(TRAIN_COST)
+
+    for (let i = 0; i < TRAIN_WEEKS + 1; i++) useGame.getState().advanceWeek()
+    const grown = useGame.getState().employees[0]!
+    expect(grown.level).toBe(worker.level + 1)
+    // 실패해도 평소 효과는 얻는다(0이면 늘 거절이 정답이 된다).
+    expect(grown.stats.design).toBeGreaterThanOrEqual(worker.stats.design + TRAIN_STAT_GAIN)
+  })
+
+  it('교육비가 모자라면 아무 일도 일어나지 않는다 — 소지금이 음수로 안 간다', () => {
+    seed({ requests: [ask('training')], money: TRAIN_COST - 1 })
+    useGame.getState().acceptRequest('req:1:e1')
+    const s = useGame.getState()
+    expect(s.money).toBe(TRAIN_COST - 1)
+    expect(s.trainings).toHaveLength(0)
+    expect(s.requests).toHaveLength(1)
+  })
+
+  it('거절이 쌓이면 **실제로 퇴사한다** — 임계 아래면 안 나간다', () => {
+    seed({})
+    for (let i = 0; i < GRUDGE_QUIT; i++) {
+      useGame.setState({ requests: [ask('raise', { id: `req:${i}:e1`, expires: 999 })] })
+      useGame.getState().refuseRequest(`req:${i}:e1`)
+      expect(useGame.getState().employees[0]!.grudge).toBe(i + 1)
+      if (i < GRUDGE_QUIT - 1) {
+        // 임계 아래에서는 주차를 넘겨도 **안 나간다**.
+        useGame.getState().advanceWeek()
+        expect(useGame.getState().employees).toHaveLength(1)
+      }
+    }
+    // 임계에 닿았다 — 다음 주차 넘김에서 나간다.
+    useGame.getState().advanceWeek()
+    expect(useGame.getState().employees).toHaveLength(0)
+  })
+
+  it('불만 퇴사는 **위기 퇴사와 다른 메일**로 온다 — 무엇을 고칠지가 갈려야 한다', () => {
+    seed({ mails: [], reputation: 50 })
+    for (let i = 0; i < GRUDGE_QUIT; i++) {
+      useGame.setState({ requests: [ask('raise', { id: `req:${i}:e1`, expires: 999 })] })
+      useGame.getState().refuseRequest(`req:${i}:e1`)
+    }
+    useGame.getState().advanceWeek()
+
+    const mail = useGame.getState().mails.find((m) => m.id.startsWith('grudge:'))
+    expect(mail).toBeDefined()
+    // 위기 퇴사 메일(`quit:`)이 아니어야 한다 — 평판은 멀쩡하다.
+    expect(useGame.getState().mails.some((m) => m.id.startsWith('quit:'))).toBe(false)
+    expect(mail!.subject).not.toBe(quitMail(worker, 1).subject)
+  })
+
+  it('답하지 않고 기한을 넘기면 **거절과 같은 값**을 문다 — 무시가 싼 길이 아니다', () => {
+    seed({ requests: [ask('raise')] })
+    for (let i = 0; i <= REQUEST_EXPIRE_WEEKS; i++) useGame.getState().advanceWeek()
+    const s = useGame.getState()
+    expect(s.employees[0]!.grudge).toBe(GRUDGE_PER_REFUSAL)
+    expect(s.requests.some((q) => q.id === 'req:1:e1')).toBe(false)
+  })
+
+  it('받아들이면 불만이 쌓이지 않는다 — 그것이 받는 값의 전부다', () => {
+    seed({ requests: [ask('raise')] })
+    useGame.getState().acceptRequest('req:1:e1')
+    expect(useGame.getState().employees[0]!.grudge ?? 0).toBe(0)
+  })
+
+  // ⚠️ 새 상태 축은 `saveFields`에 넣어야 세이브에 들어간다 — 빠뜨리면 그 축만 조용히 안 남는다.
+  it('세이브 대상에 들어 있다', () => {
+    seed({ requests: [ask('leave')] })
+    expect(makeSlot(useGame.getState(), 0).data).toHaveProperty('requests')
   })
 })

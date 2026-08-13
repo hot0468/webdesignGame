@@ -8,6 +8,7 @@ import {
   REPUTATION_MAX,
   WINDOW_DRAG,
   WINDOW_SPAWN,
+  type Grade,
   type QualityId,
 } from './data/game'
 import { gradeOf, type Draft } from './systems/craft'
@@ -16,7 +17,7 @@ import { MEETING_AP, type KeywordId,
 } from './data/keywords'
 import { clientKeywords, hitCount, keywordShift, meetingMail, revealedKeywords } from './systems/keywords'
 import { CLIENTS } from './data/company'
-import { ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP, TRAIN_COST } from './data/employees'
+import { EMPLOYEE_LEVEL, FEEDBACK_AP, ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP, TRAIN_COST } from './data/employees'
 import type { Applicant } from './systems/hire'
 import {
   canOrder,
@@ -67,6 +68,25 @@ import {
   type PopupFile,
   type PopupJob,
 } from './systems/popup'
+import {
+  acceptedText,
+  expiredRequests,
+  fedUp,
+  feedbackWorks,
+  grudged,
+  grudgeQuitMail,
+  ignoredText,
+  leaveDoneWeek,
+  makeRequest,
+  raiseGrade,
+  raisedBy,
+  refusedText,
+  requestText,
+  trainRequestGain,
+  trainRequestWorks,
+  type EmployeeRequest,
+  type Workable,
+} from './systems/request'
 import { normalizeUrl } from './systems/url'
 import { makeSlot, parseSlot, slotKey } from './systems/save'
 
@@ -190,6 +210,14 @@ type Store = {
    *  ⚠️ 내가 한 말은 쌓지 않는다 — 지시는 `orders`에 이미 남아 있고, 같은 사실을 두 벌로
    *     적으면 둘이 어긋난다. */
   chats: Chat[]
+  /** **답을 기다리는 직원 요청.** 주차를 넘길 때 시드에서 생기고(`systems/request.ts`),
+   *  답하거나 기한이 지나면 사라진다.
+   *  ⚠️ `chats`(대화)와 **다른 축이다** — 대화는 흘러가는 글이고 요청은 답을 골라야
+   *     사라지는 것이라, 섞으면 무엇이 아직 안 끝났는지를 대화 전체를 훑어야 안다.
+   *  ⚠️ 답한 요청은 여기서 **지운다**(대신 대화에 결과 한 줄이 남는다) — 상태를 두 곳에
+   *     적으면 답한 요청이 목록에 계속 서 있는 사고가 난다. */
+  requests: EmployeeRequest[]
+
   /** 평판이 위기선 아래로 머문 주 수. `CRISIS_WEEKS_TO_SHUTDOWN`에 닿으면 폐업이다.
    *  ⚠️ 위기선 위로 오르면 **0으로 리셋**한다(설계 결정표). */
   crisisWeeks: number
@@ -261,6 +289,17 @@ type Store = {
   /** 교육을 보낸다. **레벨을 올리는 유일한 길**이다(일을 시켜도 저절로 오르지 않는다).
    *  ⚠️ 돈(`TRAIN_COST`)이 모자라거나 이미 잡혀 있거나 최고 레벨이면 아무 일도 없다. */
   train: (employeeId: string) => void
+  /** 직원의 요청을 **받아들인다**. 갈래마다 무는 것이 다르다(휴가=그 사람의 N주 /
+   *  급여협상=월급 영구 인상 / 피드백=내 행동력 `FEEDBACK_AP` / 교육요청=`TRAIN_COST`와
+   *  그 사람의 `TRAIN_WEEKS`). ⚠️ **낼 것이 없으면 아무 일도 일어나지 않는다** —
+   *  버튼 disabled만으로는 음수 경로가 남는다(이 리포의 확립된 규칙).
+   *  ⚠️ 받아들이면 불만은 **쌓이지 않는다**(그것이 받아들이는 값의 전부다). */
+  acceptRequest: (id: string) => void
+  /** 직원의 요청을 **거절한다**. 불만이 `GRUDGE_PER_REFUSAL`만큼 쌓이고, `GRUDGE_QUIT`에
+   *  닿으면 **다음 주차 넘김에서** 나간다(퇴사가 도는 자리는 `advanceWeek` 하나다 —
+   *  위기 퇴사와 같은 자리라 두 규칙이 서로를 안다). */
+  refuseRequest: (id: string) => void
+
   /** 다음 주로. **팝업 판정이 도는 유일한 자리다** — 행동력을 채우고, 어긋난 팝업이
    *  있으면 항의 메일이 들어오며 평판이 깎인다. */
   advanceWeek: () => void
@@ -367,6 +406,7 @@ const saveFields = (s: Store) => ({
   hirePostWeek: s.hirePostWeek,
   hiredApplicantIds: s.hiredApplicantIds,
   chats: s.chats,
+  requests: s.requests,
   crisisWeeks: s.crisisWeeks,
 })
 
@@ -392,6 +432,7 @@ const emptyGame = () => ({
   hirePostWeek: undefined,
   hiredApplicantIds: [],
   chats: [],
+  requests: [],
   crisisWeeks: 0,
 })
 
@@ -790,6 +831,108 @@ export const useGame = create<Store>()(
       }
     }),
 
+  // ── 요청 ──────────────────────────────────────────────
+  // 직원이 **먼저 말을 거는** 축이다. 지시·교육은 내가 사람을 쓰는 방향이라, 이 축이
+  // 없으면 직원이 자원으로만 읽힌다.
+  //
+  // ⚠️ 네 갈래가 **각자 다른 것을 문다** — 한 자리에서 갈리게 두는 이유는 무는 것이
+  //    달라도 "요청 하나에 답한다"는 사실은 하나이기 때문이다(목록을 넷으로 쪼개면
+  //    답하지 않은 것이 무엇인지 세는 곳이 넷이 된다).
+  // ⚠️ **낼 것이 없으면 아무 일도 일어나지 않고 요청도 남는다** — 여기서 요청을 지우면
+  //    행동력이 없다는 이유로 답할 기회가 사라진다(그건 무시가 아니라 사고다).
+  acceptRequest: (id) =>
+    set((s) => {
+      const req = s.requests.find((q) => q.id === id)
+      if (!req) return {}
+      const emp = s.employees.find((e) => e.id === req.employeeId)
+      if (!emp) return {}
+      // 답한 요청은 목록에서 사라진다(상태를 두 곳에 적지 않는다).
+      const rest = s.requests.filter((q) => q.id !== id)
+      const say = (text: string) => [...s.chats, { employeeId: emp.id, week: s.week, text }]
+
+      switch (req.kind) {
+        // 휴가. ⚠️ 점유는 **`trainings`가 진다**(`kind: 'leave'`) — 목록을 새로 만들지
+        //    않는다(사유는 달라도 "N주간 못 쓴다"는 사실은 하나다). ⚠️ `train`이 아니라
+        //    `leave`라서 끝나도 레벨이 오르지 않는다(쉬다 온 사람이 강해지면 휴가가
+        //    교육의 싼 대체재가 된다).
+        case 'leave':
+          return {
+            requests: rest,
+            trainings: [
+              ...s.trainings,
+              { employeeId: emp.id, from: s.week, doneWeek: leaveDoneWeek(s.week), kind: 'leave' as const },
+            ],
+            chats: say(acceptedText(req, s.week, true)),
+          }
+
+        // 급여협상. ⚠️ 월급 값을 통째로 저장하지 않고 **가산 칸만** 올린다 —
+        //    `salaryOf(level, raise)`가 레벨분 위에 더하므로 교육으로 레벨이 올라도
+        //    두 인상이 서로를 지우지 않는다.
+        case 'raise':
+          return {
+            requests: rest,
+            employees: s.employees.map((e) =>
+              e.id === emp.id ? { ...e, raise: raisedBy(e.raise) } : e,
+            ),
+            chats: say(acceptedText(req, s.week, true)),
+          }
+
+        // 피드백. **내 행동력을 문다.** ⚠️ 성패는 요청 id가 씨앗이라 다시 눌러도 같다 —
+        //    실패한 뒤 되돌아가 다시 굴릴 길이 있으면 확률이 도박으로 성립하지 않는다.
+        // ⚠️ 등급은 **한 칸만** 오르고 사다리 밖으로 나가지 않는다(`raiseGrade`).
+        case 'feedback': {
+          if (!req.target || s.ap < FEEDBACK_AP) return {}
+          const ok = feedbackWorks(req.id)
+          const bump = <T extends { id: string; grade: Grade }>(list: T[]): T[] =>
+            ok ? list.map((f) => (f.id === req.target!.fileId ? { ...f, grade: raiseGrade(f.grade) } : f)) : list
+          return {
+            requests: rest,
+            ap: s.ap - FEEDBACK_AP,
+            // 세 목록이 **같은 손짓을 받는다** — 대상이 어느 목록에 사는지는 스토어만
+            // 알고, 규칙(`raiseGrade`)은 그것을 모른다.
+            files: bump(s.files),
+            drafts: bump(s.drafts),
+            slides: bump(s.slides),
+            chats: say(acceptedText(req, s.week, ok)),
+          }
+        }
+
+        // 교육요청. **값도 기간도 내가 보내는 교육과 같다** — 다른 것은 결과뿐이다.
+        // ⚠️ 스탯 상승은 `advanceWeek`이 준다(교육이 끝나는 자리는 거기 하나다).
+        //    그래서 **얼마나 오를지를 지금 굳혀** 교육 줄에 실어 보낸다 — 나중에 다시
+        //    굴리면 같은 판을 불러올 때마다 답이 달라질 수 있다.
+        case 'training': {
+          if (s.money < TRAIN_COST) return {}
+          const doneWeek = trainDoneWeek(s.week)
+          return {
+            requests: rest,
+            money: s.money - TRAIN_COST,
+            trainings: [
+              ...s.trainings,
+              { employeeId: emp.id, from: s.week, doneWeek, kind: 'train' as const,
+                gain: trainRequestGain(trainRequestWorks(req.id)) },
+            ],
+            chats: say(acceptedText(req, s.week, true)),
+          }
+        }
+      }
+    }),
+
+  // 거절. ⚠️ **여기서 내보내지 않는다** — 퇴사가 도는 자리는 `advanceWeek` 하나다.
+  //    위기 퇴사와 같은 자리에 두어야 두 규칙이 서로를 안다(한 주에 두 이유로 두 번
+  //    나가거나, 나간 사람의 지시가 남는 사고가 생기지 않는다).
+  refuseRequest: (id) =>
+    set((s) => {
+      const req = s.requests.find((q) => q.id === id)
+      if (!req) return {}
+      const grudge = grudged(s.employees.find((e) => e.id === req.employeeId)?.grudge)
+      return {
+        requests: s.requests.filter((q) => q.id !== id),
+        employees: s.employees.map((e) => (e.id === req.employeeId ? { ...e, grudge } : e)),
+        chats: [...s.chats, { employeeId: req.employeeId, week: s.week, text: refusedText(grudge) }],
+      }
+    }),
+
   // ⚠️ 판정은 여기서 하지 않는다 — `systems/popup.ts`의 순수 함수가 내고 스토어는
   //    **적용만** 한다(평판을 만드는 규칙이 테스트 밖으로 새지 않게).
   //
@@ -886,8 +1029,22 @@ export const useGame = create<Store>()(
       // 위기선 위로 오르면 **0으로 리셋**한다(설계 결정표) — 갚을 수 있는 빚이어야 한다.
       const crisisWeeks = inCrisis ? s.crisisWeeks + 1 : 0
       // 위기면 매주 **한 명**이 나간다(레벨 높은 순 — 갈 곳 있는 사람부터).
-      const leaving = inCrisis ? quitter(s.employees) : undefined
-      const staying = leaving ? s.employees.filter((e) => e.id !== leaving.id) : s.employees
+      const crisisLeaver = inCrisis ? quitter(s.employees) : undefined
+
+      // ── 불만이 차서 나가는 사람 ──────────────────────────────
+      // ⚠️ 위기 퇴사와 **같은 자리에서** 처리한다(설계 제약) — 나가는 자리가 둘이면
+      //    한 주에 두 이유로 두 번 나가거나, 한쪽만 지시·교육을 걷는 사고가 난다.
+      // ⚠️ 위기로 나가는 사람과 겹치면 **한 번만** 센다(같은 사람이 두 통의 퇴사 메일을
+      //    보내지 않는다). 이유는 위기가 이긴다 — 회사가 가라앉는 것이 더 큰 사정이고,
+      //    화면에는 그렇게 읽히는 편이 맞다.
+      // ⚠️ 나가는 이유가 **메일 문안으로 구별된다**(`quitMail` vs `grudgeQuitMail`) —
+      //    같은 글이면 무엇을 고쳐야 하는지 알 수 없다.
+      const fedUpLeavers = s.employees.filter(
+        (e) => fedUp(e.grudge) && e.id !== crisisLeaver?.id,
+      )
+      const leavers = [...(crisisLeaver ? [crisisLeaver] : []), ...fedUpLeavers]
+      const gone = new Set(leavers.map((e) => e.id))
+      const staying = s.employees.filter((e) => !gone.has(e.id))
 
       // ── 교육이 끝난다 ────────────────────────────────────────
       // ⚠️ **레벨과 스탯이 함께** 오른다(`trained` 한 곳에서) — 여기서 따로 더하면
@@ -895,14 +1052,18 @@ export const useGame = create<Store>()(
       // ⚠️ 오른 레벨은 **다음 달 급여부터** 반영된다(`monthlyCost`가 아래에서 이 목록을
       //    본다) — 가르친 값이 곧바로 지출로 돌아온다.
       const doneTraining = finishedTrainings(s.trainings, next).filter(
-        (t) => !leaving || t.employeeId !== leaving.id,
+        (t) => !gone.has(t.employeeId),
       )
       // ⚠️ **교육으로 잡혔던 사람만** 레벨이 오른다 — 미팅에 다녀온 사람은 그냥 풀린다.
       //    한 목록에 두 사유가 사는 값이 이 한 줄이다(`Training.kind`).
-      const grown = new Set(
-        doneTraining.filter((t) => t.kind === 'train').map((t) => t.employeeId),
+      // ⚠️ **오르는 폭까지 여기서 온다**(`Training.gain`) — 교육요청의 1.5배 판정은
+      //    받아들이는 순간 굳어 그 줄에 실려 있다(다시 굴리면 불러올 때마다 답이 바뀐다).
+      const grown = new Map(
+        doneTraining.filter((t) => t.kind === 'train').map((t) => [t.employeeId, t.gain]),
       )
-      const employees = staying.map((e) => (grown.has(e.id) ? trained(e) : e))
+      const employees = staying.map((e) =>
+        grown.has(e.id) ? trained(e, grown.get(e.id)) : e,
+      )
       // 돌아왔다는 말도 그 방에 남는다 — 스탯은 늘 보이지만 무엇이 달라졌는지는
       // 이 한 줄이 아니면 알아채기 어렵다.
       const trainReports = employees
@@ -911,31 +1072,81 @@ export const useGame = create<Store>()(
       // 끝난 교육과 나간 사람의 교육은 목록에서 사라진다(`keptOrders`와 같은 규칙).
       const keptTrainings = s.trainings
         .filter((t) => !doneTraining.includes(t))
-        .filter((t) => !leaving || t.employeeId !== leaving.id)
+        .filter((t) => !gone.has(t.employeeId))
       // 끝난 지시는 목록에서 사라진다 — 직원의 점유가 이 목록에서만 파생하므로
       // (`isBusy`) 지우는 것이 곧 "다시 일을 맡을 수 있다"이다.
       // ⚠️ 나간 사람이 들고 있던 지시도 함께 사라진다 — 맡을 사람이 없는 일은 끝나지 않는다.
       const keptOrders = s.orders
         .filter((ord) => !finished.includes(ord))
-        .filter((ord) => !leaving || ord.employeeId !== leaving.id)
+        .filter((ord) => !gone.has(ord.employeeId))
+
+      // ── 직원 요청 ────────────────────────────────────────────
+      // ⚠️ **무시도 거절과 같은 값을 문다**(`grudged`) — 다르게 매기면 답하지 않는 것이
+      //    거절보다 싼 길이 되어 요청 판이 통째로 무시된다. 다만 벌은 **다음 주에** 온다:
+      //    이번 주에 온 요청은 `expires`까지 답할 시간이 있다(`REQUEST_EXPIRE_WEEKS`).
+      // ⚠️ 이 판정으로 임계에 닿은 사람은 **이번 주에 나가지 않는다** — 위에서 이미
+      //    나갈 사람을 골랐고, 그 사람은 다음 주차 넘김에서 나간다(마지막으로 한 번
+      //    더 답할 기회를 주는 편이 "무시하면 나간다"를 배우기 좋다).
+      const ignored = expiredRequests(s.requests, next).filter((q) => !gone.has(q.employeeId))
+      const ignoredGrudge = new Map(
+        ignored.map((q) => [
+          q.employeeId,
+          grudged(employees.find((e) => e.id === q.employeeId)?.grudge),
+        ]),
+      )
+      const withGrudge = employees.map((e) =>
+        ignoredGrudge.has(e.id) ? { ...e, grudge: ignoredGrudge.get(e.id)! } : e,
+      )
+      const ignoredChats = ignored.map((q) => ({
+        employeeId: q.employeeId,
+        week: next,
+        text: ignoredText(ignoredGrudge.get(q.employeeId)!),
+      }))
+
+      // 새 요청은 **시드에서** 온다(`systems/request.ts` — `Math.random` 없음).
+      // ⚠️ 답을 기다리는 요청이 이미 있는 사람은 건너뛴다(한 사람이 두 건을 쌓아 두면
+      //    어느 것에 답한 것인지가 흐려지고, 거절 한 번에 불만이 두 번 쌓인다).
+      // ⚠️ **피드백이 가리킬 작업물은 세 목록을 합쳐서 넘긴다** — 대상이 하나도 없으면
+      //    그 갈래는 후보에서 빠진다(고칠 것이 없는데 고쳐 달라는 요청은 뜻이 없다).
+      const pending = s.requests.filter(
+        (q) => !ignored.includes(q) && !gone.has(q.employeeId),
+      )
+      const works: Workable[] = [...s.files, ...s.drafts, ...s.slides]
+      const born = withGrudge
+        .filter((e) => !pending.some((q) => q.employeeId === e.id))
+        .map((e) =>
+          makeRequest(e, next, {
+            // 점유는 지시·교육·미팅·휴가를 함께 본다(`isBusy` 한 줄이 정본이다).
+            busy: isBusy(e.id, keptOrders, keptTrainings),
+            maxLevel: e.level >= EMPLOYEE_LEVEL.max,
+            works,
+          }),
+        )
+        .filter((q): q is EmployeeRequest => q !== undefined)
+      const requestChats = born.map((q) => ({
+        employeeId: q.employeeId,
+        week: next,
+        text: requestText(q),
+      }))
 
       // 월말 정산은 **마지막에** 편다 — 이번 주에 깨진 계약까지 반영한 잔액이 적혀야 한다.
       // ⚠️ 급여는 **이번 주에 나간 사람을 뺀 목록**으로 낸다 — 떠난 사람에게 월급을 주지 않는다.
       const settling = isSettleWeek(next)
-      const money = s.money - (settling ? monthlyCost(employees) : 0)
+      const money = s.money - (settling ? monthlyCost(withGrudge) : 0)
 
       return {
         week: next,
         ap: s.apMax,
         money,
-        employees,
+        employees: withGrudge,
         orders: keptOrders,
+        requests: [...pending, ...born],
         crisisWeeks,
         // 직원의 보고는 메신저 대화에 쌓인다. ⚠️ 나간 사람의 방은 통째로 사라지므로
         //    그 사람의 말도 함께 걷는다(없는 사람의 대화방을 열 자리가 없다).
         trainings: keptTrainings,
-        chats: [...s.chats, ...reports, ...trainReports].filter(
-          (c) => !leaving || c.employeeId !== leaving.id,
+        chats: [...s.chats, ...reports, ...trainReports, ...ignoredChats, ...requestChats].filter(
+          (c) => !gone.has(c.employeeId),
         ),
         drafts: [...s.drafts, ...intoDrafts],
         slides: [...s.slides, ...intoSlides],
@@ -947,8 +1158,11 @@ export const useGame = create<Store>()(
         // 어떻게 끝났는지가 사라지고, 같은 의뢰가 다시 새 글로 보인다.
         jobs: byOrder.jobs.map((j) => (isBreached(j, next) ? { ...j, done: true, breached: true } : j)),
         mails: [
-          ...(settling ? [settleMail(next, money, employees)] : []),
-          ...(leaving ? [quitMail(leaving, next)] : []),
+          ...(settling ? [settleMail(next, money, withGrudge)] : []),
+          // ⚠️ 나가는 이유가 **메일 문안으로 갈린다** — 위기(회사가 가라앉아서)와
+          //    불만(내 말이 안 받아들여져서)은 고쳐야 할 것이 서로 다르다.
+          ...(crisisLeaver ? [quitMail(crisisLeaver, next)] : []),
+          ...fedUpLeavers.map((e) => grudgeQuitMail(e, next)),
           ...breachMails,
           ...claimMails,
           ...s.mails,

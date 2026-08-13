@@ -25,6 +25,14 @@ export type Employee = {
   stats: EmployeeStats
   /** 고용한 주차. 메신저 첫 인사와 재직 기간이 여기서 나온다. */
   hiredWeek: number
+  /** 급여협상으로 붙은 **월급 가산**(원/월). ⚠️ 월급 값을 통째로 저장하지 않는 이유는
+   *  `salaryOf` 주석에 있다 — 레벨분은 그대로 파생하고 여기 값만 위에 더한다.
+   *  협상한 적이 없으면 없다(0과 같지만, 칸이 없는 옛 세이브도 그대로 선다). */
+  raise?: number
+  /** 요청을 거절·무시당하며 쌓인 **불만**. `GRUDGE_QUIT`에 닿으면 스스로 나간다
+   *  (`systems/request.ts`의 `fedUp`). ⚠️ 위기 퇴사와 **다른 축이다** — 그쪽은 평판이
+   *  정하고 이쪽은 내가 답한 방식이 정한다. */
+  grudge?: number
 }
 
 /** 진행 중인 지시 하나. **직원과 업무를 잇는 유일한 줄이다.**
@@ -61,8 +69,18 @@ export type Training = {
   /** 왜 잡혀 있는가. ⚠️ **점유 목록을 둘로 나누지 않는 이유**가 이 칸이다 —
    *  잡히는 사유는 달라도 "그 사람이 N주간 다른 일을 못 한다"는 사실은 하나라
    *  `isBusy`가 한 목록만 보면 된다. 끝날 때 하는 일만 여기서 갈린다
-   *  (`train`은 레벨이 오르고, `meeting`은 그냥 풀린다). */
-  kind: 'train' | 'meeting'
+   *  (`train`은 레벨이 오르고, `meeting`·`leave`는 그냥 풀린다).
+   *
+   *  ⚠️ **레벨이 오르는 것은 `train`뿐이다.** `leave`(휴가 요청)를 더할 때 그 규칙을
+   *     깨지 말 것 — 쉬다 온 사람이 강해지면 휴가가 교육의 싼 대체재가 된다. */
+  kind: 'train' | 'meeting' | 'leave'
+  /** 끝날 때 세 스탯이 오르는 폭. **없으면 `TRAIN_STAT_GAIN`**(내가 보내는 평범한 교육).
+   *
+   *  ⚠️ 이 칸이 있는 이유는 **교육요청**이다(`systems/request.ts`) — 그쪽은 1.5배를
+   *     낼지 말지가 확률이고, 그 판정을 **받아들이는 순간 굳혀** 여기 싣는다. 끝나는
+   *     자리(`advanceWeek`)에서 다시 굴리면 같은 판을 불러올 때마다 답이 달라진다.
+   *  ⚠️ `kind: 'train'`일 때만 뜻이 있다(나머지는 레벨도 스탯도 안 오른다). */
+  gain?: number
 }
 
 /** 교육이 끝나는 주차. */
@@ -98,12 +116,16 @@ export const finishedTrainings = (
  *  둘을 따로 적으면 레벨만 오르고 스탯이 안 오르는 판이 생긴다.
  *
  * ⚠️ 스탯은 **세 개가 함께** 오르고 100에서 잘린다. 종류를 가려 올리면 디블리셔만
- *    교육 가치가 두 배가 된다. ⚠️ 최고 레벨이면 **그대로 돌려준다**(넘어가지 않는다). */
-export function trained(employee: Employee): Employee {
+ *    교육 가치가 두 배가 된다. ⚠️ 최고 레벨이면 **그대로 돌려준다**(넘어가지 않는다).
+ *
+ * @param gain 오르는 폭. 안 주면 `TRAIN_STAT_GAIN`(평범한 교육). **교육요청은 1.5배를
+ *   받을 수 있고**(`systems/request.ts`), 그 값은 받아들이는 순간 굳어 `Training.gain`에
+ *   실려 온다 — 여기서 배수를 다시 계산하지 말 것(굴리는 자리가 둘이 된다). */
+export function trained(employee: Employee, gain: number = TRAIN_STAT_GAIN): Employee {
   if (employee.level >= EMPLOYEE_LEVEL.max) return employee
   // ⚠️ 축을 손으로 나열하지 않는다 — 스탯이 하나 늘 때 여기만 빠뜨리면 새 축은
   //    교육해도 안 오르고, 타입 검사는 그것을 못 잡는다(모양은 그대로이므로).
-  const up = (v: number) => Math.min(100, v + TRAIN_STAT_GAIN)
+  const up = (v: number) => Math.min(100, v + gain)
   const stats = Object.fromEntries(
     Object.entries(employee.stats).map(([k, v]) => [k, up(v)]),
   ) as EmployeeStats
@@ -143,7 +165,7 @@ export const finishedOrders = (orders: readonly Order[], week: number): Order[] 
 
 /** 월말에 나가는 급여 합계. **사람 수가 정본이다**(`SUBSCRIPTIONS`에 더하지 않는 이유). */
 export const payroll = (employees: readonly Employee[]): number =>
-  employees.reduce((sum, e) => sum + salaryOf(e.level), 0)
+  employees.reduce((sum, e) => sum + salaryOf(e.level, e.raise), 0)
 
 /** 평판 위기에 **먼저 떠나는 사람**. 설계 결정표대로 **레벨 높은 순**이다 —
  *  가라앉는 배에서 갈 곳이 있는 사람부터 나간다. 없으면 undefined(더 나갈 사람이 없다).
