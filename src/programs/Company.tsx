@@ -3,6 +3,8 @@ import { AppIcon } from '../icons/AppIcon'
 import { MessageList } from '../components/MessageList'
 import { PROGRAM_ICONS } from '../data/icons'
 import { CLIENTS, type Client } from '../data/company'
+import { INVESTS } from '../data/invest'
+import { investCost } from '../systems/invest'
 import { unreadCount } from '../data/inbox'
 import {
   COPY_FLASH_MS,
@@ -90,6 +92,8 @@ function Status() {
   const employees = useGame((s) => s.employees)
   const crisisWeeks = useGame((s) => s.crisisWeeks)
   const revenue = useGame((s) => s.revenue)
+  const invests = useGame((s) => s.invests)
+  const toggleInvest = useGame((s) => s.toggleInvest)
   const design = useGame((s) => s.design)
   const planning = useGame((s) => s.planning)
   const publishing = useGame((s) => s.publishing)
@@ -121,7 +125,37 @@ function Status() {
           이 화면이 진다(`Hud`와 겹치는 숫자를 다시 늘어놓지 않는다는 규칙). */}
       <p className="company__note">
         월 급여 합계 {payroll(employees).toLocaleString('ko-KR')}원
+        {invests.length > 0 && ` · 투자 ${investCost(invests).toLocaleString('ko-KR')}원`}
       </p>
+
+      {/* ── 월 투자 ─────────────────────────────────────────
+          ⚠️ **상점과 다른 축이다** — 저쪽은 한 번 사고 끝, 이쪽은 켜 두면 매달 나간다.
+             그래서 여기(매달의 돈을 말하는 자리)에 서고 버튼도 "구입"이 아니라 켬/끔이다.
+          ⚠️ 끄는 길을 반드시 남긴다 — 벌이가 줄면 접는 것이 이 축의 선택 전부다. */}
+      <div className="company__head">
+        <span className="company__label">월 투자</span>
+      </div>
+      <ul className="company__invests">
+        {INVESTS.map((i) => {
+          const on = invests.includes(i.id)
+          return (
+            <li key={i.id} className="company__invest">
+              <button
+                type="button"
+                className={`company__sign${on ? ' company__sign--on' : ''}`}
+                aria-pressed={on}
+                onClick={() => toggleInvest(i.id)}
+              >
+                {on ? '켜짐' : '켜기'}
+              </button>
+              <span className="company__invest-body">
+                <b>{i.name}</b> · 월 {i.cost.toLocaleString('ko-KR')}원 · {i.effect}
+                <span className="company__invest-desc">{i.desc}</span>
+              </span>
+            </li>
+          )
+        })}
+      </ul>
 
       {/* 회사레벨. ⚠️ 등급과 **붙여 두되 다른 줄**이다 — 둘 다 "회사가 얼마나 큰가"를
           말하지만 오르는 조건이 다르다(평판 vs 누적 매출). 한 줄에 섞으면 무엇을 올려야

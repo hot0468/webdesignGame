@@ -2027,3 +2027,40 @@ body {
     overscroll-behavior: contain;
   }
 }
+
+/* ── 월 투자 ───────────────────────────────────────────────
+   ⚠️ 상점(한 번 사고 끝)과 **다른 축**이라 사내시스템의 "매달의 돈" 자리에 선다.
+      버튼도 구입이 아니라 켬/끔이다 — 끄는 길이 이 축의 선택 전부이기 때문이다. */
+.company__invests {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.company__invest {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+
+.company__invest-body {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-sm);
+}
+
+/* 판(--color-card) 안이라 muted-foreground를 쓸 수 있다(4.76:1). */
+.company__invest-desc {
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+}
+
+/* 꺼진 상태. ⚠️ 채운 면은 **켜진 것**이 진다 — 꺼진 것이 더 눈에 띄면 무엇이 도는
+   중인지가 흐려진다. 그래서 꺼짐이 테두리만 남는 쪽이다. */
+.company__sign:not(.company__sign--on) {
+  background: none;
+  color: var(--color-primary);
+}

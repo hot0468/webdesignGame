@@ -91,6 +91,7 @@ import {
   settleMail,
 } from './systems/money'
 import { peakNotice, peakRequests } from './systems/holiday'
+import { investCost, referralMult, welfareGrudge, welfareMental } from './systems/invest'
 import {
   AWARD_PRIZE,
   AWARD_REPUTATION,
@@ -136,6 +137,7 @@ import {
 import { normalizeUrl } from './systems/url'
 import { newlyOpened, unlockMail } from './systems/unlock'
 import { findItem, type ShopItemId } from './data/shop'
+import { type InvestId } from './data/invest'
 import { buyBlock } from './systems/shop'
 import { portfolioBonus } from './systems/portfolio'
 import { INSPIRE_SHIFT, REFERENCE_AP } from './data/reference'
@@ -373,6 +375,10 @@ type Store = {
    *     불어나고 `url.ts`·`ftp.ts`가 보는 값이 두 벌이 된다). 여기 있는 것은 "아는가"뿐이다. */
   clients: string[]
 
+  /** **켜 둔 월 투자 id**(`data/invest.ts`). 매 정산에서 `investCost`만큼 빠진다.
+   *  ⚠️ 효과는 `systems/invest.ts`가 읽는다 — 곱하는 값을 여기 적지 마라. */
+  invests: string[]
+
   /** 쇼핑몰에서 **한 번만 살 수 있는 것**(장비) 중 이미 산 것의 id.
    *  ⚠️ 소모품(커피·의자)은 여기 안 쌓인다 — 반복해서 사는 것이라 "샀다"는 상태가 없다. */
   boughtIds: string[]
@@ -513,6 +519,9 @@ type Store = {
    *  ⚠️ 못 사는 경우(돈 부족·이미 삼·상한)에는 **아무 일도 일어나지 않는다** —
    *  판정은 `systems/shop.ts`의 `buyBlock` 하나가 내고 화면도 같은 함수를 쓴다. */
   buyItem: (id: ShopItemId) => void
+  /** 월 투자를 켜고 끈다. ⚠️ **켜는 순간 돈이 나가지 않는다** — 월 지출이라 정산에서
+   *  빠지고, 못 내면 급여 밀림과 같은 길로 벌을 받는다(`unpaidMonths`). */
+  toggleInvest: (id: InvestId) => void
   /** 그 업체와 **유지보수 계약**을 맺는다(사내시스템 > 업체정보). 다음 정산부터 매달 들어온다.
    *  ⚠️ 조건(완료 업무 수)을 못 채웠거나 이미 맺었으면 **아무 일도 일어나지 않는다** —
    *  판정은 `canContract` 하나가 내고 화면도 같은 함수를 쓴다. */
@@ -644,6 +653,7 @@ const saveFields = (s: Store) => ({
   apologized: s.apologized,
   contracts: s.contracts,
   clients: s.clients,
+  invests: s.invests,
   boughtIds: s.boughtIds,
   seenIntro: s.seenIntro,
   inspiredWeek: s.inspiredWeek,
@@ -682,6 +692,7 @@ const emptyGame = () => ({
   apologized: [],
   contracts: [],
   clients: [...INITIAL_CLIENTS],
+  invests: [],
   boughtIds: [],
   inspiredWeek: undefined,
   // ⚠️ 새 판은 소개를 **다시** 본다 — 판이 처음부터라는 뜻이고, 창에 건너뛰기가 있다.
@@ -1520,9 +1531,11 @@ export const useGame = create<Store>()(
           grudged(employees.find((e) => e.id === q.employeeId)?.grudge),
         ]),
       )
-      const withGrudge = employees.map((e) =>
-        ignoredGrudge.has(e.id) ? { ...e, grudge: ignoredGrudge.get(e.id)! } : e,
-      )
+      const withGrudge = employees
+        .map((e) => (ignoredGrudge.has(e.id) ? { ...e, grudge: ignoredGrudge.get(e.id)! } : e))
+        // ⚠️ 복지를 켜 두면 불만이 매주 조금 풀린다(쌓인 것이 있을 때만) — 거절 하나가
+        //    쌓는 양보다 작아서 요청을 다 거절하는 길이 공짜가 되지는 않는다.
+        .map((e) => ({ ...e, grudge: welfareGrudge(s.invests, e.grudge ?? 0) }))
       const ignoredChats = ignored.map((q) => ({
         employeeId: q.employeeId,
         week: next,
@@ -1568,14 +1581,14 @@ export const useGame = create<Store>()(
       // (`systems/referral.ts`) 여기서는 결과를 적용만 한다.
       // ⚠️ 돈 계산 **앞**에 둔다 — 상금·합의금이 그 주 잔액에 함께 반영돼야 정산 메일과
       //    계기판이 같은 값을 말한다.
-      const referred = referralOf(next, rep, s.clients)
+      const referred = referralOf(next, rep, s.clients, referralMult(s.invests))
       const won = awardWon(next, [...s.files, ...s.drafts, ...s.slides, ...s.publishes].map((f) => f.grade))
       // 납품한 것에서 나오는 사건이라 **완료한 업무 수**를 본다(깨진 계약은 빼고 센다).
       const sued = copyrightHit(next, s.jobs.filter((j) => j.done && !j.breached).length)
 
       const money =
         s.money +
-        (settling ? monthlyIncome(s.contracts) - monthlyCost(withGrudge) : 0) +
+        (settling ? monthlyIncome(s.contracts) - monthlyCost(withGrudge) - investCost(s.invests) : 0) +
         (won ? AWARD_PRIZE : 0) -
         (sued ? COPYRIGHT_FEE : 0)
 
@@ -1606,7 +1619,9 @@ export const useGame = create<Store>()(
         breaches: broken.length,
         quits: leavers.length,
       })
-      const mental = recovered(s.mental, s.mentalMax, hit)
+      // ⚠️ 복지는 **회복 쪽에 더한다**(벌을 깎지 않는다) — 나쁜 일의 무게는 그대로 두고
+      //    평소 회복을 늘리는 것이 이 투자의 뜻이다.
+      const mental = recovered(s.mental, s.mentalMax, hit, welfareMental(s.invests))
       // **행동력 상한의 정본은 이 함수 하나다**(회사레벨이 상한, 정신력이 그 상한에서
       // 깎는다). ⚠️ `s.apMax`를 그대로 쓰지 마라 — 정신력이 움직여도 칸이 안 변한다.
       const apMax = apMaxOf(s.revenue, mental)
@@ -1739,6 +1754,13 @@ export const useGame = create<Store>()(
       if (!canContract(done, s.contracts.includes(clientId))) return {}
       return { contracts: [...s.contracts, clientId] }
     }),
+
+  toggleInvest: (id) =>
+    set((s) => ({
+      invests: s.invests.includes(id)
+        ? s.invests.filter((x) => x !== id)
+        : [...s.invests, id],
+    })),
 
   buyItem: (id) =>
     set((s) => {

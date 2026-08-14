@@ -36,13 +36,15 @@ export function referralOf(
   week: number,
   reputation: number,
   known: readonly string[],
+  /** 광고 투자가 곱해 주는 값(`systems/invest.ts`). 안 켰으면 1이다. */
+  mult = 1,
 ): string | undefined {
   if (reputation < REFERRAL_MIN_REPUTATION) return undefined
   const pool = REFERRAL_CLIENTS.filter((id) => !known.includes(id))
   if (pool.length === 0) return undefined
 
   const roll = roller(`rfr:${week}`)
-  if (!roll.chance(REFERRAL_CHANCE)) return undefined
+  if (!roll.chance(REFERRAL_CHANCE * mult)) return undefined
   return roll.pick(pool)
 }
 

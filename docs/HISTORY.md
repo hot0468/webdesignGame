@@ -4,6 +4,7 @@
 코드에 앉힐 자리가 없는 결정(전역 방향 전환, 기각된 대안 전체)만 여기서 정본이 된다.
 
 <!-- 밀려난 줄은 이 아래에 -->
+| 2026-08-14 | 버그 넷 — 주말·입찰 **단가 배율이 대금에 안 붙던 것**(주말 근무가 순손해였다)·피드백이 `publishes`를 모름·죽은 새로고침·게임오버의 닿을 수 없는 안내 | src/systems/money.ts·weekend.ts·bidding.ts, src/store.ts(+test), src/components/GameOver.tsx, src/programs/Browser.tsx·Editor.tsx |
 | 2026-08-14 | 퍼블리싱 스탯 — 그전엔 등급을 안 내 대충 해도 만족도가 같았다. 밴드 고정·칸만 스탯이 정하고 약한 고리에 들어간다 | src/data/game.ts, src/store.ts(+test), src/programs/Editor.tsx·Company.tsx |
 | 2026-08-14 | **톡톡** — 클라이언트가 말을 거는 창(직원용 메신저와 다른 창·팔레트). 마감이 짧은 급한 의뢰가 오고 기존 수주 고리를 탄다 | src/programs/Talk.tsx·talk.css(신규), src/data/inbox.ts·programs.ts, src/App.tsx |
 | 2026-08-14 | **모바일 반응형(720px)** — 창은 전체화면, 작업 표시줄이 앱 전환기. 계기판은 시간만 남기고 스탯·업무목록은 **독의 네이티브 팝오버**로(전체화면 창 위에서도 행동력이 읽힌다). 좁은 화면에서 창이 화면 밖에 태어나던 버그도 함께 고쳤다 | src/index.css, src/programs/mail·messenger·editor·figma·photoshop·browser.css, src/components/Taskbar.tsx·Hud.tsx·Desktop.tsx, src/data/game.ts(WINDOW_FIT), src/store.ts(+test), project-context(shell.md) |

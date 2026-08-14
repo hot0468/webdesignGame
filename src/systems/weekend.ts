@@ -111,5 +111,5 @@ export const mentalHit = (counts: {
 
 /** 주차를 넘길 때 도는 정신력. **회복시킨 뒤 그 주의 나쁜 일을 뺀다.**
  *  ⚠️ **`mentalMax` 위로도 0 밑으로도 나가지 않는다**(자르는 자리는 여기와 `worked` 둘뿐). */
-export const recovered = (mental: number, mentalMax: number, hit = 0) =>
-  Math.max(0, Math.min(mentalMax, mental + MENTAL_RECOVERY) - hit)
+export const recovered = (mental: number, mentalMax: number, hit = 0, bonus = 0) =>
+  Math.max(0, Math.min(mentalMax, mental + MENTAL_RECOVERY + bonus) - hit)
