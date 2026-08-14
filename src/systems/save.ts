@@ -104,3 +104,13 @@ export function formatSavedAt(ms: number): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
+
+/** 슬롯 세 칸을 읽는다. ⚠️ **저장소를 읽는 자리는 여기 하나다** — 시작 메뉴와 결과
+ *  화면이 같은 목록을 봐야 "남겨 둔 판이 있다"는 말과 실제로 뜨는 칸이 갈리지 않는다.
+ *
+ *  ⚠️ `localStorage`가 없는 환경(테스트는 node)에서 터지지 않아야 한다(`saveStorage`와
+ *     같은 규칙) — 없으면 빈 칸 셋을 돌려준다. */
+export function readSlots(): (SaveSlot | null)[] {
+  if (typeof localStorage === 'undefined') return Array.from({ length: SLOT_COUNT }, () => null)
+  return Array.from({ length: SLOT_COUNT }, (_, i) => parseSlot(localStorage.getItem(slotKey(i + 1))))
+}

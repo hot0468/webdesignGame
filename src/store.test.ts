@@ -34,6 +34,7 @@ import {
 import { monthlyCost } from './systems/money'
 import { MESSAGES, inbox, unreadCount, type Request } from './data/inbox'
 import type { ProgramId } from './data/programs'
+import { feedbackWorks, raiseGrade } from './systems/request'
 import { asStep, focusedWindowId, useGame } from './store'
 import { openStep, satisfaction, stepsOf } from './systems/pipeline'
 import { weekendEvent } from './systems/weekend'
@@ -1389,3 +1390,49 @@ describe('숙련도', () => {
   })
 })
 
+
+/** 작업물 목록은 **넷이다**(`files`·`drafts`·`slides`·`publishes`). 넷을 훑어야 하는 자리가
+ *  셋만 보는 사고가 이 리포에서 두 번 났다(완료 만족도·직원 피드백).
+ *  ⚠️ 새 목록을 더하면 **이 테스트가 먼저 깨져야** 한다. */
+describe('작업물 목록을 훑는 자리', () => {
+  it('직원 피드백이 퍼블리싱 결과물도 올려 준다 — 한 목록만 빠지면 영영 못 고친다', () => {
+    const g = () => useGame.getState()
+    const fixReq = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'fix')!
+    useGame.setState({ ...emptyState(), publishing: 0 })
+    g().acceptJob(fixReq)
+    g().publishJob(fixReq.id)
+
+    const made = g().publishes[0]!
+    expect(made.grade).not.toBe('SSS')
+
+    // 그 결과물을 콕 집은 피드백 요청을 넣고 받아들인다.
+    useGame.setState({
+      employees: [
+        {
+          id: 'e1',
+          name: '봐주는사람',
+          role: 'designer',
+          level: 3,
+          stats: { design: 50, publishing: 50, planning: 50, cs: 50 },
+          hiredWeek: 1,
+        },
+      ],
+      requests: [
+        {
+          // ⚠️ 성패는 요청 id가 씨앗이다 — `r2`는 **성공하는 id**라 등급이 실제로 올라야 한다.
+          id: 'r2',
+          employeeId: 'e1',
+          kind: 'feedback',
+          week: g().week,
+          expires: g().week + 1,
+          target: { fileId: made.id, name: made.name, grade: made.grade },
+        },
+      ],
+      ap: 3,
+    })
+    expect(feedbackWorks('r2')).toBe(true)
+    g().acceptRequest('r2')
+    // ⚠️ 뒤집기: `publishes`가 `bump` 목록에서 빠져 있으면 **성공해도 등급이 그대로**다.
+    expect(g().publishes[0]!.grade).toBe(raiseGrade(made.grade))
+  })
+})

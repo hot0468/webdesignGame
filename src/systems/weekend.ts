@@ -3,6 +3,7 @@ import {
   MENTAL_RECOVERY,
   WEEKEND_DUE_WEEKS,
   WEEKEND_EVENT_CHANCE,
+  WEEKEND_FEE_MULT,
   WEEKEND_MENTAL_COST,
 } from '../data/game'
 import type { Request } from '../data/inbox'
@@ -76,6 +77,9 @@ export function weekendEvent(week: number): Request | undefined {
     body: text.body,
     at: `${formatWeek(week)} 주말`,
     dueWeeks: WEEKEND_DUE_WEEKS,
+    // ⚠️ **마감이 짧은 값이다** — 이 배율이 없으면 주말 근무는 정신력만 물고 얻는 것이
+    //    없는 순손해가 된다(그런 채로 굴러갔다).
+    feeMult: WEEKEND_FEE_MULT,
     kind,
   }
 }

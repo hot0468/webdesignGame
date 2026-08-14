@@ -153,6 +153,9 @@ export type Job = {
   replied: number
   due: number
   done: boolean
+  /** 단가 배율(없으면 1). **수주 시점에 굳는다** — 의뢰 글은 사라져도 대금은 남는다.
+   *  ⚠️ 화면이 "예정 단가"로 곱해 적는 값과 **같은 값**이어야 한다(`reward`가 받는다). */
+  feeMult?: number
   /** 마감을 넘겨 깨진 계약. ⚠️ `done`과 **함께** 선다 — 끝난 것은 맞고, 어떻게 끝났는지가
    *  이 칸이다(목록에서 지우면 무엇이 어떻게 끝났는지가 사라진다). */
   breached?: boolean
@@ -794,6 +797,9 @@ export const useGame = create<Store>()(
                 replied: 0,
                 due: s.week + m.dueWeeks,
                 done: false,
+                // ⚠️ **배율을 여기서 굳힌다** — 의뢰 글은 사라져도 대금은 남아야 한다.
+                //    없으면 아예 싣지 않는다(평범한 의뢰는 1이고 `reward`가 그렇게 읽는다).
+                ...(m.feeMult !== undefined && { feeMult: m.feeMult }),
                 // 요청 기간도 **받는 주에 굳는다**(마감과 같은 이유). 상대값으로 들고
                 // 있으면 주가 지나도 늘 같은 주를 가리켜 판정이 뜻을 잃는다.
                 ...(m.popup && {
@@ -1011,7 +1017,7 @@ export const useGame = create<Store>()(
       // ⚠️ 평판 clamp는 여기서 한 번만 한다 — 순수 함수 쪽에서 또 자르면 두 곳이 서로
       //    다른 값을 믿게 된다(`advanceWeek`의 클레임 처리와 같은 규칙).
       const grade = satisfaction(grades)
-      const { fee, reputation } = reward(job.kind, grade)
+      const { fee, reputation } = reward(job.kind, grade, job.feeMult)
       // ⚠️ 누적 매출은 **여기 한 곳**에서만 는다(대금이 들어오는 유일한 자리다).
       //    행동력 상한은 그 값에서 파생한다 — 두 곳에 적으면 어긋난다.
       const revenue = s.revenue + fee
@@ -1235,11 +1241,14 @@ export const useGame = create<Store>()(
           return {
             requests: rest,
             ap: s.ap - FEEDBACK_AP,
-            // 세 목록이 **같은 손짓을 받는다** — 대상이 어느 목록에 사는지는 스토어만
+            // **네 목록이 같은 손짓을 받는다** — 대상이 어느 목록에 사는지는 스토어만
             // 알고, 규칙(`raiseGrade`)은 그것을 모른다.
+            // ⚠️ 하나라도 빠뜨리면 그 목록의 작업물은 **영영 못 고친다**(퍼블리싱이
+            //    그런 채로 굴러갔다). 아래 `works`와 **같은 넷**이어야 한다.
             files: bump(s.files),
             drafts: bump(s.drafts),
             slides: bump(s.slides),
+            publishes: bump(s.publishes),
             chats: say(acceptedText(req, s.week, ok)),
           }
         }
@@ -1492,12 +1501,14 @@ export const useGame = create<Store>()(
       // 새 요청은 **시드에서** 온다(`systems/request.ts` — `Math.random` 없음).
       // ⚠️ 답을 기다리는 요청이 이미 있는 사람은 건너뛴다(한 사람이 두 건을 쌓아 두면
       //    어느 것에 답한 것인지가 흐려지고, 거절 한 번에 불만이 두 번 쌓인다).
-      // ⚠️ **피드백이 가리킬 작업물은 세 목록을 합쳐서 넘긴다** — 대상이 하나도 없으면
+      // ⚠️ **피드백이 가리킬 작업물은 네 목록을 합쳐서 넘긴다** — 대상이 하나도 없으면
       //    그 갈래는 후보에서 빠진다(고칠 것이 없는데 고쳐 달라는 요청은 뜻이 없다).
+      // ⚠️ 위 `acceptRequest`의 `bump`와 **같은 넷**이어야 한다 — 여기서만 후보로 뽑고
+      //    저기서 못 올리면 요청을 받아도 아무 일이 안 일어난다.
       const pending = s.requests.filter(
         (q) => !ignored.includes(q) && !gone.has(q.employeeId),
       )
-      const works: Workable[] = [...s.files, ...s.drafts, ...s.slides]
+      const works: Workable[] = [...s.files, ...s.drafts, ...s.slides, ...s.publishes]
       const born = withGrudge
         .filter((e) => !pending.some((q) => q.employeeId === e.id))
         .map((e) =>

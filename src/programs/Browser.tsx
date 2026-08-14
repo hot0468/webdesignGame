@@ -93,12 +93,15 @@ export function Browser() {
         >
           <AppIcon name={BROWSER_ICONS.forward} size={18} />
         </button>
-        {/* 새로고침은 실제로 동작한다 — 지금 주소를 다시 푼다. */}
+        {/* ⚠️ 새로고침은 `go`를 부르면 **아무 일도 안 한다** — 같은 주소면 기록을 쌓지
+            않으려고 `go`가 곧바로 돌아가고, 평상시 `typed`는 지금 주소와 같기 때문이다
+            (그런 채로 굴러갔다). 그래서 주소창의 글자를 **지금 주소로 되돌리는** 일을
+            시킨다: 치다 만 글자가 지워지고 화면은 지금 주소에서 다시 파생한다. */}
         <button
           type="button"
           className="nv__nav"
           aria-label="새로고침"
-          onClick={() => go(typed)}
+          onClick={() => setTyped(atUrl)}
         >
           <AppIcon name={BROWSER_ICONS.reload} size={18} />
         </button>

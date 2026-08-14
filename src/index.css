@@ -1779,6 +1779,43 @@ body {
   opacity: 0.9;
 }
 
+.over__slots {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 되돌아갈 칸. ⚠️ 새 게임(채운 면)과 **다른 얼굴**이다 — 지금 판을 버리는 일과
+   남겨 둔 판으로 가는 일은 다른 선택이고, 눈이 먼저 가야 할 곳은 이쪽이다. */
+.over__slot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--sp-2);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  transition: background-color 200ms ease-out;
+}
+
+.over__slot:hover {
+  background: var(--color-muted);
+}
+
+.over__slot-when {
+  flex: none;
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+}
+
 .over__note {
   color: var(--color-muted-foreground);
   font-size: var(--fs-xs);

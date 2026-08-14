@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { CLIENTS } from '../data/company'
 import { apCost, PUBLISH_AP, PUBLISH_QUALITY, skillFor } from '../data/game'
+import { CHANNEL_LABEL } from '../data/inbox'
 import { EDITOR_ICONS } from '../data/icons'
 import { formatDate } from '../systems/calendar'
 import { gradeOf } from '../systems/craft'
@@ -215,7 +216,7 @@ export function Editor() {
                       <span className="ed__job-cost">
                         {isTurnOf(asStep(j), 'editor')
                           ? `행동력 ${cost} · 등급 ${grade}`
-                          : '올렸다 · 회신해야 끝난다'}
+                          : `올렸다 · ${CHANNEL_LABEL[j.channel]}에서 회신해야 끝난다`}
                       </span>
                     </button>
                   </li>
@@ -229,11 +230,12 @@ export function Editor() {
         ) : (
           <div className="ed__welcome-pane">
             <p className="ed__welcome">webdi</p>
-            {/* ⚠️ 없는 규칙을 화면이 말하지 않는다 — 숙련도 감면은 그 축이 생길 때 적는다. */}
+            {/* 값은 `apCost`가 낸다(코딩 숙련도 감면이 이미 걸린 값이다) — 화면이
+                따로 계산하지 않는다. */}
             <p className="ed__note">
               업체 폴더를 열면 그 업체의 남은 업무가 여기 뜬다. 올리면 행동력 {cost}를
-              쓰고 등급 {grade}짜리 결과가 나온다 — 그 결과를 의뢰 글에 회신해야 업무가
-              끝난다.
+              쓰고 등급 {grade}짜리 결과가 나온다 — 그 결과를 **그 일이 온 곳**(메일·고객게시판·
+              톡톡)에서 회신해야 업무가 끝난다.
             </p>
           </div>
         )}

@@ -8,8 +8,10 @@ import {
   MENTAL_RECOVERY,
   mentalPenalty,
   WEEKEND_DUE_WEEKS,
+  WEEKEND_FEE_MULT,
   WEEKEND_MENTAL_COST,
 } from '../data/game'
+import { reward } from './money'
 import { PIPELINE } from './pipeline'
 import { recovered, weekendEvent, worked } from './weekend'
 
@@ -95,5 +97,22 @@ describe('정신력 → 행동력 상한', () => {
     expect(apMaxOf(0, 0)).toBe(AP_MIN)
     expect(AP_MIN).toBeGreaterThan(0)
     expect(COMPANY_LEVELS[0].apMax - worst).toBeLessThanOrEqual(AP_MIN)
+  })
+})
+
+// ⚠️ 뒤집기: 배율이 안 실리면 주말 근무는 정신력만 물고 얻는 것이 없는 **순손해**가 된다
+//    (실제로 그런 채로 굴러갔다 — 상수는 있는데 아무도 안 썼다).
+describe('돌발 의뢰의 단가', () => {
+  it('배율을 달고 나온다 — 마감이 짧은 값이다', () => {
+    const ev = weekendEvent(eventWeek)!
+    expect(ev.feeMult).toBe(WEEKEND_FEE_MULT)
+    expect(WEEKEND_FEE_MULT).toBeGreaterThan(1)
+  })
+
+  it('대금이 실제로 그만큼 는다', () => {
+    const plain = reward('fix', 'C')
+    const rush = reward('fix', 'C', WEEKEND_FEE_MULT)
+    expect(rush.fee).toBeGreaterThan(plain.fee)
+    expect(rush.fee).toBe(Math.round(plain.fee * WEEKEND_FEE_MULT))
   })
 })

@@ -71,6 +71,13 @@ export type PopupSpec = { clientId: string; fromWeeks: number; toWeeks: number }
 export type Request = Common & {
   ad?: undefined
   dueWeeks: number
+  /** 단가 배율. **없으면 1**(평범한 의뢰)이다.
+   *
+   *  ⚠️ 배율이 붙는 의뢰는 둘이다: **주말 돌발**(마감이 짧은 값)과 **입찰 낙찰**(규모가
+   *     큰 값). 화면이 "예정 단가"로 이 배율을 곱해 적으므로 **대금도 같은 배율을 타야
+   *     한다** — 안 그러면 적힌 값과 들어오는 값이 다르다(실제로 그랬다).
+   *  ⚠️ 수주하면 `Job.feeMult`로 굳는다 — 의뢰 글은 사라져도 대금은 남아야 한다. */
+  feeMult?: number
   /** 어떤 공정의 줄을 타는 업무인가(`systems/pipeline.ts`의 `PIPELINE`).
    *  ⚠️ **신규 사이트(`site`)는 세 공정, 유지보수 수정(`fix`)은 하나다** — 배너 한 장
    *  바꾸는 일에 화면정의서를 요구하지 않는다. `popup`은 `popup` 칸도 함께 진다. */

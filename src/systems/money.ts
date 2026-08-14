@@ -24,9 +24,12 @@ import type { JobKind } from './pipeline'
  *    같은 자리에서 한 번만 자르지 않으면 두 곳이 서로 다른 값을 믿게 된다). */
 
 /** 완료 회신이 지급하는 대금과 평판 변화. 등급이 없으면(퍼블리싱만 있는 업무) **기준선**이다. */
-export function reward(kind: JobKind, grade: Grade | undefined) {
+export function reward(kind: JobKind, grade: Grade | undefined, feeMult = 1) {
   const g = grade ? GRADE_REWARD[grade] : GRADE_REWARD.C
-  return { fee: Math.round(BASE_FEE[kind] * g.fee), reputation: g.reputation }
+  // ⚠️ `feeMult`는 **그 의뢰가 원래 비싸다**는 뜻이고(주말 돌발·큰 입찰), 등급 배율과
+  //    **곱해진다**. 화면이 "예정 단가"로 같은 배율을 곱해 적으므로 여기서 빠뜨리면
+  //    적힌 값과 들어오는 값이 갈린다 — 실제로 그런 채로 굴러갔다.
+  return { fee: Math.round(BASE_FEE[kind] * feeMult * g.fee), reputation: g.reputation }
 }
 
 /** 마감을 넘긴 업무의 결과. 대금은 **0이다** — 못 지킨 일에는 돈이 나오지 않는다. */
