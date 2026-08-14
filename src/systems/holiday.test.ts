@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { INITIAL_CLIENTS } from '../data/company'
 import { WEEKS_PER_MONTH } from '../data/game'
 import { HOLIDAYS, PEAK_JOBS } from '../data/holiday'
 import { toCalendar } from './calendar'
@@ -21,7 +22,7 @@ describe('공휴일 피크타임', () => {
   it('평범한 주에는 아무 일도 없다', () => {
     const quiet = weekOf(HOLIDAYS[0]!) - 3
     expect(peakOf(quiet)).toBeUndefined()
-    expect(peakRequests(quiet)).toEqual([])
+    expect(peakRequests(quiet, [...INITIAL_CLIENTS])).toEqual([])
   })
 
   // ⚠️ 해를 보지 않는다 — 통산 주차로 잡았다면 2년차에 공휴일이 사라진다.
@@ -33,7 +34,7 @@ describe('공휴일 피크타임', () => {
 
   it('피크에는 여러 건이 한꺼번에 오고 업체가 겹치지 않는다', () => {
     const week = weekOf(HOLIDAYS[0]!) - 1
-    const reqs = peakRequests(week)
+    const reqs = peakRequests(week, [...INITIAL_CLIENTS])
     expect(reqs).toHaveLength(PEAK_JOBS)
     const clients = reqs.map((r) => r.popup!.clientId)
     expect(new Set(clients).size).toBe(clients.length)
@@ -42,7 +43,7 @@ describe('공휴일 피크타임', () => {
   // ⚠️ 팝업의 불변식: 게시가 끝난 **뒤에** 마감이 온다(`data/inbox.ts`).
   //    깨지면 기간 안에 걸어 두고도 마감을 못 지키는 판이 된다.
   it('마감이 게시 기간보다 뒤다', () => {
-    for (const r of peakRequests(weekOf(HOLIDAYS[0]!) - 1)) {
+    for (const r of peakRequests(weekOf(HOLIDAYS[0]!) - 1, [...INITIAL_CLIENTS])) {
       expect(r.dueWeeks).toBeGreaterThan(r.popup!.toWeeks)
       expect(r.popup!.fromWeeks).toBeLessThanOrEqual(r.popup!.toWeeks)
     }
@@ -50,13 +51,13 @@ describe('공휴일 피크타임', () => {
 
   it('같은 주는 늘 같은 의뢰다 — 창을 닫았다 열어 다시 굴릴 수 없다', () => {
     const week = weekOf(HOLIDAYS[1]!) - 1
-    expect(peakRequests(week)).toEqual(peakRequests(week))
+    expect(peakRequests(week, [...INITIAL_CLIENTS])).toEqual(peakRequests(week, [...INITIAL_CLIENTS]))
   })
 
   it('게시 기간이 공휴일 주를 덮는다 — 대목에 걸려 있어야 뜻이 있다', () => {
     const week = weekOf(HOLIDAYS[0]!) - 1
     const holidayWeek = weekOf(HOLIDAYS[0]!)
-    for (const r of peakRequests(week)) {
+    for (const r of peakRequests(week, [...INITIAL_CLIENTS])) {
       // 수주 시점(그 주)에서 센 상대값이 공휴일 주를 포함해야 한다.
       expect(week + r.popup!.fromWeeks).toBeLessThanOrEqual(holidayWeek)
       expect(week + r.popup!.toWeeks).toBeGreaterThanOrEqual(holidayWeek)

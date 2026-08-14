@@ -23,7 +23,7 @@ import {
 import { gradeOf, type Draft } from './systems/craft'
 import { MEETING_AP, MEETING_OCCUPY_WEEKS, type KeywordId } from './data/keywords'
 import { clientKeywords, hitCount, keywordShift, meetingMail, revealedKeywords } from './systems/keywords'
-import { CLIENTS } from './data/company'
+import { CLIENTS, INITIAL_CLIENTS } from './data/company'
 import { EMPLOYEE_LEVEL, FEEDBACK_AP, ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP, TRAIN_COST } from './data/employees'
 import type { Applicant } from './systems/hire'
 import {
@@ -91,6 +91,18 @@ import {
   settleMail,
 } from './systems/money'
 import { peakNotice, peakRequests } from './systems/holiday'
+import {
+  AWARD_PRIZE,
+  AWARD_REPUTATION,
+  COPYRIGHT_FEE,
+  COPYRIGHT_REPUTATION,
+  awardMail,
+  awardWon,
+  copyrightHit,
+  copyrightMail,
+  referralMail,
+  referralOf,
+} from './systems/referral'
 import { mentalHit, recovered, weekendEvent, worked } from './systems/weekend'
 import type { ProgramId } from './data/programs'
 import {
@@ -354,6 +366,12 @@ type Store = {
    *  급여의 반대편이라 고정 수입이 있어야 사람을 뽑는 일이 도박이 아니라 계산이 된다.
    *  ⚠️ 맺는 조건(그 업체 완료 업무 수)은 `systems/money.ts`의 `canContract`가 정본이다. */
   contracts: string[]
+
+  /** **지금 거래하는 업체 id.** 처음엔 `INITIAL_CLIENTS` 넷이고, 평판이 높으면 소개로
+   *  늘어난다(`systems/referral.ts`).
+   *  ⚠️ 업체의 **주소·계정은 `CLIENTS` 상수가 정본이다** — 여기 옮기지 마라(세이브가
+   *     불어나고 `url.ts`·`ftp.ts`가 보는 값이 두 벌이 된다). 여기 있는 것은 "아는가"뿐이다. */
+  clients: string[]
 
   /** 쇼핑몰에서 **한 번만 살 수 있는 것**(장비) 중 이미 산 것의 id.
    *  ⚠️ 소모품(커피·의자)은 여기 안 쌓인다 — 반복해서 사는 것이라 "샀다"는 상태가 없다. */
@@ -625,6 +643,7 @@ const saveFields = (s: Store) => ({
   over: s.over,
   apologized: s.apologized,
   contracts: s.contracts,
+  clients: s.clients,
   boughtIds: s.boughtIds,
   seenIntro: s.seenIntro,
   inspiredWeek: s.inspiredWeek,
@@ -662,6 +681,7 @@ const emptyGame = () => ({
   over: undefined,
   apologized: [],
   contracts: [],
+  clients: [...INITIAL_CLIENTS],
   boughtIds: [],
   inspiredWeek: undefined,
   // ⚠️ 새 판은 소개를 **다시** 본다 — 판이 처음부터라는 뜻이고, 창에 건너뛰기가 있다.
@@ -1310,7 +1330,7 @@ export const useGame = create<Store>()(
   workWeekend: () =>
     set((s) => {
       if (s.over || s.weekendWorked.includes(s.week)) return {}
-      const event = weekendEvent(s.week)
+      const event = weekendEvent(s.week, s.clients)
       // 돌발 의뢰가 없는 주말에는 태울 것이 없다(화면도 버튼을 그리지 않는다).
       if (!event || s.jobs.some((j) => j.id === event.id)) return {}
       get().acceptJob(event)
@@ -1543,8 +1563,21 @@ export const useGame = create<Store>()(
       // ⚠️ 유지보수 수입은 **지출보다 먼저** 더한다 — 급여를 줬는지 판정(`unpaidMonths`)이
       //    이 잔액을 보므로, 계약이 있는데도 밀린 것으로 세면 파산이 앞당겨진다.
       const contractNames = s.contracts.map((id) => CLIENTS.find((c) => c.id === id)?.name ?? id)
+      // ── 특수 이벤트 셋 ──────────────────────────────────────
+      // **좋은 일 둘(소개·수상)과 나쁜 일 하나(저작권)**. 판정은 전부 순수 함수가 지고
+      // (`systems/referral.ts`) 여기서는 결과를 적용만 한다.
+      // ⚠️ 돈 계산 **앞**에 둔다 — 상금·합의금이 그 주 잔액에 함께 반영돼야 정산 메일과
+      //    계기판이 같은 값을 말한다.
+      const referred = referralOf(next, rep, s.clients)
+      const won = awardWon(next, [...s.files, ...s.drafts, ...s.slides, ...s.publishes].map((f) => f.grade))
+      // 납품한 것에서 나오는 사건이라 **완료한 업무 수**를 본다(깨진 계약은 빼고 센다).
+      const sued = copyrightHit(next, s.jobs.filter((j) => j.done && !j.breached).length)
+
       const money =
-        s.money + (settling ? monthlyIncome(s.contracts) - monthlyCost(withGrudge) : 0)
+        s.money +
+        (settling ? monthlyIncome(s.contracts) - monthlyCost(withGrudge) : 0) +
+        (won ? AWARD_PRIZE : 0) -
+        (sued ? COPYRIGHT_FEE : 0)
 
       // ── 급여를 줬는가 ────────────────────────────────────────
       // ⚠️ **잔액이 음수인 것과 다르다.** 월정액까지 낸 뒤 남은 돈이 급여를 덮지 못한
@@ -1605,7 +1638,13 @@ export const useGame = create<Store>()(
         files: [...s.files, ...intoFiles],
         // ⚠️ 업체당 한 번만 깎는다(같은 주에 세 갈래가 어긋나도 `claims`는 한 건이다).
         //    ⚠️ clamp는 **여기 한 곳**에서만 한다(완료 회신도 같은 함수를 쓴다).
-        reputation: rep,
+        // ⚠️ 수상·저작권도 여기서 함께 반영한다 — clamp를 두 곳에서 하면 서로 다른
+        //    값을 믿게 된다(평판을 자르는 자리는 이 파일에서 `clampReputation` 하나다).
+        reputation: clampReputation(
+          rep + (won ? AWARD_REPUTATION : 0) - (sued ? COPYRIGHT_REPUTATION : 0),
+        ),
+        // 소개받은 곳이 거래처가 된다(주소·계정은 `CLIENTS` 상수가 이미 들고 있다).
+        clients: referred ? [...s.clients, referred] : s.clients,
         // 깨진 계약은 목록에서 지우지 않고 **끝난 것으로 표시**한다 — 지우면 무엇이
         // 어떻게 끝났는지가 사라지고, 같은 의뢰가 다시 새 글로 보인다.
         jobs: byOrder.jobs.map((j) => (isBreached(j, next) ? { ...j, done: true, breached: true } : j)),
@@ -1623,7 +1662,10 @@ export const useGame = create<Store>()(
           //    예고는 그 **한 주 전**에 온다 — 당일에 알면 그 주 행동력을 이미 쓴 뒤다.
           // ⚠️ **통보(정산·파기·클레임·퇴사) 아래**에 둔다 — 저쪽은 이미 벌어진 일이라
           //    먼저 읽어야 하고, 이쪽은 앞으로 고를 일이다.
-          ...peakRequests(next),
+          ...(referred ? [referralMail(referred, next)] : []),
+          ...(won ? [awardMail(next)] : []),
+          ...(sued ? [copyrightMail(next)] : []),
+          ...peakRequests(next, s.clients),
           ...(peakNotice(next) ? [peakNotice(next)!] : []),
           ...s.mails,
         ],

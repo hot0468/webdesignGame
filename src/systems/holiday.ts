@@ -34,16 +34,17 @@ export function peakOf(week: number): Holiday | undefined {
 
 /** 이번 주에 몰려 오는 팝업 의뢰들. 피크가 아니면 **빈 배열**이다.
  *
- * ⚠️ 업체는 **계약 업체(`CLIENTS`)에서만** 고른다 — 팝업은 관리자 페이지에 걸어야 하고
- *    그 주소·계정을 가진 곳은 계약 업체뿐이다(`data/inbox.ts`가 같은 이유로 그렇게 한다).
+ * ⚠️ 업체는 **지금 거래하는 곳에서만** 고른다(`clients`) — 팝업은 그 업체 관리자 페이지에
+ *    걸어야 하는데, 소개받기 전에는 주소·계정을 볼 수 없어 받아도 할 수가 없다.
  * ⚠️ 한 업체에 두 건이 가지 않게 고른 곳을 뺀다 — 같은 관리자 페이지에 팝업 두 개를
  *    걸면 클레임 판정(`systems/popup.ts`)이 서로를 "틀린 파일"로 본다. */
-export function peakRequests(week: number): Request[] {
+export function peakRequests(week: number, clients: readonly string[]): Request[] {
   const holiday = peakOf(week)
   if (!holiday) return []
 
   const roll = roller(`peak:${week}`)
-  const pool = [...CLIENTS]
+  const pool = CLIENTS.filter((c) => clients.includes(c.id))
+  if (pool.length === 0) return []
   const count = Math.min(PEAK_JOBS, pool.length)
 
   return Array.from({ length: count }, () => {

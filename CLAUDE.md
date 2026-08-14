@@ -27,6 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-14 | **특수 이벤트 셋** — 소개(평판 50+, 거래처가 4→7곳으로 늘어난다)·수상(A급 작업물)·저작권 위반(법무사무실 합의금) | src/data/events.ts·systems/referral.ts(+test)(신규), src/data/company.ts, src/store.ts, src/programs/Company.tsx |
 | 2026-08-14 | **공휴일 피크타임** — 공휴일 직전 주에 팝업 의뢰 3건이 몰린다(단가 1.4배·마감 짧음). 한 주 앞서 예고가 온다 | src/data/holiday.ts·systems/holiday.ts(+test)(신규), src/store.ts |
 | 2026-08-14 | 정신력이 **나쁜 일에도 깎인다**(클레임6·파기10·퇴사8) — 주말에 안 일하면 100에 붙어 있던 죽은 자원이었다. 회복 뒤에 뺀다 | src/data/game.ts(MENTAL_HIT), src/systems/weekend.ts(+test), src/store.ts |
 | 2026-08-14 | 해금 문턱을 실제 수입 속도에 맞춰 내림(300만→60만 등) — 첫 해금 10주→**4주**, 수주센터 36주→**12주**. 실제로 20주 굴려 실측 | src/data/game.ts(COMPANY_LEVELS), src/systems/unlock.test.ts |
@@ -36,6 +37,5 @@
 | 2026-08-14 | 사내시스템 접속 정보에 **복사 버튼** — 옮겨 적는 수고만 던다(자동 입력은 안 한다). 클립보드가 없거나 거절하면 버튼을 안 그린다 | src/programs/Company.tsx, src/data/game.ts·icons.ts, src/index.css |
 | 2026-08-14 | 3차 사냥 — 정산 메일의 사람별 급여가 **협상 인상분을 빼먹어** 줄의 합과 합계가 갈렸다(문안만 거짓). 죽은 `openableShortcut` 정리 | src/systems/money.ts(+test 신규), src/data/sites.ts, src/programs/Browser.tsx, src/systems/portfolio.ts |
 | 2026-08-14 | 버그 넷 — 주말·입찰 **단가 배율이 대금에 안 붙던 것**(주말 근무가 순손해였다)·피드백이 `publishes`를 모름·죽은 새로고침·게임오버의 닿을 수 없는 안내 | src/systems/money.ts·weekend.ts·bidding.ts, src/store.ts(+test), src/components/GameOver.tsx, src/programs/Browser.tsx·Editor.tsx |
-| 2026-08-14 | 퍼블리싱 스탯 — 그전엔 등급을 안 내 대충 해도 만족도가 같았다. 밴드 고정·칸만 스탯이 정하고 약한 고리에 들어간다 | src/data/game.ts, src/store.ts(+test), src/programs/Editor.tsx·Company.tsx |
 
 

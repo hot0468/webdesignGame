@@ -188,8 +188,13 @@ function Status() {
 
 /** 업체 목록 + 고른 업체의 접속 정보. 업로드 공정이 생기면 플레이어가 여기를 보고 입력한다. */
 function Info() {
-  const [id, setId] = useState<Client['id']>(CLIENTS[0].id)
-  const client = CLIENTS.find((c) => c.id === id)!
+  // ⚠️ **거래하는 곳만 보인다** — `CLIENTS`를 그대로 그리면 아직 소개받지도 않은 업체의
+  //    주소·계정이 미리 보여 소개 이벤트가 뜻을 잃는다(실제로 그랬다).
+  const clientIds = useGame((s) => s.clients)
+  const known = CLIENTS.filter((c) => clientIds.includes(c.id))
+  const [id, setId] = useState<Client['id']>(known[0]!.id)
+  // 고른 업체가 목록에서 사라질 일은 없지만(거래처는 늘기만 한다) 첫 칸으로 떨어뜨린다.
+  const client = known.find((c) => c.id === id) ?? known[0]!
   const groups = [
     { title: 'FTP 접속 정보', rows: client.ftp },
     { title: '관리자 사이트 계정정보', rows: client.admin },
@@ -206,7 +211,7 @@ function Info() {
   return (
     <div className="company__panel">
       <div className="company__tabs">
-        {CLIENTS.map((c) => (
+        {known.map((c) => (
           <button
             key={c.id}
             type="button"

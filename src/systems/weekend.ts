@@ -62,11 +62,15 @@ const TEXT: Record<(typeof WEEKEND_KINDS)[number], { subject: string; body: stri
  *
  * ⚠️ id에 주차가 들어간다(`we:<주차>`) — 한 주에 한 건이라는 사실이 id에 있고,
  *    `readIds`·`rejectedIds`·`jobs`가 전부 이 id 하나로 그 주말을 가리킨다. */
-export function weekendEvent(week: number): Request | undefined {
+export function weekendEvent(week: number, clients?: readonly string[]): Request | undefined {
   const roll = roller(`weekend:${week}`)
   if (!roll.chance(WEEKEND_EVENT_CHANCE)) return undefined
   const kind = roll.pick(WEEKEND_KINDS)
-  const client = roll.pick(CLIENTS)
+  // ⚠️ 거래하는 곳에서만 온다(소개 전 업체는 연락처를 모른다). 목록을 안 주면 전부에서
+  //    고른다 — 옛 호출부와 테스트를 그대로 살리기 위한 기본값이다.
+  const pool = clients ? CLIENTS.filter((c) => clients.includes(c.id)) : CLIENTS
+  if (pool.length === 0) return undefined
+  const client = roll.pick(pool)
   const text = TEXT[kind]
   return {
     id: `we:${week}`,

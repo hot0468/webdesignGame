@@ -79,4 +79,69 @@ export const CLIENTS = [
       { label: '비밀번호', value: 'pencil-2024' },
     ],
   },
+  // ── 소개로 열리는 업체 ────────────────────────────────────
+  // ⚠️ **처음부터 거래하는 곳이 아니다**(`INITIAL_CLIENTS`에 없다) — 평판이 오르면
+  //    기존 업체가 소개해 준다(`systems/referral.ts`). 목록 자체는 여기 상수로 두고
+  //    "지금 거래 중인가"만 스토어가 든다: 주소·계정을 스토어로 옮기면 세이브가
+  //    불어나고, `url.ts`·`ftp.ts`가 보는 정본이 둘로 갈린다.
+  {
+    id: 'onnuri',
+    name: '온누리떡집',
+    ftp: [
+      { label: '호스트', value: 'ftp.onnuri.example' },
+      { label: '포트', value: '21' },
+      { label: '계정', value: 'onnuri_web' },
+      { label: '비밀번호', value: 'rice-3355' },
+      { label: '기본 경로', value: '/public_html' },
+    ],
+    admin: [
+      { label: '주소', value: 'admin.onnuri.example' },
+      { label: '아이디', value: 'onnuri' },
+      { label: '비밀번호', value: 'tteok-1103' },
+    ],
+  },
+  {
+    id: 'saebom',
+    name: '새봄어린이집',
+    ftp: [
+      { label: '호스트', value: 'ftp.saebom.example' },
+      { label: '포트', value: '2121' },
+      { label: '계정', value: 'saebom_ftp' },
+      { label: '비밀번호', value: 'spring-0404' },
+      { label: '기본 경로', value: '/html' },
+    ],
+    admin: [
+      { label: '주소', value: 'saebom.example/manage' },
+      { label: '아이디', value: 'saebom_master' },
+      { label: '비밀번호', value: 'child-2580' },
+    ],
+  },
+  {
+    id: 'hanmadang',
+    name: '한마당체육관',
+    ftp: [
+      { label: '호스트', value: 'ftp.hanmadang.example' },
+      { label: '포트', value: '21' },
+      { label: '계정', value: 'hanmadang' },
+      { label: '비밀번호', value: 'gym-9911' },
+      { label: '기본 경로', value: '/www' },
+    ],
+    admin: [
+      { label: '주소', value: 'admin.hanmadang.example' },
+      { label: '아이디', value: 'hm_admin' },
+      { label: '비밀번호', value: 'muscle-7070' },
+    ],
+  },
 ] as const
+
+/** **처음부터 거래하는 업체.** 나머지는 소개로 열린다(`systems/referral.ts`).
+ *
+ * ⚠️ 목록 자체(`CLIENTS`)는 줄이지 않는다 — 주소·계정은 `url.ts`·`ftp.ts`가 보는
+ *    정본이라 스토어로 옮기면 두 벌이 된다. **"지금 거래 중인가"만** 스토어가 든다.
+ * ⚠️ 초기 의뢰(`data/inbox.ts`)가 이 넷에서 오므로 여기서 빼면 첫 판에 할 일이 사라진다. */
+export const INITIAL_CLIENTS = ['dalbit', 'hanbit', 'corner', 'byeolbit'] as const
+
+/** 소개로 열릴 수 있는 업체(처음엔 거래하지 않는 곳). */
+export const REFERRAL_CLIENTS = CLIENTS.filter(
+  (c) => !INITIAL_CLIENTS.includes(c.id as (typeof INITIAL_CLIENTS)[number]),
+).map((c) => c.id)

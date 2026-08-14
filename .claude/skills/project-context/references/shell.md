@@ -171,6 +171,7 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/store.ts` | zustand — 게임 5축 + 창 목록(x·y·z) |
 | `src/components/` | `Window` · `Desktop` · `Taskbar`(시작 버튼 + 창 목록) · `Hud`(오른쪽 위 주차·스탯·업무목록 판) |
 | `src/components/StartMenu.tsx` | 시작 버튼 + 이름 있는 슬롯 3칸(저장·불러오기·삭제·새 게임). 되돌릴 수 없는 것은 전부 `.confirm`으로 묻는다(`Hud.tsx`와 **같은 클래스** — 같은 성격의 질문이 창마다 다르게 생기지 않는다) |
+| `src/store.ts`(persist) | zustand `persist`, `localStorage` 키 **`webdi.save.v1`**. 판이 바뀌면 키를 v2로 올린다 — 옛 세이브는 그 순간 남의 키가 되어 **마이그레이션 없이 새 게임**이 된다. ⚠️ 저장 대상은 `partialize` **한 곳**에서 고른다(열린 창은 제외) — **새 상태 축을 더하면 그 목록에도 더해야 한다**(빠뜨리면 그 축만 조용히 안 남는다). 테스트(node)에는 `localStorage`가 없어 아무 데도 안 쓰는 저장소로 떨어진다 |
 | `src/systems/save.ts` | 슬롯 키(`webdi.slot.<n>`) · 요약 만들기 · **못 믿을 세이브 판정**(`parseSlot`). 순수 함수이고 저장소는 `store.ts`만 만진다 |
 | `src/programs/` | 창 내용. `ProgramId` → 컴포넌트 짝은 `App.tsx`의 `VIEWS` |
 | `scripts/build-icon-subset.mjs` | `src/`를 훑어 `src/icons/generated.ts` 생성(`npm run icons`) |
