@@ -6,6 +6,7 @@ import {
   CS_REPLY_AP,
   csRecover,
   findQuality,
+  PUBLISH_QUALITY,
   GRADE_REWARD,
   INITIAL_GAME,
   MAINTENANCE_FEE,
@@ -31,10 +32,10 @@ import {
   WINDOW_SPAWN,
 } from './data/game'
 import { monthlyCost } from './systems/money'
-import { MESSAGES, type Request } from './data/inbox'
+import { MESSAGES, inbox, unreadCount, type Request } from './data/inbox'
 import type { ProgramId } from './data/programs'
 import { asStep, focusedWindowId, useGame } from './store'
-import { openStep, stepsOf } from './systems/pipeline'
+import { openStep, satisfaction, stepsOf } from './systems/pipeline'
 import { weekendEvent } from './systems/weekend'
 import { KEYWORDS, MEETING_AP, SITE_KEYWORDS } from './data/keywords'
 import {
@@ -59,8 +60,10 @@ import { needsRevision } from './systems/followup'
 /** 넓은 화면. 스폰 위치가 잘리지 않아 계단식 배치가 예전 그대로다. */
 const WIDE = { w: 1440, h: 900 }
 
-beforeEach(() => {
-  useGame.setState({
+/** 판을 처음으로 되돌리는 값. ⚠️ `beforeEach`와 **같은 것**을 쓴다 — 한 테스트 안에서
+ *  스탯만 바꿔 다시 시작해야 할 때(퍼블리싱 스탯 비교) 두 벌로 적으면 갈린다. */
+const emptyState = () =>
+  ({
     ...INITIAL_GAME,
     windows: [],
     jobs: [],
@@ -70,6 +73,7 @@ beforeEach(() => {
     files: [],
     drafts: [],
     slides: [],
+    publishes: [],
     popups: [],
     mails: [],
     // ⚠️ 직원·요청·끝난 판까지 되돌린다. 빠뜨리면 앞 테스트가 남긴 직원의 급여가
@@ -91,6 +95,9 @@ beforeEach(() => {
     unpaidMonths: 0,
     over: undefined,
   })
+
+beforeEach(() => {
+  useGame.setState(emptyState())
 })
 
 /** **수정 요청을 끄고** 회신한다. 회신에는 확률로 수정 요청이 붙어 그 회신이 통째로
@@ -119,6 +126,7 @@ describe('초기 수치', () => {
       reputation: s.reputation,
       design: s.design,
       planning: s.planning,
+      publishing: s.publishing,
       cs: s.cs,
       figmaSkill: s.figmaSkill,
       photoshopSkill: s.photoshopSkill,
@@ -243,6 +251,101 @@ describe('업무 수주', () => {
       [first.id]: true,
       [second.id]: false,
     })
+  })
+})
+
+/** 카톡(`톡톡`) 채널 — 클라이언트가 **직접** 말을 거는 자리.
+ *  ⚠️ 여기서 증명하는 것은 **새 축이 아니라는 것**이다: 카톡 의뢰도 평소 `Job`이 되어
+ *     같은 공정·회신·대금 고리를 탄다. 갈리는 순간 수주 경로가 채널 수만큼 늘어난다. */
+describe('카톡 의뢰', () => {
+  const chatReq = MESSAGES.find((m): m is Request => !m.ad && m.channel === 'chat')!
+
+  it('평소 Job이 되어 공정을 타고 대금까지 들어온다 — 새 업무 축이 아니다', () => {
+    const g = () => useGame.getState()
+    g().acceptJob(chatReq)
+    const job = g().jobs[0]!
+    // 채널만 다르고 나머지는 메일 의뢰와 같다(같은 `acceptJob`을 탔다).
+    expect(job.channel).toBe('chat')
+    expect(job.id).toBe(chatReq.id)
+    expect(openStep(asStep(job))).toEqual(stepsOf(chatReq.kind)[0])
+
+    g().publishJob(chatReq.id)
+    expect(g().jobs[0]!.done).toBe(false) // 만든 것으로는 끝나지 않는다
+    reply(chatReq.id)
+    expect(g().jobs[0]!.done).toBe(true)
+    expect(g().money).toBeGreaterThan(INITIAL_GAME.money)
+    // 답장·완료 메일은 **그 업무의 채널로** 돌아간다 — 카톡 업무의 답장이 메일함으로
+    // 새면 다음 공정이 어디서 열리는지 알 수 없다.
+    expect(g().mails[0]!.channel).toBe('chat')
+  })
+
+  it('뱃지는 readIds에서 파생한다 — 읽으면 줄고 다른 채널은 안 건드린다', () => {
+    const ids = inbox('chat', 99).map((m) => m.id)
+    expect(unreadCount('chat', 99, [])).toBe(ids.length)
+    expect(unreadCount('chat', 99, ids.slice(0, 1))).toBe(ids.length - 1)
+    // 카톡 뱃지가 메일을 읽었다고 줄어들면 두 아이콘이 같은 수를 지게 된다.
+    expect(unreadCount('chat', 99, inbox('mail', 99).map((m) => m.id))).toBe(ids.length)
+  })
+})
+
+/** 퍼블리싱 스탯 — **등급을 정하는 축**이다(비용을 깎는 코딩 숙련도와 다른 축).
+ *  ⚠️ 여기서 증명하는 것은 규칙을 **뒤집어** 확인하는 쪽이다: 스탯을 낮추면 완료 등급이
+ *     실제로 내려가야 한다. 안 내려가면 퍼블리싱을 대충 해도 결과가 같다는 뜻이다. */
+describe('퍼블리싱 스탯', () => {
+  const fixReq = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'fix')!
+
+  /** 그 스탯으로 유지보수 업무를 하나 끝내고 만족도 메일을 돌려준다. */
+  const finishWith = (publishing: number) => {
+    useGame.setState({ ...emptyState(), publishing })
+    const g = () => useGame.getState()
+    g().acceptJob(fixReq)
+    g().publishJob(fixReq.id)
+    reply(fixReq.id)
+    return g()
+  }
+
+  it('스탯이 낮으면 완료 등급이 실제로 내려간다 — 대충 해도 같으면 축이 아니다', () => {
+    const low = finishWith(0).mails[0]!.body
+    const high = finishWith(100).mails[0]!.body
+    // 밴드는 고정(`PUBLISH_QUALITY`)이고 칸만 스탯이 정한다 — 그래서 밴드 양끝이 나온다.
+    expect(low).toContain(`만족도 ${findQuality(PUBLISH_QUALITY).grades[0]}`)
+    expect(high).toContain(
+      `만족도 ${findQuality(PUBLISH_QUALITY).grades[findQuality(PUBLISH_QUALITY).grades.length - 1]}`,
+    )
+    expect(low).not.toEqual(high)
+  })
+
+  it('퍼블리싱 등급이 만족도에 들어간다 — 약한 고리를 깨지 않는다', () => {
+    useGame.setState({ ...emptyState(), design: 100, publishing: 0 })
+    const g = () => useGame.getState()
+    const site = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'site')!
+    g().acceptJob(site)
+    // 앞의 두 공정은 **최고로** 만든다 — 그런데도 만족도가 퍼블리싱까지 내려가야 한다.
+    useGame.setState({ ap: 9 })
+    g().makeSlides(site.id, 'care')
+    reply(site.id)
+    useGame.setState({ ap: 9 })
+    g().makeDraft(site.id, 'care')
+    reply(site.id)
+    useGame.setState({ ap: 9 })
+    g().publishJob(site.id)
+    reply(site.id)
+    const worst = satisfaction([
+      ...g().slides.map((f) => f.grade),
+      ...g().drafts.map((f) => f.grade),
+      ...g().publishes.map((f) => f.grade),
+    ])!
+    expect(g().publishes[0]!.grade).toBe(worst)
+    expect(g().mails[0]!.body).toContain(`만족도 ${worst}`)
+  })
+
+  it('행동력이 모자라면 아무 일도 없다 — 등급도 안 남는다', () => {
+    useGame.setState({ ...emptyState(), ap: 0 })
+    const g = () => useGame.getState()
+    g().acceptJob(fixReq)
+    g().publishJob(fixReq.id)
+    expect(g().publishes).toEqual([])
+    expect(g().jobs[0]!.step).toBe(0)
   })
 })
 
@@ -799,7 +902,7 @@ describe('키워드가 시안 등급을 민다', () => {
     useGame.getState().makeDraft(site.id, 'light', answer)
     const hit = useGame.getState().drafts.at(-1)!.grade
 
-    useGame.setState({ jobs: [], drafts: [], slides: [], mails: [], meetings: {} })
+    useGame.setState({ jobs: [], drafts: [], slides: [], publishes: [], mails: [], meetings: {} })
     toDraftStep()
     useGame.getState().makeDraft(site.id, 'light', wrong)
     const miss = useGame.getState().drafts.at(-1)!.grade

@@ -9,6 +9,7 @@ import { isTurnOf, showsIn } from '../systems/pipeline'
 import { asStep, useGame } from '../store'
 import { useWorking } from '../components/Working'
 import './figma.css'
+import { CHANNEL_LABEL } from '../data/inbox'
 
 /** `피그마` 창. 사이트 업무의 **시안 공정**이 여기서 돌 자리다(그다음이 VS코드 퍼블리싱).
  *
@@ -157,7 +158,7 @@ export function Figma() {
                 다음에 할 일을 적는다(공정 하나에 한 번, `systems/pipeline.ts`). */}
             {!isTurnOf(asStep(picked), 'figma') ? (
               <p className="fig__short">
-                시안을 보냈다. {picked.channel === 'board' ? '고객게시판' : '메일'}의 그 글에서
+                시안을 보냈다. {CHANNEL_LABEL[picked.channel]}의 그 글에서
                 회신해야 다음으로 넘어간다.
               </p>
             ) : (

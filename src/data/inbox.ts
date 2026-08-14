@@ -11,7 +11,15 @@
 import type { JobKind } from '../systems/pipeline'
 import { CLIENTS } from './company'
 
-export type Channel = 'mail' | 'board'
+/** 의뢰가 오는 길. **목록을 셋으로 나누지 않고 이 한 칸으로 가른다.**
+ *
+ * - `mail`  = 격식 있는 **신규 의뢰**. 처음 보는 업체가 견적을 물어본다.
+ * - `board` = 계약된 업체의 **유지보수 요청**(사내시스템 고객게시판). 거절이 없다.
+ * - `chat`  = 클라이언트가 메신저로 **직접** 거는 말(`카톡` 창).
+ *
+ * ⚠️ `chat`은 **직원 메신저(`Messenger.tsx`)와 다른 창이다** — 저쪽 상대는 직원이고
+ *    여기 상대는 클라이언트다. 한 창에 섞으면 지시할 사람과 응대할 사람이 같은 목록에 선다. */
+export type Channel = 'mail' | 'board' | 'chat'
 
 type Common = {
   id: string
@@ -169,6 +177,51 @@ export const MESSAGES: Message[] = [
     kind: 'popup',
     popup: { clientId: CLIENTS[2].id, fromWeeks: 0, toWeeks: 2 },
   },
+  // ── 카톡(`chat`) ─────────────────────────────────────────
+  // ⚠️ **메일 의뢰와 성격이 다르다.** 세 채널이 같은 말투·같은 기한을 쓰면 채널을 가른
+  //    뜻이 없다. 카톡은 **말이 짧고 급한 자리다**:
+  //      ① 마감이 짧다(1~2주 — 메일 의뢰는 3~4주다). 그래서 받는 순간 그 주의 계획이 바뀐다.
+  //      ② 문장이 짧고 존댓말이 덜 갖춰져 있다(줄바꿈으로 여러 번 보낸 말처럼 적는다).
+  //      ③ **신규 업체가 아니라 아는 사람에게서 온다** — 카톡으로 말을 걸 만큼 가까운
+  //         사이라서다. 그래서 `CLIENTS`의 업체이거나 소개받은 곳이다.
+  //    맞바꿈: 급한 만큼 기한이 짧아 잘못 받으면 파기가 나기 쉽다 — 그것이 이 채널의 값이다.
+  // ⚠️ 고리는 메일 의뢰와 **완전히 같다**(`JobActions` → `acceptJob`). 새 업무 축이 아니다.
+  {
+    id: 'c-dalbit-urgent',
+    week: 2,
+    channel: 'chat',
+    from: CLIENTS[0].name,
+    subject: '사장님 급해요ㅠㅠ',
+    body: '사장님 안녕하세요!\n죄송한데 이번 주에 이벤트 페이지 하나만 급하게 부탁드려요\n주말에 행사라서요...\n금액은 알아서 해 주시면 됩니다!',
+    at: '방금',
+    // ⚠️ 1주다 — 카톡의 성격이 이 숫자에 있다(메일 의뢰는 3~4주).
+    dueWeeks: 1,
+    kind: 'fix',
+  },
+  {
+    id: 'c-hanbit-quick',
+    week: 4,
+    channel: 'chat',
+    from: CLIENTS[1].name,
+    subject: '원장님이 바로 물어보래서요',
+    body: '안녕하세요 한빛치과입니다\n원장님이 사이트에 예약 안내 좀 넣어 달라고 하시는데\n다음 주까지 가능할까요?',
+    at: '오전 10:02',
+    dueWeeks: 2,
+    kind: 'fix',
+  },
+  {
+    id: 'c-corner-popup',
+    week: 6,
+    channel: 'chat',
+    from: CLIENTS[2].name,
+    subject: '팝업 하나만요!',
+    body: '사장님~ 다음 주부터 2주만 신메뉴 팝업 걸어 주세요\n끝나면 꼭 내려 주시고요!\n바쁘시면 말씀해 주세요',
+    at: '어제',
+    // 게시가 2주차에 끝나므로 마감은 그 뒤여야 한다(`dueWeeks > toWeeks` 불변식).
+    dueWeeks: 3,
+    kind: 'popup',
+    popup: { clientId: CLIENTS[2].id, fromWeeks: 1, toWeeks: 2 },
+  },
   {
     id: 'b-corner-menu',
     week: 6,
@@ -181,6 +234,16 @@ export const MESSAGES: Message[] = [
     kind: 'fix',
   },
 ]
+
+/** 그 채널의 글을 **읽고 회신하는 자리의 이름**. 공정 창들(피그마·포토샵·PPT)이
+ *  "어디서 회신해야 하는지"를 적을 때 쓴다.
+ *  ⚠️ **한 곳에서만 적는다** — 창마다 삼항으로 가르면 채널이 늘 때 한 곳만 고치게 되고,
+ *     그러면 카톡 업무를 만들어 놓고 메일함을 뒤지는 판이 된다(겪을 수 있는 사고다). */
+export const CHANNEL_LABEL: Record<Channel, string> = {
+  mail: '메일',
+  board: '고객게시판',
+  chat: '톡톡',
+}
 
 /** 그 채널에 온 글 전부. `extra`는 **게임 중에 생겨난 글**(클레임 메일 등, 스토어의
  *  `claims`)이다 — 상수 목록과 같은 자리에 서야 메일 창이 하나의 받은편지함으로 보인다.

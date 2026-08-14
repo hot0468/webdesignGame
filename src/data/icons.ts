@@ -38,6 +38,16 @@ export const MESSENGER_ICONS = {
   blank: 'mdi:chat-processing-outline',
 } as const
 
+/** `톡톡`(클라이언트 카톡) 창 전용 글리프. 메일·메신저와 같은 이유로 단색 `mdi` 한 세트다.
+ *  ⚠️ **직원 메신저(`MESSENGER_ICONS`)와 다른 글리프를 쓴다** — 두 창이 같은 아이콘을
+ *     지면 작업 표시줄에서 어느 쪽이 클라이언트인지 구분되지 않는다. */
+export const TALK_ICONS = {
+  chat: 'mdi:message-text-outline',
+  blank: 'mdi:message-badge-outline',
+  /** 대화 상대(업체)의 자리 표시. 실제 사진이 없으므로 글자 하나를 대신 세운다. */
+  client: 'mdi:storefront-outline',
+} as const
+
 /** `피그마` 창 전용 글리프. 사이드바 메뉴 표식이다 — 메일·메신저와 같은 이유로 단색
  *  `mdi` 한 세트다(파일 카드에 서는 피그마 마크만 devicon 다색 그대로다). */
 export const FIGMA_ICONS = {

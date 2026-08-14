@@ -8,6 +8,7 @@ import {
   findQuality,
   INITIAL_GAME,
   PUBLISH_AP,
+  PUBLISH_QUALITY,
   REPUTATION_MAX,
   WINDOW_DRAG,
   WINDOW_FIT,
@@ -218,6 +219,10 @@ type Store = {
   /** 기획력 스탯(0~100). **미팅에서 알아내는 키워드 수를 정하는 축**이고, 올리는 길은
    *  아직 없다(design과 같다 — 성장이 붙으면 두 값이 같은 자리에서 는다). */
   planning: number
+  /** 퍼블리싱 스탯(0~100). **퍼블리싱 공정(에디터)의 결과 등급을 정하는 축**이고,
+   *  올리는 길은 아직 없다(design·planning과 같다).
+   *  ⚠️ 비용을 깎는 `codingSkill`과 **다른 축**이다 — 등급은 스탯이, 감면은 숙련도가 진다. */
+  publishing: number
   /** CS 스탯(0~100). **클레임 사과로 되돌아오는 평판을 정하는 축**이고, 올리는 길은
    *  아직 없다(design·planning과 같다). */
   cs: number
@@ -247,6 +252,12 @@ type Store = {
   /** PPT 창에서 만든 문서(발표자료·화면정의서). 시안·팝업과 **또 다른 목록**이다 —
    *  같은 모양이라도 섞이면 등록·시안 화면에 엉뚱한 파일이 뜬다. */
   slides: Draft[]
+  /** 에디터에서 올린 **퍼블리싱 결과**. 앞의 셋과 또 다른 목록인 이유는 같다 —
+   *  올린 사이트가 팝업 등록·시안 고르기 화면에 뜨면 안 된다.
+   *  ⚠️ **이 목록이 있어야 퍼블리싱 등급이 완료 만족도(`satisfaction`)에 들어간다** —
+   *     만족도는 그 업무에서 나온 산출물 등급을 훑어 가장 낮은 것을 고르므로(약한 고리),
+   *     퍼블리싱이 아무것도 남기지 않으면 아무리 대충 해도 결과가 같아진다. */
+  publishes: Draft[]
   /** 관리자 페이지에 실제로 걸린 팝업. ⚠️ 개수가 아니라 **무엇을 언제부터 언제까지**다 —
    *  세 갈래 판정이 전부 이 세 칸에서 나온다. */
   popups: Popup[]
@@ -505,10 +516,10 @@ export type Viewport = { w: number; h: number }
  *    포트폴리오이기 때문**이다(참가 조건 쪽이 시안 장수·기획안 랭크만 보는 것과 다르다 —
  *    저쪽은 문턱이고 이쪽은 점수다). */
 export const bidStats = (
-  s: Pick<Store, 'design' | 'planning' | 'files' | 'drafts' | 'slides'>,
+  s: Pick<Store, 'design' | 'planning' | 'files' | 'drafts' | 'slides' | 'publishes'>,
 ): number =>
   (s.design + s.planning) / 2 +
-  portfolioBonus([...s.files, ...s.drafts, ...s.slides].map((f) => f.grade))
+  portfolioBonus([...s.files, ...s.drafts, ...s.slides, ...s.publishes].map((f) => f.grade))
 
 /** 공정 판정에 넘기는 최소 모양. **순수 함수가 스토어의 `Job` 전체를 알지 않게 한다.** */
 export const asStep = (j: Job): StepJob => ({
@@ -577,6 +588,7 @@ const saveFields = (s: Store) => ({
   reputation: s.reputation,
   design: s.design,
   planning: s.planning,
+  publishing: s.publishing,
   cs: s.cs,
   readIds: s.readIds,
   meetings: s.meetings,
@@ -585,6 +597,7 @@ const saveFields = (s: Store) => ({
   files: s.files,
   drafts: s.drafts,
   slides: s.slides,
+  publishes: s.publishes,
   popups: s.popups,
   mails: s.mails,
   bookmarks: s.bookmarks,
@@ -624,6 +637,7 @@ const emptyGame = () => ({
   files: [],
   drafts: [],
   slides: [],
+  publishes: [],
   popups: [],
   mails: [],
   bookmarks: [],
@@ -668,11 +682,26 @@ export const useGame = create<Store>()(
       const job = turnOf(s.jobs, id, 'editor')
       const cost = apCost(PUBLISH_AP, s[skillFor('editor')])
       if (!job || s.ap < cost) return {}
+      const seq = s.publishes.filter((f) => f.jobId === id).length + 1
       // ⚠️ **내 손으로 돌렸을 때만** 숙련도가 오른다(직원 지시는 안 올린다 — `data/game.ts`).
       return {
         ap: s.ap - cost,
         jobs: bumpStep(s.jobs, id),
         codingSkill: gainSkill(s.codingSkill),
+        // 퍼블리싱도 **등급을 남긴다**. 남기지 않으면 완료 만족도가 시안·문서만 보고
+        // 정해져(약한 고리) 퍼블리싱을 아무리 대충 해도 결과가 같아진다.
+        // ⚠️ 등급은 `gradeOf` 하나에서만 난다(등급의 단일 출처 — 새 사다리 금지).
+        //    밴드는 `PUBLISH_QUALITY` 고정이고 그 안의 칸을 `publishing` 스탯이 정한다.
+        publishes: [
+          ...s.publishes,
+          {
+            id: `pb:${id}:${seq}`,
+            jobId: id,
+            name: `${job.from}_index.html${seq > 1 ? ` (${seq})` : ''}`,
+            madeWeek: s.week,
+            grade: gradeOf(PUBLISH_QUALITY, s.publishing),
+          },
+        ],
       }
     }),
 
@@ -968,7 +997,9 @@ export const useGame = create<Store>()(
       )
 
       // 만족도는 **그 업무에서 나온 산출물 등급 중 가장 낮은 것**이다(약한 고리 규칙).
-      const grades = [...s.files, ...s.drafts, ...s.slides]
+      // ⚠️ 퍼블리싱(`publishes`)도 여기 들어간다 — 만족도는 **가장 낮은 등급**이 정하므로
+      //    한 목록만 빠져도 그 공정은 결과에 영향을 주지 않는 공정이 된다.
+      const grades = [...s.files, ...s.drafts, ...s.slides, ...s.publishes]
         .filter((f) => f.jobId === id)
         .map((f) => f.grade)
       const next = stepsOf(job.kind)[job.replied + 1]

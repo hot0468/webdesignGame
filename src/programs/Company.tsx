@@ -91,6 +91,7 @@ function Status() {
   const revenue = useGame((s) => s.revenue)
   const design = useGame((s) => s.design)
   const planning = useGame((s) => s.planning)
+  const publishing = useGame((s) => s.publishing)
   const figmaSkill = useGame((s) => s.figmaSkill)
   const photoshopSkill = useGame((s) => s.photoshopSkill)
   const codingSkill = useGame((s) => s.codingSkill)
@@ -140,7 +141,7 @@ function Status() {
         <span className="company__label">내 스탯</span>
       </div>
       <p className="company__note">
-        결과물 등급 — 디자인 {design} · 기획 {planning}
+        결과물 등급 — 디자인 {design} · 퍼블리싱 {publishing} · 기획 {planning}
       </p>
       <p className="company__note">
         행동력 감면 — 피그마 {figmaSkill} · 포토샵 {photoshopSkill} · 코딩 {codingSkill}

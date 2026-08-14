@@ -21,7 +21,19 @@ describe('받은 글', () => {
 
   it('채널로 가르고 남기지 않는다', () => {
     expect(inbox('mail', LATER).every((m) => m.channel === 'mail')).toBe(true)
-    expect(inbox('mail', LATER).length + inbox('board', LATER).length).toBe(MESSAGES.length)
+    // ⚠️ 세 채널의 합이 전부여야 한다 — 어느 채널에도 안 걸리는 글은 **어디에도 안 뜨고**
+    //    뱃지에도 안 세어져 조용히 사라진다.
+    expect(
+      inbox('mail', LATER).length + inbox('board', LATER).length + inbox('chat', LATER).length,
+    ).toBe(MESSAGES.length)
+  })
+
+  /** 카톡은 **급한 자리다** — 그 성격이 기한 숫자에 있다. 메일 의뢰와 같은 기한을 주면
+   *  채널을 가른 뜻이 없어진다(말투만 다른 같은 의뢰가 된다). */
+  it('카톡 의뢰는 메일 의뢰보다 마감이 짧다', () => {
+    const due = (ch: 'mail' | 'chat') =>
+      inbox(ch, LATER).flatMap((m) => (m.ad ? [] : [m.dueWeeks]))
+    expect(Math.max(...due('chat'))).toBeLessThan(Math.max(...due('mail')))
   })
 
   // ⚠️ 처음 켠 판이 여덟 통으로 시작하면 무엇부터 해야 하는지가 안 보이고 마감이 한 주에

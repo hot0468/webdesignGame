@@ -119,10 +119,11 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/index.css` | 토큰 단일 출처 + 셸 스타일 전부 |
 | `src/data/game.ts` | 시작 수치 · 달력 단위 · 창 생성/드래그 상수 |
 | `src/data/programs.ts` | `PROGRAMS`(바탕화면 아이콘의 단일 출처) · `ProgramId` · `badge`(그 아이콘이 지는 받은 글 채널) |
-| `src/data/inbox.ts` | 받은 의뢰 글(메일·고객게시판 공용) + `inbox()`·`unreadCount()`. 뱃지 숫자의 단일 출처 |
+| `src/data/inbox.ts` | 받은 의뢰 글(메일·고객게시판·톡톡 공용) + `inbox()`·`unreadCount()`. 뱃지 숫자의 단일 출처. ⚠️ 공정 창이 "어디서 회신하라"고 적는 말은 **`CHANNEL_LABEL` 한 곳**에서 온다 — 창마다 삼항으로 가르지 말 것(채널이 늘 때 한 곳만 고치면 카톡 업무를 만들어 놓고 메일함을 뒤지는 판이 된다) |
 | `src/components/MessageList.tsx` | 받은 글 목록(고객게시판이 쓴다 — 셸 언어). 메일은 자기 세 칸 화면을 따로 가진다 |
 | `src/programs/mail.css` | `메일` 창 전용 Fluent 팔레트. **이 파일 밖으로 새지 않는다** |
 | `src/programs/browser.css` | `브라우저` 창 전용 검색 포털 팔레트. **이 파일 밖으로 새지 않는다** |
+| `src/programs/Talk.tsx` · `talk.css` | `톡톡` 창 — **클라이언트가 직접 거는 카톡**(`channel:'chat'`). 두 칸(대화방 목록 + 대화)이고 ⚠️ **메신저의 56px 인디고 레일을 베끼지 않는다**(그 기둥이 저 창의 얼굴이라 같아진다). 팔레트 출처는 `ui-ux-pro-max` colors.csv **"Pet Tech App"**(주황 #F97316 + 크림 #FFF7ED) — ⚠️ 통신 계열 항목(Chat & Messaging·Email Client·CRM)은 **전부 파랑이라** 메신저 인디고와 충돌해서 못 쓴다. ⚠️ 주황 위 글자는 **어두운 잉크**다(흰 글자 2.8:1 미달), 결정 버튼만 진한 테라코타(#9A3412 + 흰 글자 7.31:1). 보조 글자는 DB의 #64748B가 아니라 **#5A5A5A**(크림 위에서 #64748B는 4.48:1 미달). ⚠️ 첫 말풍선은 `:nth-of-type`이 아니라 **`.talk__subject + .talk__bubble`**로 집는다(같은 `p`인 제목 알약이 첫째로 세어진다 — 겪었다). **이 파일 밖으로 새지 않는다** |
 | `src/programs/messenger.css` | `메신저` 창 전용 카카오톡 팔레트. **요청 판(`.msgr__ask`)은 지시·교육 판보다 위에 서고 회색 대화 칸 위에 뜬다**(흰 판 둘과 갈리려면 인디고 테두리가 필요했다). 목록의 `답변 대기`는 색이 아니라 **글자**다. **이 파일 밖으로 새지 않는다**. ⚠️ 지시 칸(`.msgr__order`)의 높이 상한은 **px(`--msgr-order-max`)이다** — `grid-template-rows`의 `auto` 칸에서 `max-height: %`는 부모 높이가 정해지기 전에 재어져 버튼이 반쯤 잘린다(겪었다) |
 | `src/data/employees.ts` | 직원 수치·이름 풀의 단일 출처 — 종류→공정(`EMPLOYEE_ROLES[].programs`·`canHandle`) · 레벨→주차(`LEVEL_SPEEDUP`·`orderWeeks`, 하한 1) · 급여(`salaryOf`) · `ORDER_AP`/`ORDER_QUALITY`/`POST_AP` · 지원자 이름 재료 |
 | `src/systems/seed.ts` | **이 게임 무작위의 유일한 출처**(FNV-1a → mulberry32). `roller(씨앗문자열)`이 `unit`/`int`/`pick`/`chance`를 준다 — ⚠️ 모듈 밖에 롤러를 하나 만들어 돌려 쓰지 말 것(부르는 순서가 답을 바꾼다). `hire.ts`·`request.ts`가 함께 쓴다 |
@@ -138,7 +139,7 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/programs/WorkSite.tsx` | 수주센터 화면. `--nv-*`를 쓰고 `HireSite`의 클래스를 재사용한다 |
 | `src/data/sites.ts` | 가짜 포털 이름 + 첫화면 바로가기 목록. 사이트가 생기면 여는 대상이 여기 붙는다 |
 | `src/systems/url.ts` | 주소창 글자 → 갈 곳(`resolveUrl`) + 관리자 로그인 대조(`checkLogin`). **주소·계정의 정본은 `CLIENTS`다** — 여기 다시 적지 않는다 |
-| `src/programs/AdminSite.tsx` | 업체별 관리자 페이지(로그인 + 팝업 목록 + 등록 폼). 로그인은 `useState`(창 닫으면 풀림), 걸린 팝업은 스토어 `popups`. ⚠️ 셀렉터 안에서 `filter`를 돌리지 말 것 — 새 배열이 나와 zustand가 무한 렌더로 화면을 하얗게 만든다(겪었다) |
+| `src/programs/AdminSite.tsx` | 업체별 관리자 페이지. ⚠️ **주소창에 처음 한 번은 직접 쳐야 닿는다**(첫화면 바로가기 칸에 넣지 않는다) — `사내시스템 > 업체정보`에서 주소·계정을 찾아 옮겨 적는 왕복이 의도된 동선이다. 로그인은 `CLIENTS`의 계정과 대조한다. 안에는 **팝업 목록 + 등록 폼**이 있다(목록에서 게시 기간을 고칠 수 있다 — 오타를 되돌릴 길이 없으면 한 번의 실수가 영구 클레임이 된다). 로그인은 `useState`(창 닫으면 풀림), 걸린 팝업은 스토어 `popups`. ⚠️ 셀렉터 안에서 `filter`를 돌리지 말 것 — 새 배열이 나와 zustand가 무한 렌더로 화면을 하얗게 만든다(겪었다) |
 | `src/programs/Photoshop.tsx` | 팝업 이미지 제작(도구 막대 · 문서 탭 · 캔버스 · 레이어 패널). 팝업 제작이 행동력을 문다(고른 퀄리티 — 퍼블리싱은 에디터가 진다). 실제로 동작하는 것은 **탭과 제작 버튼 셋뿐**이고 도구 막대는 표시다 |
 | `src/data/keywords.ts` | 분위기 키워드 목록 · `SITE_KEYWORDS`(5) · `MEETING_AP` · `MEETING_REVEAL`(기획력→개수) · `KEYWORD_SHIFT`(적중→등급 칸) |
 | `src/systems/keywords.ts` | 키워드 규칙의 정본 — 씨앗(업무 id)에서 정답을 뽑는 `clientKeywords` · `revealedKeywords` · `hitCount`/`keywordShift` · `shiftGrade`/`GRADE_LADDER`(⚠️ `pipeline.ts`의 `GRADE_ORDER`와 같은 줄이어야 한다) · 미팅 알림 문안 |

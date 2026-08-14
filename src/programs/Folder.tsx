@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './folder.css'
 import { AppIcon } from '../icons/AppIcon'
-import { FIGMA_ICONS, PROGRAM_ICONS, STAT_ICONS } from '../data/icons'
+import { EDITOR_ICONS, FIGMA_ICONS, PROGRAM_ICONS, STAT_ICONS } from '../data/icons'
 import { PORTFOLIO_BONUS_MAX, PORTFOLIO_BONUS_PER, PORTFOLIO_MIN_GRADE } from '../data/bidding'
 import { formatWeek } from '../systems/calendar'
 import { isShowpiece, portfolioBonus, showpieces } from '../systems/portfolio'
@@ -45,6 +45,12 @@ const TABS = [
     icon: STAT_ICONS.jobs,
     empty: 'PPT에서 화면정의서·발표자료를 만들면 여기 쌓인다.',
   },
+  {
+    id: 'publishes',
+    label: '퍼블리싱',
+    icon: EDITOR_ICONS.publish,
+    empty: '에디터에서 퍼블리싱하면 여기 쌓인다.',
+  },
 ] as const
 
 export function Folder() {
@@ -55,10 +61,18 @@ export function Folder() {
   const files = useGame((s) => s.files)
   const drafts = useGame((s) => s.drafts)
   const slides = useGame((s) => s.slides)
+  const publishes = useGame((s) => s.publishes)
   const jobs = useGame((s) => s.jobs)
 
-  const lists: Record<(typeof TABS)[number]['id'], readonly Item[]> = { files, drafts, slides }
-  const grades = [...files, ...drafts, ...slides].map((w) => w.grade)
+  const lists: Record<(typeof TABS)[number]['id'], readonly Item[]> = {
+    files,
+    drafts,
+    slides,
+    publishes,
+  }
+  // ⚠️ 스토어의 `bidStats`가 세는 목록과 **같아야 한다** — 화면이 적는 보정과 실제로
+  //    굴리는 보정이 갈리면 "적힌 것과 다르게 굴렸다"가 된다.
+  const grades = [...files, ...drafts, ...slides, ...publishes].map((w) => w.grade)
   const tab = TABS.find((t) => t.id === view)!
   const items = lists[view]
 
