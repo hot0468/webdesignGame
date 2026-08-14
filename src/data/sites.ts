@@ -37,6 +37,7 @@ export const SHORTCUTS = [
 
 export type ShortcutId = (typeof SHORTCUTS)[number]['id']
 
-/** 주소가 붙어 실제로 열리는 바로가기만. `url.ts`와 `Browser.tsx`가 같은 것을 본다. */
-export const openableShortcut = (id: ShortcutId) =>
-  SHORTCUTS.find((s) => s.id === id && 'url' in s)
+/** ⚠️ 여기 있던 `openableShortcut`은 **아무도 안 불렀다**(주소 유무는 `url.ts`가 `'url' in s`로
+ *  직접 본다). 주석은 "둘이 같은 것을 본다"고 적고 있었지만 사실이 아니었다 — 지웠다.
+ *  ⚠️ 되살리지 마라: 지금은 **네 칸 모두 주소가 있고**, 주소 없는 칸을 더하면
+ *  `Browser.tsx`의 `s.url`에서 타입 검사가 멈춘다(실제로 확인했다). 그 자리가 안전망이다. */

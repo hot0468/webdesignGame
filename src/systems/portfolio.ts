@@ -5,8 +5,8 @@ import { GRADE_ORDER } from './pipeline'
 /** 쌓인 작업물이 수주에 얹어 주는 몫. **순수 함수다**(`src/systems/` 규칙 —
  *  React·mutation·`Math.random` 없음).
  *
- * ⚠️ **저장하는 것이 없다.** 회사의 포트폴리오는 이미 `files`·`drafts`·`slides` 세 목록에
- *    다 있고, 여기서는 그 등급만 센다(`meetings`의 정답을 저장하지 않는 것과 같은 규칙).
+ * ⚠️ **저장하는 것이 없다.** 회사의 포트폴리오는 이미 `files`·`drafts`·`slides`·`publishes`
+ *    **네** 목록에 다 있고, 여기서는 그 등급만 센다(`meetings`의 정답을 저장하지 않는 것과 같은 규칙).
  *
  * ⚠️ 세는 것은 **`PORTFOLIO_MIN_GRADE` 이상**뿐이다 — 개수만 세면 '간단하게'로 잔뜩
  *    찍어 내는 것이 최적이 되어, 공들이는 선택이 뜻을 잃는다. 잘 만든 것만 자랑이 된다.

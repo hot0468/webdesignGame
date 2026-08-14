@@ -94,7 +94,10 @@ export function settleMail(
   // 급여는 **사람마다 한 줄**이다 — 합계만 적으면 누구를 내보내면 얼마가 주는지 알 수 없다.
   const lines = [
     ...SUBSCRIPTIONS.map((s) => `- ${s.label} ${won(s.cost)}`),
-    ...employees.map((e) => `- ${e.name} 급여 ${won(salaryOf(e.level))}`),
+    // ⚠️ **`raise`(급여협상 인상분)를 함께 넘긴다** — 빼면 사람마다 적힌 줄의 합이
+    //    바로 아래 `합계`와 안 맞는다(실제로 그런 채로 굴러갔다). 돈을 깎는 쪽
+    //    (`payroll`)은 처음부터 이것을 봤으므로 **문안만 거짓말했다**.
+    ...employees.map((e) => `- ${e.name} 급여 ${won(salaryOf(e.level, e.raise))}`),
   ].join('\n')
   const income = contractNames.length
     ? `이번 달 유지보수 수입입니다.\n${contractNames
