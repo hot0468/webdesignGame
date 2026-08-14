@@ -4,6 +4,7 @@
 코드에 앉힐 자리가 없는 결정(전역 방향 전환, 기각된 대안 전체)만 여기서 정본이 된다.
 
 <!-- 밀려난 줄은 이 아래에 -->
+| 2026-08-13 | 유지보수 계약 — 그 업체 일을 2건 끝내면 맺을 수 있고 매달 정산에 수입이 선다(급여의 반대편) | src/data/game.ts, src/systems/money.ts, src/store.ts(+test), src/programs/Company.tsx, src/index.css |
 | 2026-08-13 | **웹디몰** — 소지금이 사람 손으로 나가는 유일한 자리. 장비는 숙련도(한 번만), 소모품은 정신력. 상한이면 못 산다 | src/data/shop.ts·systems/shop.ts·programs/ShopSite.tsx(신규), src/store.ts, src/data/sites.ts·icons.ts, src/programs/Browser.tsx·browser.css |
 | 2026-08-13 | 의뢰에 **도착 주차**(`week`) — 1주차는 메일·고객게시판 한 통씩으로 시작하고 주가 갈수록 늘어난다. `inbox`·`unreadCount`가 주차를 받는다 | src/data/inbox.ts(+test), src/programs/Mail.tsx·Company.tsx, src/components/Desktop.tsx·MessageList.tsx |
 | 2026-08-13 | 첫 판에 **핀라이트 소개** 5장 — 화면을 어둡게 덮고 말하는 자리(메일·프로그램 줄·업무목록·주차 판)만 뚫는다. `seenIntro`가 세이브에 남아 한 번만 | src/components/Intro.tsx·data/intro.ts(신규), src/components/Desktop.tsx(data-*), src/store.ts, src/App.tsx, src/index.css |
