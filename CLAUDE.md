@@ -27,6 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-14 | 버그 넷 — 주말·입찰 **단가 배율이 대금에 안 붙던 것**(주말 근무가 순손해였다)·피드백이 `publishes`를 모름·죽은 새로고침·게임오버의 닿을 수 없는 안내 | src/systems/money.ts·weekend.ts·bidding.ts, src/store.ts(+test), src/components/GameOver.tsx, src/programs/Browser.tsx·Editor.tsx |
 | 2026-08-14 | 퍼블리싱 스탯 — 그전엔 등급을 안 내 대충 해도 만족도가 같았다. 밴드 고정·칸만 스탯이 정하고 약한 고리에 들어간다 | src/data/game.ts, src/store.ts(+test), src/programs/Editor.tsx·Company.tsx |
 | 2026-08-14 | **톡톡** — 클라이언트가 말을 거는 창(직원용 메신저와 다른 창·팔레트). 마감이 짧은 급한 의뢰가 오고 기존 수주 고리를 탄다 | src/programs/Talk.tsx·talk.css(신규), src/data/inbox.ts·programs.ts, src/App.tsx |
 | 2026-08-14 | **모바일 반응형(720px)** — 창은 전체화면, 작업 표시줄이 앱 전환기. 계기판은 시간만 남기고 스탯·업무목록은 **독의 네이티브 팝오버**로(전체화면 창 위에서도 행동력이 읽힌다). 좁은 화면에서 창이 화면 밖에 태어나던 버그도 함께 고쳤다 | src/index.css, src/programs/mail·messenger·editor·figma·photoshop·browser.css, src/components/Taskbar.tsx·Hud.tsx·Desktop.tsx, src/data/game.ts(WINDOW_FIT), src/store.ts(+test), project-context(shell.md) |
@@ -36,6 +37,5 @@
 | 2026-08-13 | CS 스탯을 살렸다 — 클레임 글의 `사과하기`가 행동력 1로 평판을 되돌린다(깎인 것보다 적게, 글마다 한 번) | src/data/game.ts·inbox.ts, src/systems/popup.ts, src/store.ts(+test), src/components/JobActions.tsx |
 | 2026-08-13 | 유지보수 계약 — 그 업체 일을 2건 끝내면 맺을 수 있고 매달 정산에 수입이 선다(급여의 반대편) | src/data/game.ts, src/systems/money.ts, src/store.ts(+test), src/programs/Company.tsx, src/index.css |
 | 2026-08-13 | **웹디몰** — 소지금이 사람 손으로 나가는 유일한 자리. 장비는 숙련도(한 번만), 소모품은 정신력. 상한이면 못 산다 | src/data/shop.ts·systems/shop.ts·programs/ShopSite.tsx(신규), src/store.ts, src/data/sites.ts·icons.ts, src/programs/Browser.tsx·browser.css |
-| 2026-08-13 | 의뢰에 **도착 주차**(`week`) — 1주차는 메일·고객게시판 한 통씩으로 시작하고 주가 갈수록 늘어난다. `inbox`·`unreadCount`가 주차를 받는다 | src/data/inbox.ts(+test), src/programs/Mail.tsx·Company.tsx, src/components/Desktop.tsx·MessageList.tsx |
 
 
