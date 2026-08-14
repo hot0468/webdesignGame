@@ -5,6 +5,7 @@ import { PROGRAM_ICONS } from '../data/icons'
 import { CLIENTS, type Client } from '../data/company'
 import { unreadCount } from '../data/inbox'
 import {
+  COPY_FLASH_MS,
   CRISIS_WEEKS_TO_SHUTDOWN,
   MAINTENANCE_FEE,
   MAINTENANCE_MIN_DONE,
@@ -250,12 +251,56 @@ function Info() {
             {g.rows.map((row) => (
               <div key={row.label} className="company__row">
                 <dt>{row.label}</dt>
-                <dd>{row.value}</dd>
+                <dd>
+                  {row.value}
+                  <CopyButton label={row.label} value={row.value} />
+                </dd>
               </div>
             ))}
           </dl>
         </section>
       ))}
     </div>
+  )
+}
+
+/** 접속 정보 한 칸을 클립보드로. **여기 있는 값은 전부 다른 창에 옮겨 적으려고 있다** —
+ *  브라우저 주소창·로그인·에디터 FTP가 그 목적지다(그 왕복이 이 게임의 의도된 동선이라
+ *  자동 입력으로 질러가지 않는다). 손으로 옮겨 적는 수고만 던다.
+ *
+ * ⚠️ **누른 뒤 표식이 바뀌어야 한다.** 클립보드는 눈에 안 보이므로 아이콘이 잠깐
+ *    체크로 바뀌는 것이 "됐다"는 유일한 신호다(색만으로 말하지 않는 규칙과 같은 이유).
+ *
+ * ⚠️ `navigator.clipboard`는 **없을 수 있다**(비보안 컨텍스트·구형 브라우저). 없으면
+ *    조용히 실패시키지 말고 **버튼을 아예 그리지 않는다** — 눌러도 아무 일 없는 버튼을
+ *    만들지 않는 것이 이 리포의 규칙이다. */
+function CopyButton({ label, value }: { label: string; value: string }) {
+  const [done, setDone] = useState(false)
+  /** 클립보드가 거절했다. ⚠️ 이때는 버튼을 지우고 **값을 직접 고를 수 있게** 둔다. */
+  const [failed, setFailed] = useState(false)
+  if (typeof navigator === 'undefined' || !navigator.clipboard || failed) return null
+
+  return (
+    <button
+      type="button"
+      className="company__copy"
+      // 아이콘만 있는 버튼이라 읽는 이름을 준다(무엇을 복사하는지까지).
+      aria-label={`${label} 복사`}
+      onClick={() => {
+        // ⚠️ **거절될 수 있다**(권한 없음·비보안 컨텍스트). 조용히 삼키면 눌렀는데
+        //    아무 일도 안 일어난 것처럼 보이므로, 그때는 값을 선택해 두어 손으로
+        //    복사할 길을 남긴다(눌러도 소용없는 버튼을 만들지 않는다).
+        navigator.clipboard.writeText(value).then(
+          () => {
+            setDone(true)
+            // 잠깐 뒤 되돌린다 — 표식이 남아 있으면 다음에 눌렀을 때 바뀐 것이 안 보인다.
+            setTimeout(() => setDone(false), COPY_FLASH_MS)
+          },
+          () => setFailed(true),
+        )
+      }}
+    >
+      <AppIcon name={done ? PROGRAM_ICONS.copied : PROGRAM_ICONS.copy} size={14} />
+    </button>
   )
 }

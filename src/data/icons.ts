@@ -22,6 +22,10 @@ export const PROGRAM_ICONS = {
   noSite: 'mdi:link-variant-off',
   /** 포토샵이 만들어 낸 팝업 이미지 파일. */
   file: 'mdi:file-image-outline',
+  /** 접속 정보 복사. ⚠️ 누른 뒤에는 `copied`로 바뀐다 — 클립보드는 눈에 안 보이므로
+   *  **바뀐 표식이 유일한 확인**이다(색만으로 말하지 않는 규칙과 같은 이유). */
+  copy: 'mdi:content-copy',
+  copied: 'mdi:check',
 } as const
 
 /** `메일` 창 전용 글리프. ⚠️ 다색을 들이지 않는다 — Fluent 팔레트가 currentColor로
