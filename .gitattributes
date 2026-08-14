@@ -1,0 +1,7 @@
+# 저장소는 LF로 통일한다. ⚠️ 이 파일이 없던 동안 autocrlf 설정에 따라 커밋마다
+# "LF will be replaced by CRLF" 경고 10줄이 붙거나(true), 편집기가 쓴 CRLF가
+# 그대로 저장소에 들어가 whole-file diff를 만들었다(false — 실제로 한 번 그랬다).
+# 속성이 autocrlf보다 우선이라 이 한 줄이 양쪽 문제를 다 끝낸다.
+* text=auto eol=lf
+*.png binary
+*.woff2 binary
