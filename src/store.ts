@@ -90,6 +90,7 @@ import {
   reward,
   settleMail,
 } from './systems/money'
+import { peakNotice, peakRequests } from './systems/holiday'
 import { mentalHit, recovered, weekendEvent, worked } from './systems/weekend'
 import type { ProgramId } from './data/programs'
 import {
@@ -1617,6 +1618,13 @@ export const useGame = create<Store>()(
           ...breachMails,
           ...claimMails,
           ...bidMails,
+          // ⚠️ 공휴일 **직전 주**에 팝업 의뢰가 몰린다(`systems/holiday.ts`). 새 업무 축이
+          //    아니라 평범한 팝업 `Request`라 수주·공정·클레임 규칙을 그대로 탄다.
+          //    예고는 그 **한 주 전**에 온다 — 당일에 알면 그 주 행동력을 이미 쓴 뒤다.
+          // ⚠️ **통보(정산·파기·클레임·퇴사) 아래**에 둔다 — 저쪽은 이미 벌어진 일이라
+          //    먼저 읽어야 하고, 이쪽은 앞으로 고를 일이다.
+          ...peakRequests(next),
+          ...(peakNotice(next) ? [peakNotice(next)!] : []),
           ...s.mails,
         ],
       }
