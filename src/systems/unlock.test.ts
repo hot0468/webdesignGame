@@ -43,6 +43,14 @@ describe('사이트 해금', () => {
     expect(newlyOpened(revenueFor(3), revenueFor(3) + 1)).toEqual([])
   })
 
+  // ⚠️ 문턱을 낮추자 **한 업무 대금이 여러 단계를 한 번에 넘는** 일이 흔해졌다
+  //    (사이트 A등급 195만이면 레벨 1→3). 그때 열린 것을 **전부** 내야 한 곳만 알리고
+  //    나머지가 조용히 열리는 판이 안 된다.
+  it('한 번에 여러 단계를 넘으면 그 사이의 것을 모두 낸다', () => {
+    const upTo3 = SHORTCUTS.filter((s) => s.minLevel === 2 || s.minLevel === 3).map((s) => s.id)
+    expect(newlyOpened(0, revenueFor(3))).toEqual(upTo3)
+  })
+
   it('화면이 적는 조건이 판정과 같은 표에서 나온다', () => {
     for (const s of SHORTCUTS) expect(siteMinLevel(s.id)).toBe(s.minLevel)
   })

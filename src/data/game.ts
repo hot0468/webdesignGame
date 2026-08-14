@@ -102,12 +102,23 @@ export const nextGrade = (grade: CompanyGrade): CompanyGrade | undefined =>
  *
  * ⚠️ 표가 오름차순이고 첫 칸이 `INITIAL_GAME.apMax`와 같아야 한다(`companyLevel`이
  *    "조건을 만족하는 마지막 칸"을 답으로 낸다 — `COMPANY_GRADES`와 같은 모양). */
+/** ⚠️ **문턱은 실제 수입 속도에서 나왔다**(감으로 고치지 말 것). 주당 매출은
+ *  초반 20~30만(팝업·유지보수 섞기, 행동력 3), 직원을 쓰기 시작하면 50~75만이다 —
+ *  업무 하나를 끝내는 데 드는 총 행동력이 병목이라 단가를 주차로 나눈 값이다.
+ *  그래서 첫 해금 **3주**, 수주센터 **8~18주**, 최고 레벨 **15~36주**가 된다.
+ *
+ *  ⚠️ 처음 값(300만/800만/1800만/3500만)은 **너무 높았다** — 직원 채용(레벨 2)까지만
+ *     10주였고 수주센터는 36~60주라, 잠금이 목표가 아니라 벽이었다. 해금은 "다음에 뭐가
+ *     열리는지 보이는 것"이 전부인데 그 다음이 한 시간 뒤면 보이지 않는 것과 같다.
+ *
+ *  ⚠️ 이 표는 **해금(`systems/unlock.ts`)과 행동력 상한(`apMaxOf`)을 함께** 진다 —
+ *     문턱을 내리면 행동력도 같이 빨라진다. 그것이 의도다(초반의 답답함이 같은 원인이다). */
 export const COMPANY_LEVELS = [
   { level: 1, minRevenue: 0, apMax: 3 },
-  { level: 2, minRevenue: 3_000_000, apMax: 4 },
-  { level: 3, minRevenue: 8_000_000, apMax: 5 },
-  { level: 4, minRevenue: 18_000_000, apMax: 6 },
-  { level: 5, minRevenue: 35_000_000, apMax: 7 },
+  { level: 2, minRevenue: 600_000, apMax: 4 },
+  { level: 3, minRevenue: 1_800_000, apMax: 5 },
+  { level: 4, minRevenue: 4_500_000, apMax: 6 },
+  { level: 5, minRevenue: 9_000_000, apMax: 7 },
 ] as const
 
 export type CompanyLevel = (typeof COMPANY_LEVELS)[number]

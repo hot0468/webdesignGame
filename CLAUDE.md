@@ -27,6 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-14 | 해금 문턱을 실제 수입 속도에 맞춰 내림(300만→60만 등) — 첫 해금 10주→**4주**, 수주센터 36주→**12주**. 실제로 20주 굴려 실측 | src/data/game.ts(COMPANY_LEVELS), src/systems/unlock.test.ts |
 | 2026-08-14 | 쇼핑 아이템 4종 추가 — 숙련도 **둘째 장비 단**(+8, 첫 단을 산 뒤에도 살 것이 남게)과 큰 정신력 소모품. `shop.test.ts` 신규(합계가 상한을 안 넘는지) | src/data/shop.ts, src/systems/shop.test.ts(신규) |
 | 2026-08-14 | **사이트 해금** — 브라우저 바로가기가 회사레벨로 잠긴다(쇼핑1·인간인2·어워더즈3·수주센터4). 잠긴 칸도 조건과 함께 보여 주고, 주소 직접 입력도 막는다 | src/systems/unlock.ts(+test 신규), src/data/sites.ts, src/programs/Browser.tsx·browser.css, src/store.ts(+test) |
 | 2026-08-14 | 하네스 정비 — `--seed`를 실제로 살림(이중 인코딩·Page.enable 누락·산 페이지 덮어쓰기), 디버그 포트 9223 분리, 서버를 타이틀로 식별, 빌드 출력 207줄→12줄 | scripts/measure.mjs, vite.config.ts, package.json, shell.md |
@@ -36,6 +37,5 @@
 | 2026-08-14 | 퍼블리싱 스탯 — 그전엔 등급을 안 내 대충 해도 만족도가 같았다. 밴드 고정·칸만 스탯이 정하고 약한 고리에 들어간다 | src/data/game.ts, src/store.ts(+test), src/programs/Editor.tsx·Company.tsx |
 | 2026-08-14 | **톡톡** — 클라이언트가 말을 거는 창(직원용 메신저와 다른 창·팔레트). 마감이 짧은 급한 의뢰가 오고 기존 수주 고리를 탄다 | src/programs/Talk.tsx·talk.css(신규), src/data/inbox.ts·programs.ts, src/App.tsx |
 | 2026-08-14 | **모바일 반응형(720px)** — 창은 전체화면, 작업 표시줄이 앱 전환기. 계기판은 시간만 남기고 스탯·업무목록은 **독의 네이티브 팝오버**로(전체화면 창 위에서도 행동력이 읽힌다). 좁은 화면에서 창이 화면 밖에 태어나던 버그도 함께 고쳤다 | src/index.css, src/programs/mail·messenger·editor·figma·photoshop·browser.css, src/components/Taskbar.tsx·Hud.tsx·Desktop.tsx, src/data/game.ts(WINDOW_FIT), src/store.ts(+test), project-context(shell.md) |
-| 2026-08-14 | **어워더즈** — 일 미루고 남의 수상작을 구경하는 자리. 행동력 1을 태우면 그 주 시안이 한 등급 좋아진다(남는 상태는 주차 한 칸이고 주가 넘으면 식는다) | src/programs/RefSite.tsx·systems/reference.ts(+test)(신규), src/data/reference.ts(신규), src/store.ts, src/data/sites.ts·icons.ts, src/programs/Browser.tsx·browser.css |
 
 
