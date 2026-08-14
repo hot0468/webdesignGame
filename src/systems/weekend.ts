@@ -1,5 +1,6 @@
 import { CLIENTS } from '../data/company'
 import {
+  MENTAL_HIT,
   MENTAL_RECOVERY,
   WEEKEND_DUE_WEEKS,
   WEEKEND_EVENT_CHANCE,
@@ -88,6 +89,23 @@ export function weekendEvent(week: number): Request | undefined {
  *  페널티 표(`MENTAL_PENALTY`)만 흐려진다. 자를 자리는 이 함수와 `recovered` 둘뿐이다. */
 export const worked = (mental: number) => Math.max(0, mental - WEEKEND_MENTAL_COST)
 
-/** 주차를 넘길 때 도는 정신력. ⚠️ **`mentalMax` 위로 올라가지 않는다.** */
-export const recovered = (mental: number, mentalMax: number) =>
-  Math.min(mentalMax, mental + MENTAL_RECOVERY)
+/** 그 주에 일어난 나쁜 일이 깎는 정신력의 **합**.
+ *
+ * ⚠️ 사건을 새로 만들지 않는다 — 이미 평판을 깎는 넷(클레임·계약 파기·퇴사)에 값을
+ *    하나 더 붙일 뿐이다. 세는 방식도 그쪽과 같다(클레임은 업체·주 단위로 한 번).
+ *
+ * ⚠️ **회복보다 먼저 세지 마라.** 호출 쪽은 `recovered`로 회복시킨 뒤 이 값을 뺀다 —
+ *    순서를 뒤집으면 바닥에서 회복분만큼 되살아나 벌이 사라진다. */
+export const mentalHit = (counts: {
+  claims: number
+  breaches: number
+  quits: number
+}): number =>
+  counts.claims * MENTAL_HIT.claim +
+  counts.breaches * MENTAL_HIT.breach +
+  counts.quits * MENTAL_HIT.quit
+
+/** 주차를 넘길 때 도는 정신력. **회복시킨 뒤 그 주의 나쁜 일을 뺀다.**
+ *  ⚠️ **`mentalMax` 위로도 0 밑으로도 나가지 않는다**(자르는 자리는 여기와 `worked` 둘뿐). */
+export const recovered = (mental: number, mentalMax: number, hit = 0) =>
+  Math.max(0, Math.min(mentalMax, mental + MENTAL_RECOVERY) - hit)

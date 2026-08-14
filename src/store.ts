@@ -90,7 +90,7 @@ import {
   reward,
   settleMail,
 } from './systems/money'
-import { recovered, weekendEvent, worked } from './systems/weekend'
+import { mentalHit, recovered, weekendEvent, worked } from './systems/weekend'
 import type { ProgramId } from './data/programs'
 import {
   claimMail,
@@ -1562,7 +1562,17 @@ export const useGame = create<Store>()(
       //    카운트다운이 된다). 회복량은 주말 한 번의 소모보다 작아서 주말 근무가 대가를 진다.
       // ⚠️ 새 상한은 **회복한 뒤의** 정신력으로 잰다 — 다음 주에 실제로 쓸 값이라야
       //    계기판의 막대와 칸 수가 같은 순간을 말한다.
-      const mental = recovered(s.mental, s.mentalMax)
+      // ⚠️ **나쁜 일도 정신력을 깎는다**(`MENTAL_HIT`) — 주말 근무만으로는 주말에 안
+      //    일하면 100에서 안 움직이는 죽은 자원이었다. 세는 것은 **평판을 깎는 것과 같은
+      //    넷**이다(사건을 새로 만들지 않는다): 클레임·계약 파기·퇴사 두 갈래.
+      // ⚠️ 회복시킨 **뒤에** 뺀다(`recovered`의 셋째 인자) — 순서를 뒤집으면 바닥에서
+      //    회복분만큼 되살아나 벌이 사라진다.
+      const hit = mentalHit({
+        claims: claims.length,
+        breaches: broken.length,
+        quits: leavers.length,
+      })
+      const mental = recovered(s.mental, s.mentalMax, hit)
       // **행동력 상한의 정본은 이 함수 하나다**(회사레벨이 상한, 정신력이 그 상한에서
       // 깎는다). ⚠️ `s.apMax`를 그대로 쓰지 마라 — 정신력이 움직여도 칸이 안 변한다.
       const apMax = apMaxOf(s.revenue, mental)
