@@ -40,7 +40,10 @@ const CHROME_PATHS = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
 ]
-const PORT = 9222
+/** ⚠️ **9222를 쓰지 않는다** — 형제 프로젝트(windowsGame)의 측정 크롬이 그 포트를 쓴다.
+ *  프로필 디렉터리는 갈라 놨어도 디버그 포트가 겹치면 한쪽 크롬만 살아남아, 남의 탭에
+ *  붙어 남의 게임을 찍는다(실제로 그랬다 — 5173의 windowsGame을 찍어 왔다). */
+const PORT = 9223
 const DEV_PORTS = [5173, 5174, 5175]
 const WAIT_STEP = 100
 
@@ -61,7 +64,10 @@ async function findDevServer(explicit) {
   for (const url of candidates) {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(1500) })
-      if (res.ok) return url
+      // ⚠️ 200이라고 끝이 아니다 — 형제 프로젝트의 dev 서버가 앞 포트(5173)를 먼저
+      //    잡고 있으면 **남의 게임**에 붙는다(실제로 windowsGame을 찍어 온 적이 있다).
+      //    타이틀에 "웹디"가 있는 서버만 우리 것으로 친다.
+      if (res.ok && (await res.text()).includes('<title>웹디')) return url
     } catch {
       /* 다음 후보 */
     }
@@ -356,16 +362,35 @@ async function main() {
     await d.send('Page.navigate', { url })
     await until(() => d.evalJs(`document.readyState === 'complete'`), { label: '로드' })
     if (o.fresh || o.seed) {
-      if (o.fresh) await d.evalJs(`localStorage.clear()`)
+      // ⚠️ **살아 있는 앱 페이지에 setItem을 하면 진다.** 심은 직후 앱이 상태를 한 번이라도
+      //    저장하면(자동저장은 모든 set에 붙는다 — 인트로 표시조차) 심은 값을 전체 상태로
+      //    덮어쓴다. 그래서 "심음" 로그가 찍혀도 재로드 뒤에는 옛 판이었다(실제로 그랬다).
+      //    문서가 뜨기 **전에** 도는 스크립트(addScriptToEvaluateOnNewDocument)로 심으면
+      //    앱 번들보다 먼저 실행되어 재수화가 심은 값을 읽는다. 한 번 쓰고 지운다 —
+      //    남겨 두면 이후의 모든 탐색이 판을 도로 리셋한다.
+      const lines = []
+      if (o.fresh) lines.push(`localStorage.clear()`)
       if (o.seed) {
         const seed = JSON.parse(readFileSync(o.seed, 'utf8'))
         for (const [k, v] of Object.entries(seed)) {
-          await d.evalJs(`localStorage.setItem(${JSON.stringify(k)}, ${JSON.stringify(JSON.stringify(v))})`)
+          // ⚠️ 값이 **이미 문자열이면 그대로** 넣는다. 문자열에 stringify를 한 번 더 감으면
+          //    저장소에 `"{\"state\"...}"`처럼 따옴표째 들어가고, 앱이 파싱하면 객체가 아니라
+          //    문자열이라 재수화가 조용히 버린다 — "--seed가 안 먹힌다"의 절반이 이것이었다
+          //    (나머지 절반은 위의 산 페이지 덮어쓰기).
+          const text = typeof v === 'string' ? v : JSON.stringify(v)
+          lines.push(`localStorage.setItem(${JSON.stringify(k)}, ${JSON.stringify(text)})`)
         }
         console.log(`세이브 심음: ${Object.keys(seed).join(', ')}`)
       }
+      // ⚠️ Page 도메인을 켜야 문서 전 스크립트가 실제로 돈다 — 안 켜면 등록만 되고
+      //    조용히 무시된다(에러도 없다. "심음" 로그만 찍히고 옛 판이 뜬다).
+      await d.send('Page.enable')
+      const { identifier } = await d.send('Page.addScriptToEvaluateOnNewDocument', {
+        source: lines.join(';'),
+      })
       await d.send('Page.navigate', { url })
       await until(() => d.evalJs(`document.readyState === 'complete'`), { label: '재로드' })
+      await d.send('Page.removeScriptToEvaluateOnNewDocument', { identifier })
     }
     await sleep(500)
     await login(d, o.name)

@@ -27,6 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-14 | 하네스 정비 — `--seed`를 실제로 살림(이중 인코딩·Page.enable 누락·산 페이지 덮어쓰기), 디버그 포트 9223 분리, 서버를 타이틀로 식별, 빌드 출력 207줄→12줄 | scripts/measure.mjs, vite.config.ts, package.json, shell.md |
 | 2026-08-14 | 사내시스템 접속 정보에 **복사 버튼** — 옮겨 적는 수고만 던다(자동 입력은 안 한다). 클립보드가 없거나 거절하면 버튼을 안 그린다 | src/programs/Company.tsx, src/data/game.ts·icons.ts, src/index.css |
 | 2026-08-14 | 3차 사냥 — 정산 메일의 사람별 급여가 **협상 인상분을 빼먹어** 줄의 합과 합계가 갈렸다(문안만 거짓). 죽은 `openableShortcut` 정리 | src/systems/money.ts(+test 신규), src/data/sites.ts, src/programs/Browser.tsx, src/systems/portfolio.ts |
 | 2026-08-14 | 버그 넷 — 주말·입찰 **단가 배율이 대금에 안 붙던 것**(주말 근무가 순손해였다)·피드백이 `publishes`를 모름·죽은 새로고침·게임오버의 닿을 수 없는 안내 | src/systems/money.ts·weekend.ts·bidding.ts, src/store.ts(+test), src/components/GameOver.tsx, src/programs/Browser.tsx·Editor.tsx |
@@ -36,6 +37,5 @@
 | 2026-08-14 | **어워더즈** — 일 미루고 남의 수상작을 구경하는 자리. 행동력 1을 태우면 그 주 시안이 한 등급 좋아진다(남는 상태는 주차 한 칸이고 주가 넘으면 식는다) | src/programs/RefSite.tsx·systems/reference.ts(+test)(신규), src/data/reference.ts(신규), src/store.ts, src/data/sites.ts·icons.ts, src/programs/Browser.tsx·browser.css |
 | 2026-08-14 | **작업물 창** — 만든 것(팝업·시안·문서)을 등급과 함께 모아 본다. A 이상이 몇 개인지가 곧 낙찰 확률 보정이고 화면·스토어가 같은 함수를 쓴다 | src/programs/Folder.tsx·folder.css·systems/portfolio.ts(신규), src/portfolio.store.test.ts(신규), src/data/bidding.ts·programs.ts, src/store.ts, src/programs/WorkSite.tsx, src/App.tsx |
 | 2026-08-14 | **후속 요청 축** — 회신했는데 "다시 해 오세요"(`step`을 도로 내린다·대금 안 나감) · 업체 성격 4종(이름에서 파생) · 납품 2주 뒤 크로스브라우징 버그 신고(미래 주차를 단 메일) | src/data/followup.ts·systems/followup.ts(+test)(신규), src/store.ts(+test), src/components/JobActions.tsx |
-| 2026-08-13 | CS 스탯을 살렸다 — 클레임 글의 `사과하기`가 행동력 1로 평판을 되돌린다(깎인 것보다 적게, 글마다 한 번) | src/data/game.ts·inbox.ts, src/systems/popup.ts, src/store.ts(+test), src/components/JobActions.tsx |
 
 
