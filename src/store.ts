@@ -121,6 +121,7 @@ import {
   type Workable,
 } from './systems/request'
 import { normalizeUrl } from './systems/url'
+import { newlyOpened, unlockMail } from './systems/unlock'
 import { findItem, type ShopItemId } from './data/shop'
 import { buyBlock } from './systems/shop'
 import { portfolioBonus } from './systems/portfolio'
@@ -1025,6 +1026,10 @@ export const useGame = create<Store>()(
       // `inbox()`가 `week`으로 아직 안 온 글을 이미 거르므로 `advanceWeek`에
       // 판정 자리를 새로 만들지 않는다(새 상태 축도 없다).
       const bug = bugReport(job, s.week, s.codingSkill)
+      // ⚠️ 해금은 **매출이 경계를 넘는 순간에만** 알린다(`newlyOpened`가 두 값을 받는
+      //    이유다) — "지금 열려 있는 것"을 알리면 같은 메일이 계속 온다.
+      //    해금 자체는 저장하지 않는다: 누적 매출에서 파생한다(`systems/unlock.ts`).
+      const opened = newlyOpened(s.revenue, revenue)
       return {
         jobs,
         money: s.money + fee,
@@ -1034,7 +1039,12 @@ export const useGame = create<Store>()(
         // ⚠️ 정신력도 이 값에 걸린다 — `apMaxOf` 하나가 상한의 정본이다.
         apMax: apMaxOf(revenue, s.mental),
         reputation: clampReputation(s.reputation + reputation),
-        mails: [doneMail(job, grade, fee, s.week), ...(bug ? [bug] : []), ...s.mails],
+        mails: [
+          doneMail(job, grade, fee, s.week),
+          ...(bug ? [bug] : []),
+          ...(opened.length > 0 ? [unlockMail(opened, s.week)] : []),
+          ...s.mails,
+        ],
       }
     }),
 

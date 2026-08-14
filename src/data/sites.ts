@@ -20,19 +20,29 @@ export const SEARCH_HOME = {
  * ⚠️ **사내시스템은 여기 없다** — 바탕화면 프로그램이다(설계 결정표). 스펙이 "브라우저로
  *    접속"이라 적었다고 두 입구를 그리면 어느 쪽이 진짜인지 흐려진다.
  * ⚠️ 고용 사이트는 **알바가 아니라 직원**을 뽑는 곳이다(`메신저`의 대화 상대가 여기서 온다). */
+/** ⚠️ `minLevel`이 **해금 조건이다**(회사레벨 = 누적 매출에서 파생, `data/game.ts`).
+ *
+ *  ⚠️ **새 수치를 만들지 않는다** — 이미 있는 축 하나로만 잠근다. 조건이 둘 이상이면
+ *     플레이어가 "무엇을 올려야 열리는지" 헷갈리고, 화면도 그 조합을 설명해야 한다.
+ *
+ *  순서에 뜻이 있다: **쇼핑(1)은 처음부터** — 스탯을 사는 곳이라 잠그면 성장의 입구가
+ *  같이 잠긴다. **어워더즈(2)**는 시안 등급을 올려 주는 곳이라 일을 좀 해 본 뒤,
+ *  **인간인(3)**은 급여를 감당할 매출이 있어야 사람을 쓰고, **수주센터(4)**는
+ *  입찰 참가 조건(시안 장수·기획안 랭크)을 채울 수 있을 때 열린다. */
 export const SHORTCUTS = [
-  { id: 'work', name: '수주센터', icon: 'work', url: 'https://sooju.kr' },
-  { id: 'hire', name: '인간인', icon: 'hire', url: 'https://ingannin.kr' },
-  { id: 'shop', name: '쇼핑', icon: 'shop', url: 'https://webdimall.kr' },
+  { id: 'shop', name: '쇼핑', icon: 'shop', url: 'https://webdimall.kr', minLevel: 1 },
   // ⚠️ **일하는 곳이 아니다** — 남의 잘된 작업을 구경하는 자리이고, 그 시간이 행동력으로
   //    나간다(`data/reference.ts`). 수주·채용·쇼핑 옆에 두는 이유는 이것도 결국 행동력을
   //    어디에 쓸까라는 같은 선택이기 때문이다.
-  { id: 'reference', name: '어워더즈', icon: 'reference', url: 'https://awwwdi.kr' },
+  { id: 'reference', name: '어워더즈', icon: 'reference', url: 'https://awwwdi.kr', minLevel: 2 },
+  { id: 'hire', name: '인간인', icon: 'hire', url: 'https://ingannin.kr', minLevel: 3 },
+  { id: 'work', name: '수주센터', icon: 'work', url: 'https://sooju.kr', minLevel: 4 },
 ] as const satisfies readonly {
   id: string
   name: string
   icon: keyof typeof SITE_ICONS
   url?: string
+  minLevel: number
 }[]
 
 export type ShortcutId = (typeof SHORTCUTS)[number]['id']

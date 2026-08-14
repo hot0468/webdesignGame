@@ -631,6 +631,14 @@
   transition: background-color 200ms ease-out;
 }
 
+/* 잠긴 칸. ⚠️ **지우지 않고 흐리게 둔다** — 다음에 뭐가 열리는지 보이는 것이
+   해금의 전부다. 흐림만으로 말하지 않고 아래 `.nv__soon`이 조건을 글자로 적는다.
+   ⚠️ hover 효과를 주지 않는다(누를 수 있는 것처럼 보이면 안 된다). */
+.nv__shortcut-go--locked {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .nv__shortcut-go:hover {
   background: var(--nv-hover);
 }

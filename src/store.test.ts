@@ -1436,3 +1436,52 @@ describe('작업물 목록을 훑는 자리', () => {
     expect(g().publishes[0]!.grade).toBe(raiseGrade(made.grade))
   })
 })
+
+/** 해금 알림. ⚠️ 여기서 지키는 것은 **넘는 순간에만 온다**이다 —
+ *  매번 오면 받은편지함이 같은 글로 덮이고 알림이 뜻을 잃는다. */
+describe('사이트 해금 알림', () => {
+  const g = () => useGame.getState()
+  const fixReq = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'fix')!
+
+  /** 유지보수 업무 하나를 끝까지 돌려 대금을 받는다(매출이 느는 유일한 자리).
+   *  ⚠️ 같은 의뢰를 다시 쓰므로 **앞 판의 흔적을 지우고** 부른다(`acceptJob`은 같은
+   *     id를 두 번 받지 않는다). */
+  const earnOnce = () => {
+    useGame.setState({ jobs: [], publishes: [], readIds: [], ap: 9 })
+    g().acceptJob(fixReq)
+    g().publishJob(fixReq.id)
+    reply(fixReq.id)
+  }
+
+  it('경계를 넘을 때마다 그때 열린 것만 알린다', () => {
+    // 레벨 2(어워더즈) 경계 바로 아래 — `fix` 대금이 경계 간격보다 작으므로 -1에서 시작한다.
+    useGame.setState({ ...emptyState(), revenue: COMPANY_LEVELS[1]!.minRevenue - 1 })
+    earnOnce()
+    const first = g().mails.filter((m) => m.id.startsWith('unlock:'))
+    expect(first).toHaveLength(1)
+    expect(first[0]!.body).toContain('어워더즈')
+
+    // ⚠️ 여기가 핵심이다: **또 다른 경계(레벨 3)**를 넘게 해 둔다. "지금 열린 것을 매번
+    //    알리는" 구현이면 이때 어워더즈가 **다시** 실려 온다 — 그러면 안 된다.
+    useGame.setState({ revenue: COMPANY_LEVELS[2]!.minRevenue - 1 })
+    earnOnce()
+    const mails = g().mails.filter((m) => m.id.startsWith('unlock:'))
+    expect(mails).toHaveLength(2)
+    expect(mails[0]!.body).toContain('인간인')
+    expect(mails[0]!.body).not.toContain('어워더즈')
+  })
+
+  it('새로 열린 것이 없으면 알림도 없다', () => {
+    // 레벨 1 구간 한가운데 — 이번 대금으로는 아무 경계도 안 넘는다.
+    useGame.setState({ ...emptyState(), revenue: 0 })
+    earnOnce()
+    expect(g().mails.filter((m) => m.id.startsWith('unlock:'))).toHaveLength(0)
+  })
+
+  // ⚠️ 뒤집기: 알림이 `ad`가 아니면 견적보내기 버튼이 붙어 "알림을 수주하는" 판이 된다.
+  it('알림은 고를 것이 없는 글이다', () => {
+    useGame.setState({ ...emptyState(), revenue: COMPANY_LEVELS[1]!.minRevenue - 1 })
+    earnOnce()
+    expect(g().mails.find((m) => m.id.startsWith('unlock:'))!.ad).toBe(true)
+  })
+})
