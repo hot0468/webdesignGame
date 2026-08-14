@@ -36,11 +36,11 @@ describe('사이트 해금', () => {
   })
 
   it('새로 열린 것만 알린다 — 이미 열린 것을 매주 다시 알리지 않는다', () => {
-    const before = revenueFor(2)
-    const after = revenueFor(3)
-    expect(newlyOpened(before, after)).toEqual(['hire'])
+    // ⚠️ 이름을 적지 않는다 — 해금 순서를 바꿔도 이 규칙은 그대로여야 한다(표에서 파생).
+    const level3 = SHORTCUTS.filter((s) => s.minLevel === 3).map((s) => s.id)
+    expect(newlyOpened(revenueFor(2), revenueFor(3))).toEqual(level3)
     // 같은 구간 안에서는 새로 열린 것이 없다.
-    expect(newlyOpened(after, after + 1)).toEqual([])
+    expect(newlyOpened(revenueFor(3), revenueFor(3) + 1)).toEqual([])
   })
 
   it('화면이 적는 조건이 판정과 같은 표에서 나온다', () => {

@@ -33,6 +33,7 @@ import {
 } from './data/game'
 import { monthlyCost } from './systems/money'
 import { MESSAGES, inbox, unreadCount, type Request } from './data/inbox'
+import { SHORTCUTS } from './data/sites'
 import type { ProgramId } from './data/programs'
 import { feedbackWorks, raiseGrade } from './systems/request'
 import { asStep, focusedWindowId, useGame } from './store'
@@ -1441,6 +1442,8 @@ describe('작업물 목록을 훑는 자리', () => {
  *  매번 오면 받은편지함이 같은 글로 덮이고 알림이 뜻을 잃는다. */
 describe('사이트 해금 알림', () => {
   const g = () => useGame.getState()
+  /** 그 레벨에서 열리는 사이트 이름. 이름을 테스트에 박지 않으려고 표에서 뽑는다. */
+  const nameAtLevel = (level: number) => SHORTCUTS.find((s) => s.minLevel === level)!.name
   const fixReq = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'fix')!
 
   /** 유지보수 업무 하나를 끝까지 돌려 대금을 받는다(매출이 느는 유일한 자리).
@@ -1459,7 +1462,8 @@ describe('사이트 해금 알림', () => {
     earnOnce()
     const first = g().mails.filter((m) => m.id.startsWith('unlock:'))
     expect(first).toHaveLength(1)
-    expect(first[0]!.body).toContain('어워더즈')
+    // ⚠️ 이름을 적지 않는다 — 해금 순서를 바꿔도 규칙은 그대로여야 한다(표에서 파생).
+    expect(first[0]!.body).toContain(nameAtLevel(2))
 
     // ⚠️ 여기가 핵심이다: **또 다른 경계(레벨 3)**를 넘게 해 둔다. "지금 열린 것을 매번
     //    알리는" 구현이면 이때 어워더즈가 **다시** 실려 온다 — 그러면 안 된다.
@@ -1467,8 +1471,8 @@ describe('사이트 해금 알림', () => {
     earnOnce()
     const mails = g().mails.filter((m) => m.id.startsWith('unlock:'))
     expect(mails).toHaveLength(2)
-    expect(mails[0]!.body).toContain('인간인')
-    expect(mails[0]!.body).not.toContain('어워더즈')
+    expect(mails[0]!.body).toContain(nameAtLevel(3))
+    expect(mails[0]!.body).not.toContain(nameAtLevel(2))
   })
 
   it('새로 열린 것이 없으면 알림도 없다', () => {

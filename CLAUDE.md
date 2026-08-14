@@ -27,7 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
-| 2026-08-14 | **사이트 해금** — 브라우저 바로가기가 회사레벨로 잠긴다(쇼핑1·어워더즈2·인간인3·수주센터4). 잠긴 칸도 조건과 함께 보여 주고, 주소 직접 입력도 막는다 | src/systems/unlock.ts(+test 신규), src/data/sites.ts, src/programs/Browser.tsx·browser.css, src/store.ts(+test) |
+| 2026-08-14 | **사이트 해금** — 브라우저 바로가기가 회사레벨로 잠긴다(쇼핑1·인간인2·어워더즈3·수주센터4). 잠긴 칸도 조건과 함께 보여 주고, 주소 직접 입력도 막는다 | src/systems/unlock.ts(+test 신규), src/data/sites.ts, src/programs/Browser.tsx·browser.css, src/store.ts(+test) |
 | 2026-08-14 | 하네스 정비 — `--seed`를 실제로 살림(이중 인코딩·Page.enable 누락·산 페이지 덮어쓰기), 디버그 포트 9223 분리, 서버를 타이틀로 식별, 빌드 출력 207줄→12줄 | scripts/measure.mjs, vite.config.ts, package.json, shell.md |
 | 2026-08-14 | 사내시스템 접속 정보에 **복사 버튼** — 옮겨 적는 수고만 던다(자동 입력은 안 한다). 클립보드가 없거나 거절하면 버튼을 안 그린다 | src/programs/Company.tsx, src/data/game.ts·icons.ts, src/index.css |
 | 2026-08-14 | 3차 사냥 — 정산 메일의 사람별 급여가 **협상 인상분을 빼먹어** 줄의 합과 합계가 갈렸다(문안만 거짓). 죽은 `openableShortcut` 정리 | src/systems/money.ts(+test 신규), src/data/sites.ts, src/programs/Browser.tsx, src/systems/portfolio.ts |
