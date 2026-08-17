@@ -26,6 +26,8 @@ import { MEETING_MINS, MEETING_OCCUPY_WEEKS, type KeywordId } from './data/keywo
 import { clientKeywords, hitCount, keywordShift, meetingMail, revealedKeywords } from './systems/keywords'
 import { CLIENTS, clientsOf, INITIAL_CLIENTS } from './data/company'
 import { type Block, canSpend, nextDay, spendTime, START_CLOCK, weekLeft } from './systems/clock'
+import { SIZE_MISS_SHIFT, type PopupSize } from './data/spec'
+import { sizeShift, slideMins, slideShift, targetSlides } from './systems/spec'
 import { EMPLOYEE_LEVEL, FEEDBACK_MINS, ORDER_MINS, ORDER_FILE_EXT, ORDER_QUALITY, POST_MINS, TRAIN_COST } from './data/employees'
 import type { Applicant } from './systems/hire'
 import {
@@ -424,8 +426,11 @@ type Store = {
   acceptJob: (request: Request) => void
   rejectJob: (id: string) => void
   completeJob: (id: string) => void
-  /** 팝업 이미지 제작(포토샵). **비용은 여기가 진다**(고른 퀄리티의 `ap`). */
-  makePopup: (jobId: string, quality: QualityId) => void
+  /** 팝업 이미지 제작(포토샵). **비용은 여기가 진다**(고른 퀄리티의 시간).
+   *  ⚠️ `size`는 플레이어가 고른 **캔버스 규격**이다 — 의뢰가 요구한 값과 어긋나면
+   *     등급이 밀린다(`systems/spec.ts`). 안 넘기면 어긋난 것으로 본다: 규격을 안 고르고
+   *     만드는 길이 열려 있으면 읽는 일이 선택이 아니게 된다. */
+  makePopup: (jobId: string, quality: QualityId, size?: PopupSize) => void
   /** 클라이언트 미팅(피그마). 알아내는 키워드 수는 **가는 사람의 기획력**이 정한다.
    *
    *  `employeeId`를 주면 **그 직원이 대신 간다**: 내 행동력은 안 들고 대신 그 직원이
@@ -442,7 +447,7 @@ type Store = {
   /** PPT 창의 제작 — **발표자료(`ppt`)와 화면정의서(`site`의 첫 공정)를 같은 손으로 만든다.**
    *  둘 다 "PPT 파일을 만든다"는 같은 일이라 액션을 나누지 않는다(무엇을 만든 것인지는
    *  그 업무의 종류가 이미 안다). */
-  makeSlides: (jobId: string, quality: QualityId) => void
+  makeSlides: (jobId: string, quality: QualityId, slides?: number) => void
   /** 그 업무의 **끝난 공정을 요청 글에 회신한다**(행동력 0). 공정이 남았으면 상대의 답장이
    *  새 글로 오고 그것이 다음 공정을 연다. 마지막이면 완료 회신이라 업무가 끝나고
    *  만족도가 적힌 완료 메일이 온다. */
@@ -900,7 +905,7 @@ export const useGame = create<Store>()(
   // 제작이 비용을 진다. ⚠️ 행동력이 모자라면 **아무 일도 일어나지 않는다** —
   //    음수 행동력으로 넘어가면 그다음 주까지 빚이 이어져 회복이 뜻을 잃는다.
   //    비용도 등급도 **고른 퀄리티**가 정한다(`data/game.ts`의 `QUALITY`).
-  makePopup: (jobId, quality) =>
+  makePopup: (jobId, quality, size) =>
     set((s) => {
       const q = findQuality(quality)
       // ⚠️ 자기 차례가 아닌 업무는 여기서 만들 수 없다 — 공정의 줄을 건너뛰면
@@ -926,7 +931,9 @@ export const useGame = create<Store>()(
             // 무엇의 팝업인지 알 수 있어야 "틀린 파일"이 실수이지 함정이 아니다.
             name: `${job?.from ?? jobId}_팝업${seq > 1 ? seq : ''}.png`,
             madeWeek: s.week,
-            grade: gradeOf(quality, s.design),
+            // ⚠️ 규격이 어긋난 만큼 **밴드 밖으로** 밀린다(키워드 보정과 같은 고리다 —
+            //    대금·평판을 따로 깎지 않는다: 등급이 이미 그리로 흐른다).
+            grade: gradeOf(quality, s.design, size ? sizeShift(jobId, size) : SIZE_MISS_SHIFT),
           },
         ],
       }
@@ -1014,12 +1021,16 @@ export const useGame = create<Store>()(
 
   // 시안·팝업과 같은 규칙이다. 이름만 그 업무가 무엇을 주문했는지에 따라 갈린다 —
   // 화면정의서와 발표자료는 만드는 손이 같아도 받는 쪽에는 다른 문서다.
-  makeSlides: (jobId, quality) =>
+  makeSlides: (jobId, quality, slides) =>
     set((s) => {
       const q = findQuality(quality)
       const job = turnOf(s.jobs, jobId, 'ppt')
       if (!job) return {}
-      const cost = timeCost(q.mins, s[skillFor('ppt')])
+      // ⚠️ **분량이 시간에 더해진다**(곱하지 않는다 — 곱하면 '간단하게 24장'이
+      //    '매우 신경써서 8장'보다 싸져 두 축이 서로를 잡아먹는다). 안 넘기면 목표대로
+      //    만든 것으로 본다(옛 호출부·테스트가 그대로 돈다).
+      const count = slides ?? targetSlides(jobId)
+      const cost = timeCost(q.mins + slideMins(count), s[skillFor('ppt')])
       const paid = spend(s, cost, `${job.kind === 'site' ? '화면정의서' : '발표자료'} · ${job.from}`)
       if (!paid) return {}
       const seq = s.slides.filter((d) => d.jobId === jobId).length + 1
@@ -1035,7 +1046,8 @@ export const useGame = create<Store>()(
             jobId,
             name: `${job.from}_${what}${seq > 1 ? seq : ''}.pptx`,
             madeWeek: s.week,
-            grade: gradeOf(quality, s.design),
+            // 아낀 분량만큼 등급이 밀린다 — 시간을 아끼는 쪽의 값이 여기 붙는다.
+            grade: gradeOf(quality, s.design, slideShift(count, targetSlides(jobId))),
           },
         ],
       }

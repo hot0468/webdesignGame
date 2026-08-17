@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { timeCost, QUALITY, skillFor } from '../data/game'
+import { SLIDE_RANGE } from '../data/spec'
+import { slideMins, slideShift, targetSlides } from '../systems/spec'
 import { PPT_ICONS } from '../data/icons'
 import { formatDate, formatSpan } from '../systems/calendar'
 import { gradeOf } from '../systems/craft'
@@ -46,6 +48,10 @@ export function Ppt() {
   const design = useGame((s) => s.design)
   const makeSlides = useGame((s) => s.makeSlides)
   const [pickedId, setPicked] = useState<string | null>(null)
+  // ⚠️ 분량은 `useState`다(창을 보는 방식). 기본값을 **범위의 최소로 둔다** — 목표로
+  //    미리 채우면 정답이 화면에 적히는 셈이라 의뢰서를 읽을 이유가 사라지고, 저울질도
+  //    "그대로 두기"가 늘 정답이 된다. 늘리는 것은 플레이어의 손이다.
+  const [count, setCount] = useState<number>(SLIDE_RANGE.min)
   const work = useWorking()
 
   // 만든 뒤에도 **회신할 때까지는 남는다** — 방금 만든 파일과 등급을 볼 자리가 있어야 한다.
@@ -71,6 +77,35 @@ export function Ppt() {
       </div>
 
       <div className="ppt__ribbon">
+        {/* 분량 칸. ⚠️ **이것이 이 창의 판단이다** — 장수가 시간을 늘리고(`slideMins`)
+            모자라면 등급이 깎인다(`slideShift`). 목표는 의뢰 글에 적혀 있다. */}
+        {picked && turn && (
+          <div className="ppt__group">
+            <div className="ppt__slides">
+              <button
+                type="button"
+                className="ppt__step"
+                aria-label="한 장 줄이기"
+                disabled={count <= SLIDE_RANGE.min}
+                onClick={() => setCount((n) => Math.max(SLIDE_RANGE.min, n - 1))}
+              >
+                −
+              </button>
+              <span className="ppt__slides-n">{count}장</span>
+              <button
+                type="button"
+                className="ppt__step"
+                aria-label="한 장 늘리기"
+                disabled={count >= SLIDE_RANGE.max}
+                onClick={() => setCount((n) => Math.min(SLIDE_RANGE.max, n + 1))}
+              >
+                +
+              </button>
+            </div>
+            <span className="ppt__group-label">분량</span>
+          </div>
+        )}
+
         <div className="ppt__group">
           <div className="ppt__buttons">
             {picked && turn ? (
@@ -81,9 +116,9 @@ export function Ppt() {
                   key={q.id}
                   type="button"
                   className="ppt__make"
-                  disabled={!clock.can(timeCost(q.mins, skill))}
+                  disabled={!clock.can(timeCost(q.mins + slideMins(count), skill))}
                   onClick={() => {
-                    makeSlides(picked.id, q.id)
+                    makeSlides(picked.id, q.id, count)
                     // ⚠️ 만든 **뒤에** 스토어에서 결과를 집는다 — 등급의 정본은 파일이고
                     //    화면이 미리 계산하면 두 번째 출처가 된다(`gradeOf`를 여기서 부르지 않는다).
                     const made = useGame
@@ -101,7 +136,8 @@ export function Ppt() {
                   <AppIcon name={PPT_ICONS.make[q.id]} size={24} className="ppt__make-icon" />
                   {q.label}
                   <span className="ppt__cost">
-                    {formatSpan(timeCost(q.mins, skill), clock.dayMins)} · {gradeOf(q.id, design)}
+                    {formatSpan(timeCost(q.mins + slideMins(count), skill), clock.dayMins)} ·{' '}
+                    {gradeOf(q.id, design, slideShift(count, targetSlides(picked.id)))}
                   </span>
                 </button>
               ))
@@ -114,7 +150,7 @@ export function Ppt() {
           <span className="ppt__group-label">{picked ? what(picked.kind) : '슬라이드'}</span>
         </div>
 
-        {picked && turn && !clock.can(timeCost(QUALITY[0].mins, skill)) && (
+        {picked && turn && !clock.can(timeCost(QUALITY[0].mins + slideMins(count), skill)) && (
           <p className="ppt__note">
             <AppIcon name={PPT_ICONS.warn} size={14} />
             이번 주에 남은 시간으로는 시작할 수 없다.

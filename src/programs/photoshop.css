@@ -288,3 +288,23 @@
     border-top: 1px solid var(--ps-stroke);
   }
 }
+
+/* 새 문서 규격 셀렉트. ⚠️ **어두운 창이라 기본 select가 밝게 튄다** — 면·글자·테두리를
+   전부 이 팔레트 값으로 덮는다(다른 창의 폼 값을 가져오지 말 것: 여기만 대비 방향이 반대다). */
+.ps__select {
+  width: 100%;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--ps-stroke);
+  border-radius: var(--sp-1);
+  background: var(--ps-canvas);
+  color: var(--ps-text);
+  font: inherit;
+  font-size: var(--fs-xs);
+}
+
+/* 어디서 찾는지만 말하는 줄. 답은 여기 없다(의뢰 글이 원본이다). */
+.ps__hint {
+  margin: 0;
+  color: var(--ps-text-2);
+  font-size: var(--fs-xs);
+}

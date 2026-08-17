@@ -27,6 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-17 | **프로그램마다 다른 머리** — 빈 버튼뿐이던 두 창을 채웠다. 포토샵은 의뢰서의 **규격을 읽어 맞추고**(틀리면 등급이 밀린다), PPT는 **분량↔시간↔등급을 저울질**한다(적게 만들면 빨리 끝나되 깎인다) | src/data/spec.ts·systems/spec.ts(+test)(신규), src/store.ts(+test), src/components/JobActions.tsx, src/programs/Photoshop.tsx·photoshop.css·Ppt.tsx·ppt.css |
 | 2026-08-17 | **작업물에 얼굴이 생겼다** — 만든 것을 CSS로 그린다(종류=구도·등급=마감새·파일 id=색). F·D는 잿빛에 비뚤고 A부터 윤이 난다. 완성 창과 작업물 창 두 자리 | src/components/Thumb.tsx·thumb.css(신규)·Working.tsx, src/programs/Folder.tsx·folder.css·Figma·Photoshop·Ppt·Editor.tsx, src/index.css |
 | 2026-08-17 | **잘하면 빨라진다** — 직원 지시 기간을 레벨만이 아니라 **그 공정의 스탯**도 당긴다(`orderWeeks(level, stat)`). 기본 주차 3→4는 그 짝이다: 3이면 레벨만으로 하한에 닿아 스탯이 죽는다. 내 숙련도 감면은 이미 있던 것 | src/data/employees.ts, src/systems/employee.ts(+test)·hire.ts, src/store.ts(+test), src/programs/Messenger.tsx, project-context(systems) |
 | 2026-08-17 | **시간을 분으로** — 행동력이 사라지고 주차 아래에 요일·시계가 생겼다. 퀄리티가 오를수록 작업이 하루를 넘어 며칠짜리가 되고(120/360/720분) 일정표에 블록으로 깔린다. ⚠️ 작업은 주를 못 넘는다(주차 넘김은 사람 손에 남는다) | src/systems/clock.ts(+test)(신규), src/data/game.ts, src/store.ts(+test), src/components/Hud.tsx·Taskbar.tsx·JobActions.tsx, src/programs/*(제작 창 전부), src/systems/calendar.ts, src/index.css, project-context(systems·shell) |
@@ -36,6 +37,5 @@
 | 2026-08-14 | **미팅을 두 단계로** — 메일에서 할지 말지 먼저 고르고, 하기로 하면 내가 갈지 직원이 갈지 정한다(직원 버튼에 기획력 표기). 안 하는 쪽도 버튼이라 "미팅 없이도 된다"가 화면에 보인다 | src/components/JobActions.tsx |
 | 2026-08-14 | **월 투자**(광고·복지) — 후반에 돈만 쌓이던 것을 매달 나가는 지출로 풀었다. 효과는 이미 있는 축(소개 확률·정신력·불만)에 붙는다 | src/data/invest.ts·systems/invest.ts(+test)(신규), src/store.ts, src/programs/Company.tsx, src/index.css |
 | 2026-08-14 | **특수 이벤트 셋** — 소개(평판 50+, 거래처가 4→7곳으로 늘어난다)·수상(A급 작업물)·저작권 위반(법무사무실 합의금) | src/data/events.ts·systems/referral.ts(+test)(신규), src/data/company.ts, src/store.ts, src/programs/Company.tsx |
-| 2026-08-14 | **공휴일 피크타임** — 공휴일 직전 주에 팝업 의뢰 3건이 몰린다(단가 1.4배·마감 짧음). 한 주 앞서 예고가 온다 | src/data/holiday.ts·systems/holiday.ts(+test)(신규), src/store.ts |
 
 

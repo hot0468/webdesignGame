@@ -464,3 +464,40 @@
     gap: var(--sp-1) var(--sp-3);
   }
 }
+
+/* 분량 칸. 리본 안의 작은 스피너다 — 오피스의 글꼴 크기 조절 칸과 같은 자리를 흉내 낸다.
+   ⚠️ 밝은 크롬이라 면을 칠하지 않고 **테두리로만** 말한다(제작 버튼과 같은 규칙). */
+.ppt__slides {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
+}
+
+.ppt__slides-n {
+  min-width: 3.5em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+}
+
+.ppt__step {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--ppt-stroke-2);
+  border-radius: var(--sp-1);
+  background: #ffffff;
+  color: var(--ppt-text);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ppt__step:hover:not(:disabled) {
+  background: var(--ppt-hover);
+}
+
+.ppt__step:disabled {
+  color: var(--ppt-text-2);
+  cursor: not-allowed;
+}

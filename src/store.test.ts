@@ -33,13 +33,15 @@ import {
   WORKDAY_COUNT,
 } from './data/game'
 import { weekLeft } from './systems/clock'
+import { POPUP_SIZES, SLIDE_RANGE } from './data/spec'
+import { popupSize, slideMins, targetSlides } from './systems/spec'
 import { monthlyCost } from './systems/money'
 import { MESSAGES, inbox, unreadCount, type Request } from './data/inbox'
 import { SHORTCUTS } from './data/sites'
 import type { ProgramId } from './data/programs'
 import { feedbackWorks, raiseGrade } from './systems/request'
 import { asStep, focusedWindowId, useGame } from './store'
-import { openStep, satisfaction, stepsOf } from './systems/pipeline'
+import { GRADE_ORDER, openStep, satisfaction, stepsOf } from './systems/pipeline'
 import { weekendEvent } from './systems/weekend'
 import { KEYWORDS, MEETING_MINS, SITE_KEYWORDS } from './data/keywords'
 import {
@@ -697,12 +699,47 @@ describe('팝업 제작·등록', () => {
   })
 
   // 퀄리티가 비용과 등급을 **함께** 정한다 — 한쪽만 따라가면 "비싼데 결과가 같다"가 된다.
-  it('공들일수록 행동력을 더 쓰고 등급이 올라간다', () => {
+  it('공들일수록 시간을 더 쓰고 등급이 올라간다', () => {
     useGame.setState({ ...FRESH, files: [] })
-    useGame.getState().makePopup(popupJob.id, 'care')
+    // 규격을 맞춰야 밴드 안에 남는다(어긋나면 아래 테스트대로 밀린다).
+    useGame.getState().makePopup(popupJob.id, 'care', popupSize(popupJob.id))
     const [file] = useGame.getState().files
     expect(usedMins()).toBe(findQuality('care').mins)
     expect(findQuality('care').grades).toContain(file!.grade)
+  })
+
+  /** 포토샵의 판단은 **읽고 정확히 맞추는 것**이다(PPT의 저울질과 다른 머리다).
+   *  ⚠️ 규칙을 뒤집어 확인한다: 어긋나도 벌이 없으면 의뢰서를 읽을 이유가 사라진다. */
+  it('규격이 어긋나면 등급이 밀리고, 맞추면 안 밀린다', () => {
+    const want = popupSize(popupJob.id)
+    const wrong = POPUP_SIZES.find((z) => z.w !== want.w || z.h !== want.h)!
+
+    useGame.setState({ ...FRESH, files: [] })
+    useGame.getState().makePopup(popupJob.id, 'hard', want)
+    const right = useGame.getState().files.at(-1)!.grade
+
+    useGame.setState({ ...FRESH, files: [], jobs: [] })
+    useGame.getState().acceptJob(popupJob)
+    useGame.setState(FRESH)
+    useGame.getState().makePopup(popupJob.id, 'hard', wrong)
+    const missed = useGame.getState().files.at(-1)!.grade
+
+    expect(GRADE_ORDER.indexOf(missed)).toBeLessThan(GRADE_ORDER.indexOf(right))
+  })
+
+  // ⚠️ 규격을 안 고르고 만드는 길이 열려 있으면 읽는 일이 선택이 아니게 된다.
+  it('규격을 안 고르면 어긋난 것으로 본다', () => {
+    useGame.setState({ ...FRESH, files: [] })
+    useGame.getState().makePopup(popupJob.id, 'hard')
+    const none = useGame.getState().files.at(-1)!.grade
+
+    useGame.setState({ ...FRESH, files: [], jobs: [] })
+    useGame.getState().acceptJob(popupJob)
+    useGame.setState(FRESH)
+    useGame.getState().makePopup(popupJob.id, 'hard', popupSize(popupJob.id))
+    expect(GRADE_ORDER.indexOf(none)).toBeLessThan(
+      GRADE_ORDER.indexOf(useGame.getState().files.at(-1)!.grade),
+    )
   })
 
   // 규칙을 뒤집어 본다: 행동력이 없으면 파일도 생기지 않아야 한다(음수 행동력 금지).
@@ -1468,9 +1505,47 @@ describe('숙련도', () => {
     useGame.setState({ photoshopSkill: SKILL_DISCOUNT[1]!.minSkill })
     g().acceptJob(ppt)
     const before = usedMins()
-    g().makeSlides(ppt.id, 'hard')
+    // 분량도 시간에 더해진다 — 화면이 적는 값과 같은 식이라야 "쓴다고 적힌 것과 다르게 준다"가 없다.
+    const count = SLIDE_RANGE.min
+    g().makeSlides(ppt.id, 'hard', count)
     const hard = QUALITY.find((q) => q.id === 'hard')!
-    expect(usedMins() - before).toBe(timeCost(hard.mins, SKILL_DISCOUNT[1]!.minSkill))
+    expect(usedMins() - before).toBe(
+      timeCost(hard.mins + slideMins(count), SKILL_DISCOUNT[1]!.minSkill),
+    )
+  })
+})
+
+/** PPT의 판단은 **분량과 시간의 저울질**이다(포토샵의 정확성과 다른 머리다).
+ *  ⚠️ 저울의 양쪽이 실제로 반대 방향이어야 선택이 성립한다 — 한쪽만 있으면
+ *  늘 최대(또는 최소)가 정답이라 칸이 죽는다. */
+describe('문서 분량', () => {
+  const ppt = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'ppt')!
+
+  const make = (count: number) => {
+    useGame.setState({ ...emptyState(), ...FRESH })
+    useGame.getState().acceptJob(ppt)
+    useGame.setState(FRESH)
+    useGame.getState().makeSlides(ppt.id, 'hard', count)
+    return { mins: usedMins(), grade: useGame.getState().slides.at(-1)!.grade }
+  }
+
+  it('아끼면 빨리 끝나고 등급이 깎인다', () => {
+    const target = targetSlides(ppt.id)
+    const full = make(target)
+    const few = make(SLIDE_RANGE.min)
+
+    expect(few.mins).toBeLessThan(full.mins)
+    expect(GRADE_ORDER.indexOf(few.grade)).toBeLessThan(GRADE_ORDER.indexOf(full.grade))
+  })
+
+  // ⚠️ 넘치는 쪽에 상이 있으면 시간이 남는 한 무한히 늘리는 것이 정답이 된다.
+  it('목표를 넘겨도 등급은 안 오른다 — 시간만 더 든다', () => {
+    const target = targetSlides(ppt.id)
+    const full = make(target)
+    const over = make(SLIDE_RANGE.max)
+
+    expect(over.mins).toBeGreaterThan(full.mins)
+    expect(over.grade).toBe(full.grade)
   })
 })
 

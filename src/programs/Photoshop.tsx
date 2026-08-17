@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { PHOTOSHOP_ICONS, PROGRAM_ICONS } from '../data/icons'
 import { timeCost, QUALITY, skillFor } from '../data/game'
+import { POPUP_SIZES } from '../data/spec'
 import { gradeOf } from '../systems/craft'
 import { formatPeriod, formatSpan } from '../systems/calendar'
 import { isTurnOf, showsIn } from '../systems/pipeline'
@@ -35,6 +36,11 @@ export function Photoshop() {
   const design = useGame((s) => s.design)
   const makePopup = useGame((s) => s.makePopup)
   const [openId, setOpenId] = useState<string | null>(null)
+  // ⚠️ 고른 규격은 `useState`다 — 창을 보는 방식이지 게임 상태가 아니다. 기본값을
+  //    **첫 후보로 두지 않고 비워 둔다**: 미리 채워 두면 아무 생각 없이 눌러도 6분의 1로
+  //    맞아 버려, 의뢰서를 읽는 일이 선택이 아니라 운이 된다.
+  const [sizeIdx, setSizeIdx] = useState<number | null>(null)
+  const size = sizeIdx === null ? undefined : POPUP_SIZES[sizeIdx]
   const work = useWorking()
 
   // **제작 차례인 팝업 업무만** 선다(`systems/pipeline.ts`) — 끝난 업무도, 이미 만들어 놓고
@@ -81,7 +87,12 @@ export function Photoshop() {
             <p className="ps__art-client">{open.from}</p>
             <p className="ps__art-period">게시 {formatPeriod(open.popup!.from, open.popup!.to)}</p>
           </div>
-          <p className="ps__size">{open.title}</p>
+          {/* ⚠️ **요청 규격이 아니라 내가 고른 규격**이다 — 여기에 정답을 적으면
+              의뢰서를 읽는 왕복이 사라진다. */}
+          <p className="ps__size">
+            {open.title}
+            {size ? ` · ${size.w}×${size.h}` : ' · 규격 미정'}
+          </p>
         </div>
       )}
 
@@ -120,15 +131,33 @@ export function Photoshop() {
           <div className="ps__makes">
             {/* ⚠️ 얼마나 공들일지를 **누르기 전에** 알 수 있어야 고를 수 있다 —
                 버튼마다 무는 시간과 지금 스탯이면 나올 등급을 함께 적는다. */}
+            <p className="ps__panel-head">새 문서</p>
+            {/* ⚠️ 답을 적지 않는다 — **어디서 찾는지**만 말한다(에디터 FTP와 같은 규칙).
+                그것까지 감추면 왕복이 아니라 수수께끼가 된다. */}
+            <select
+              className="ps__select"
+              aria-label="캔버스 규격"
+              value={sizeIdx ?? ''}
+              onChange={(e) => setSizeIdx(e.target.value === '' ? null : Number(e.target.value))}
+            >
+              <option value="">규격 고르기…</option>
+              {POPUP_SIZES.map((sz, i) => (
+                <option key={`${sz.w}x${sz.h}`} value={i}>
+                  {sz.w} × {sz.h}
+                </option>
+              ))}
+            </select>
+            <p className="ps__hint">의뢰 글의 <b>요청 규격</b>과 같아야 등급이 안 깎인다.</p>
+
             <p className="ps__panel-head">팝업 만들기</p>
             {QUALITY.map((q) => (
               <button
                 key={q.id}
                 type="button"
                 className="ps__make"
-                disabled={!clock.can(timeCost(q.mins, skill))}
+                disabled={!size || !clock.can(timeCost(q.mins, skill))}
                 onClick={() => {
-                  makePopup(open.id, q.id)
+                  makePopup(open.id, q.id, size)
                   // ⚠️ 등급은 만든 **뒤에** 파일에서 집는다(등급의 정본은 파일이다).
                   const made = useGame
                     .getState()
@@ -148,6 +177,7 @@ export function Photoshop() {
                 </span>
               </button>
             ))}
+            {!size && <p className="ps__short">캔버스 규격을 골라야 만들 수 있다.</p>}
             {!clock.can(timeCost(QUALITY[0].mins, skill)) && (
               <p className="ps__short">이번 주에 남은 시간으로는 시작할 수 없다.</p>
             )}

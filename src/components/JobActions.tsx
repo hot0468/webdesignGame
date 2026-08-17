@@ -4,6 +4,7 @@ import { CS_REPLY_MINS, csRecover } from '../data/game'
 import { MEETING_MINS } from '../data/keywords'
 import { PROGRAMS, type ProgramId } from '../data/programs'
 import { formatDate, formatPeriod } from '../systems/calendar'
+import { popupSize, targetSlides } from '../systems/spec'
 import { isBusy } from '../systems/employee'
 import { canReply, isFinalReply, openStep, repliedStep, stepsOf } from '../systems/pipeline'
 import { personalityOf } from '../systems/followup'
@@ -83,6 +84,7 @@ export function JobActions({ message }: { message: Message }) {
           </>
         )}
       </span>
+      <Spec id={message.id} kind={message.kind} />
       {/* ⚠️ 낙찰 건에는 거절이 없다 — **안 누르는 것이 곧 안 하는 것**이고, 메일은 남아
           있으므로 나중에 시작해도 된다(그때의 주차로 마감이 굳는다). */}
       {!care && !won && (
@@ -92,6 +94,31 @@ export function JobActions({ message }: { message: Message }) {
       )}
     </div>
   )
+}
+
+/** 의뢰가 요구하는 **제작 사양**. 이 글이 원본이고, 만드는 창(포토샵·PPT)이 이 값을 묻는다.
+ *
+ * ⚠️ **만드는 창에는 답을 적지 않는다** — 여기서 읽어 옮기는 왕복이 이 축의 전부다
+ *    (사내시스템 → 에디터 FTP와 같은 동선). 대신 그 창은 **어디서 찾는지**는 말한다.
+ * ⚠️ 값은 업무 id에서 파생한다(`systems/spec.ts`) — 저장하지 않으므로 옛 세이브의 업무도
+ *    그대로 사양을 가진다. */
+function Spec({ id, kind }: { id: string; kind: string }) {
+  if (kind === 'popup') {
+    const { w, h } = popupSize(id)
+    return (
+      <span className="jobact__due">
+        요청 규격 <b>{w}×{h}</b> — 포토샵에서 이 크기로 만들어야 한다.
+      </span>
+    )
+  }
+  if (kind === 'ppt' || kind === 'site') {
+    return (
+      <span className="jobact__due">
+        요청 분량 <b>{targetSlides(id)}장</b> — 적게 만들면 빨리 끝나지만 등급이 깎인다.
+      </span>
+    )
+  }
+  return null
 }
 
 /** 클레임 글의 자리. **CS 스탯이 사는 유일한 곳이다** — 사과하면 평판이 조금 돌아온다.
@@ -277,6 +304,9 @@ function Progress({ job, week, care }: { job: Job; week: number; care: boolean }
       <span className="jobact__due">
         이 담당자는 {who.label}이다 — {who.desc}
       </span>
+      {/* ⚠️ 사양은 **수주한 뒤에도 남는다** — 만드는 것은 받고 나서이므로, 여기서
+          사라지면 옮겨 적을 원본이 없어진다(관리자 페이지에 적을 게시 기간과 같은 이유). */}
+      <Spec id={job.id} kind={job.kind} />
       {sendable ? (
         <>
           <button type="button" className="jobact__btn jobact__btn--go" onClick={() => replyJob(job.id)}>

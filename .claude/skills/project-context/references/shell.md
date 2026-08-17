@@ -145,6 +145,7 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/systems/seed.ts` | 무작위 유일 출처(FNV-1a→mulberry32, `roller`) |
 | `src/systems/calendar.ts` | 주차 → 날짜(`formatDate`/`formatPeriod`/`formatWeek`) + 시간 표기(`formatSpan` 날 단위 · `formatHours` 하루 안 · `formatClock` 벽시계 · `dayName`) |
 | `src/systems/pipeline.ts` | 공정·회신 규칙 정본(`PIPELINE`·`openStep`·`canReply`·`isTurnOf`·`satisfaction`) |
+| `src/data/spec.ts` · `src/systems/spec.ts` | 의뢰가 요구하는 제작 사양 — 팝업 규격(`popupSize`)·문서 분량(`targetSlides`)과 등급 보정. **씨앗은 업무 id, 저장 없음** |
 | `src/systems/craft.ts` | 제작 등급(`gradeOf`) — 퀄리티가 밴드, 스탯이 칸, 무작위 없음 |
 | `src/systems/keywords.ts` | 키워드 규칙 정본(`clientKeywords`·`keywordShift`·`meetingScript`) |
 | `src/systems/money.ts` | 대금·파기·월말 정산(`reward`·`breach`·`isSettleWeek`·`monthlyCost`) |
