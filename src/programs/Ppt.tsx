@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
-import { apCost, QUALITY, skillFor } from '../data/game'
+import { timeCost, QUALITY, skillFor } from '../data/game'
 import { PPT_ICONS } from '../data/icons'
-import { formatDate } from '../systems/calendar'
+import { formatDate, formatSpan } from '../systems/calendar'
 import { gradeOf } from '../systems/craft'
 import { isTurnOf, showsIn } from '../systems/pipeline'
-import { asStep, useGame } from '../store'
+import { asStep, useClock, useGame } from '../store'
 import { useWorking } from '../components/Working'
 import { CHANNEL_LABEL } from '../data/inbox'
 import './ppt.css'
@@ -41,7 +41,7 @@ const TABS = [
 export function Ppt() {
   const jobs = useGame((s) => s.jobs)
   const slides = useGame((s) => s.slides)
-  const ap = useGame((s) => s.ap)
+  const clock = useClock()
   const skill = useGame((s) => s[skillFor('ppt')])
   const design = useGame((s) => s.design)
   const makeSlides = useGame((s) => s.makeSlides)
@@ -81,7 +81,7 @@ export function Ppt() {
                   key={q.id}
                   type="button"
                   className="ppt__make"
-                  disabled={ap < apCost(q.ap, skill)}
+                  disabled={!clock.can(timeCost(q.mins, skill))}
                   onClick={() => {
                     makeSlides(picked.id, q.id)
                     // ⚠️ 만든 **뒤에** 스토어에서 결과를 집는다 — 등급의 정본은 파일이고
@@ -96,7 +96,7 @@ export function Ppt() {
                   <AppIcon name={PPT_ICONS.make[q.id]} size={24} className="ppt__make-icon" />
                   {q.label}
                   <span className="ppt__cost">
-                    행동력 {apCost(q.ap, skill)} · {gradeOf(q.id, design)}
+                    {formatSpan(timeCost(q.mins, skill), clock.dayMins)} · {gradeOf(q.id, design)}
                   </span>
                 </button>
               ))
@@ -109,10 +109,10 @@ export function Ppt() {
           <span className="ppt__group-label">{picked ? what(picked.kind) : '슬라이드'}</span>
         </div>
 
-        {picked && turn && ap < QUALITY[0].ap && (
+        {picked && turn && !clock.can(timeCost(QUALITY[0].mins, skill)) && (
           <p className="ppt__note">
             <AppIcon name={PPT_ICONS.warn} size={14} />
-            행동력이 모자란다.
+            이번 주에 남은 시간으로는 시작할 수 없다.
           </p>
         )}
       </div>

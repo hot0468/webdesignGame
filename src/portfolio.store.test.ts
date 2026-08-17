@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { PORTFOLIO_BONUS_MAX, PORTFOLIO_BONUS_PER } from './data/bidding'
-import { INITIAL_GAME, type Grade } from './data/game'
-import { INSPIRE_SHIFT, REFERENCE_AP } from './data/reference'
+import { INITIAL_GAME, type Grade
+} from './data/game'
+import { INSPIRE_SHIFT, REFERENCE_MINS } from './data/reference'
 import type { Request } from './data/inbox'
 import { bidStats, useGame } from './store'
 import { portfolioBonus, showpieces } from './systems/portfolio'
@@ -51,6 +52,16 @@ beforeEach(() => {
   })
 })
 
+/** ── 시간 축 도우미 ────────────────────────────────────────
+ *  옛 `ap` 비교를 그대로 옮기는 자리다. **이번 주에 쓴 분**이 그때의 "쓴 행동력"에 해당한다. */
+/** 시간이 넉넉한 월요일 아침. */
+const FRESH = { day: 0, spent: 0 }
+/** 이번 주에 쓴 분. */
+const usedMins = () => {
+  const s = useGame.getState()
+  return s.day * s.dayMins + s.spent
+}
+
 describe('포트폴리오 보정', () => {
   it('낮은 등급은 세지 않는다 — 찍어 내는 것이 최적이 되면 안 된다', () => {
     expect(showpieces(['F', 'D', 'C', 'B'])).toBe(0)
@@ -90,19 +101,19 @@ describe('레퍼런스 영감', () => {
     useGame.getState().acceptJob(req)
     useGame.setState((s) => ({
       jobs: s.jobs.map((j) => (j.id === 'j1' ? { ...j, step: 1, replied: 1 } : j)),
-      ap: 9,
+      ...FRESH,
     }))
   }
 
   it('행동력을 물고, 같은 주에 두 번은 안 된다', () => {
-    const before = useGame.getState().ap
+    const before = usedMins()
     useGame.getState().surfReference()
-    expect(useGame.getState().ap).toBe(before - REFERENCE_AP)
+    expect(usedMins()).toBe(before + REFERENCE_MINS)
     expect(useGame.getState().inspiredWeek).toBe(useGame.getState().week)
 
     // 두 번째는 아무 일도 일어나지 않는다 — 행동력으로 등급을 계속 살 수 없다.
     useGame.getState().surfReference()
-    expect(useGame.getState().ap).toBe(before - REFERENCE_AP)
+    expect(usedMins()).toBe(before + REFERENCE_MINS)
   })
 
   // ⚠️ 규칙을 뒤집어 확인한다: 영감이 **없을 때의 등급**과 **있을 때의 등급**을 둘 다 봐야
@@ -114,7 +125,7 @@ describe('레퍼런스 영감', () => {
 
     useGame.setState((s) => ({
       jobs: s.jobs.map((j) => (j.id === 'j1' ? { ...j, step: 1, replied: 1 } : j)),
-      ap: 9,
+      ...FRESH,
     }))
     useGame.getState().surfReference()
     useGame.getState().makeDraft('j1', 'hard')

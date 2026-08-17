@@ -1,13 +1,13 @@
 ﻿import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import {
-  apMaxOf,
+  dayMinsOf,
   CLAIM_REPUTATION_LOSS,
-  CS_REPLY_AP,
+  CS_REPLY_MINS,
   csRecover,
   findQuality,
   INITIAL_GAME,
-  PUBLISH_AP,
+  PUBLISH_MINS,
   PUBLISH_QUALITY,
   REPUTATION_MAX,
   WINDOW_DRAG,
@@ -15,16 +15,18 @@ import {
   WINDOW_SPAWN,
   type Grade,
   type QualityId,
-  apCost,
+  timeCost,
   skillFor,
   gainSkill,
   raiseSkill,
+  WEEKS_PER_MONTH,
 } from './data/game'
 import { gradeOf, type Draft } from './systems/craft'
-import { MEETING_AP, MEETING_OCCUPY_WEEKS, type KeywordId } from './data/keywords'
+import { MEETING_MINS, MEETING_OCCUPY_WEEKS, type KeywordId } from './data/keywords'
 import { clientKeywords, hitCount, keywordShift, meetingMail, revealedKeywords } from './systems/keywords'
 import { CLIENTS, clientsOf, INITIAL_CLIENTS } from './data/company'
-import { EMPLOYEE_LEVEL, FEEDBACK_AP, ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP, TRAIN_COST } from './data/employees'
+import { type Block, canSpend, nextDay, spendTime, START_CLOCK, weekLeft } from './systems/clock'
+import { EMPLOYEE_LEVEL, FEEDBACK_MINS, ORDER_MINS, ORDER_FILE_EXT, ORDER_QUALITY, POST_MINS, TRAIN_COST } from './data/employees'
 import type { Applicant } from './systems/hire'
 import {
   canBid,
@@ -37,7 +39,7 @@ import {
   winChance,
   type Listing,
 } from './systems/bidding'
-import { BID_AP, findTier } from './data/bidding'
+import { BID_MINS, findTier } from './data/bidding'
 import {
   canOrder,
   canTrain,
@@ -140,7 +142,7 @@ import { findItem, type ShopItemId } from './data/shop'
 import { type InvestId } from './data/invest'
 import { buyBlock } from './systems/shop'
 import { portfolioBonus } from './systems/portfolio'
-import { INSPIRE_SHIFT, REFERENCE_AP } from './data/reference'
+import { INSPIRE_SHIFT, REFERENCE_MINS } from './data/reference'
 import { makeSlot, parseSlot, slotKey } from './systems/save'
 
 /** 수주한 업무 한 건. `id`는 그 의뢰 글의 id다 — 한 의뢰가 두 업무가 되지 않는다.
@@ -220,13 +222,22 @@ export type OpenWindow = {
 
 type Store = {
   week: number
-  ap: number
-  /** 이번 주 행동력 상한. **파생값이고 정본은 `apMaxOf(revenue, mental)` 한 함수다** —
+  /** 이번 주 어느 요일인가(0 = 월). 주말은 없다 — `WORKDAY_COUNT`일을 다 쓰면
+   *  금요일 퇴근이 `advanceWeek`를 부른다. */
+  day: number
+  /** 오늘 이미 쓴 분. 남은 시간은 `dayMins - spent`이고 지금 시각은 `formatClock(spent)`다. */
+  spent: number
+  /** 하루 근무 시간(분). **파생값이고 정본은 `dayMinsOf(revenue, mental)` 한 함수다** —
    *  회사레벨(누적 매출)이 상한을 정하고 낮은 정신력이 거기서 깎는다(`data/game.ts`).
-   *  ⚠️ 여기에 직접 값을 적지 마라. 두 곳이 각자 상한을 계산하면 반드시 어긋난다. */
-  apMax: number
+   *  ⚠️ 여기에 직접 값을 적지 마라. 두 곳이 각자 상한을 계산하면 반드시 어긋난다.
+   *  ⚠️ **한 주 안에서는 변하지 않는다**(`weekLeft`가 그 전제로 남은 시간을 센다) —
+   *     회사레벨도 정신력도 주차 넘김에서만 움직이므로 여기서 다시 재지 않는다. */
+  dayMins: number
+  /** 일정표에 깔리는 작업 블록. **화면이 읽는 기록이고 규칙을 만들지 않는다** —
+   *  지우거나 고쳐도 게임 상태는 바뀌지 않는다(그래서 달마다 오래된 것을 버린다). */
+  log: LogBlock[]
   /** 정신력(0~`mentalMax`). **주말 근무로 줄고 주차 진행으로 회복한다.**
-   *  ⚠️ 0은 게임 오버가 아니다 — 패배는 파산·폐업 둘뿐이고, 정신력은 **행동력 상한을
+   *  ⚠️ 0은 게임 오버가 아니다 — 패배는 파산·폐업 둘뿐이고, 정신력은 **하루 근무 시간을
    *     깎아** 갚는다(`MENTAL_PENALTY`). 죽이지 않고 느리게 만드는 축이다. */
   mental: number
   mentalMax: number
@@ -419,7 +430,7 @@ type Store = {
    *
    *  `employeeId`를 주면 **그 직원이 대신 간다**: 내 행동력은 안 들고 대신 그 직원이
    *  `MEETING_OCCUPY_WEEKS`주 잡힌다(지시·교육과 같은 점유). 안 주면 내가 가고
-   *  **행동력 `MEETING_AP`**를 문다.
+   *  **행동력 `MEETING_MINS`**를 문다.
    *
    *  ⚠️ 업무당 한 번뿐이다 — 여러 번 열면 대가를 내고 5개를 다 알 수 있어 미팅이
    *     '기다리는 값'이 아니라 '사는 값'이 된다. 사람을 바꿔 다시 보내는 것도 막는다. */
@@ -451,11 +462,11 @@ type Store = {
    *  이 공정이 사이트 업무의 마지막 공정이라 여기가 그 첫 호출자다.
    *  ⚠️ 팝업 업무는 여기서 끝내지 않는다(등록 → 주차 넘김 판정이 그쪽의 끝이다). */
   publishJob: (id: string) => void
-  /** 채용 공고를 올린다(브라우저 채용사이트). **행동력 `POST_AP`를 문다** —
+  /** 채용 공고를 올린다(브라우저 채용사이트). **행동력 `POST_MINS`를 문다** —
    *  0이면 매주 몇 번이고 눌러 지원자를 새로 볼 수 있어 공고가 선택이 아니게 된다.
    *  ⚠️ 지원자는 저장하지 않는다 — 올린 주차만 남고 목록은 그 주차에서 파생한다. */
   postHiring: () => void
-  /** 수주센터의 공고에 **입찰한다**(브라우저 수주센터). **행동력 `BID_AP`를 문다** —
+  /** 수주센터의 공고에 **입찰한다**(브라우저 수주센터). **행동력 `BID_MINS`를 문다** —
    *  공짜면 조건이 맞는 공고에 전부 입찰하는 것이 늘 정답이라 선택이 아니게 된다.
    *
    *  ⚠️ **여기서 결과가 나오지 않는다.** 답은 이 순간 이미 정해지지만(씨앗이 공고 id라
@@ -467,14 +478,14 @@ type Store = {
   /** 지원자를 고용한다. ⚠️ **정원(`companyGrade().hireMax`)을 넘으면 아무 일도 일어나지 않는다** —
    *  버튼 disabled만으로는 정원 초과 경로가 남는다(이 리포의 확립된 규칙). */
   hire: (applicant: Applicant) => void
-  /** 직원에게 그 업무의 열린 공정을 맡긴다(메신저). **행동력 `ORDER_AP` 고정**이고
+  /** 직원에게 그 업무의 열린 공정을 맡긴다(메신저). **행동력 `ORDER_MINS` 고정**이고
    *  결과는 `N주 뒤`에 나온다 — 등급은 **그 직원의 스탯**이 정한다(내가 고르지 않는다). */
   orderJob: (employeeId: string, jobId: string) => void
   /** 교육을 보낸다. **레벨을 올리는 유일한 길**이다(일을 시켜도 저절로 오르지 않는다).
    *  ⚠️ 돈(`TRAIN_COST`)이 모자라거나 이미 잡혀 있거나 최고 레벨이면 아무 일도 없다. */
   train: (employeeId: string) => void
   /** 직원의 요청을 **받아들인다**. 갈래마다 무는 것이 다르다(휴가=그 사람의 N주 /
-   *  급여협상=월급 영구 인상 / 피드백=내 행동력 `FEEDBACK_AP` / 교육요청=`TRAIN_COST`와
+   *  급여협상=월급 영구 인상 / 피드백=내 행동력 `FEEDBACK_MINS` / 교육요청=`TRAIN_COST`와
    *  그 사람의 `TRAIN_WEEKS`). ⚠️ **낼 것이 없으면 아무 일도 일어나지 않는다** —
    *  버튼 disabled만으로는 음수 경로가 남는다(이 리포의 확립된 규칙).
    *  ⚠️ 받아들이면 불만은 **쌓이지 않는다**(그것이 받아들이는 값의 전부다). */
@@ -493,6 +504,9 @@ type Store = {
 
   /** 다음 주로. **팝업 판정이 도는 유일한 자리다** — 행동력을 채우고, 어긋난 팝업이
    *  있으면 항의 메일이 들어오며 평판이 깎인다. */
+  /** 하루를 접는다(남은 시간은 버린다). **금요일이면 `advanceWeek`를 부른다** —
+   *  주차를 넘기는 자리는 여전히 하나이고, 이 손짓이 그 앞에 선다. */
+  endDay: () => void
   advanceWeek: () => void
 
   /** 지금 판을 슬롯 n에 남긴다. **자동저장과 다른 자리다**(`systems/save.ts`) —
@@ -510,7 +524,7 @@ type Store = {
   newGame: () => void
   /** 소개 창을 닫는다(다 봤거나 건너뛰었다). **한 방향이다** — 다시 켜는 길은 새 게임뿐이다. */
   finishIntro: () => void
-  /** 레퍼런스 사이트에서 남의 작업을 구경한다(브라우저 어워더즈). 행동력 `REFERENCE_AP`를
+  /** 레퍼런스 사이트에서 남의 작업을 구경한다(브라우저 어워더즈). 행동력 `REFERENCE_MINS`를
    *  물고 **그 주 내내** 시안 등급이 `INSPIRE_SHIFT`만큼 밀린다.
    *  ⚠️ 이번 주에 이미 봤거나 행동력이 모자라면 **아무 일도 일어나지 않는다**(버튼
    *  disabled만으로는 경로가 남는다 — 이 리포의 확립된 규칙). */
@@ -526,7 +540,7 @@ type Store = {
    *  ⚠️ 조건(완료 업무 수)을 못 채웠거나 이미 맺었으면 **아무 일도 일어나지 않는다** —
    *  판정은 `canContract` 하나가 내고 화면도 같은 함수를 쓴다. */
   signContract: (clientId: string) => void
-  /** 클레임에 **사과한다**(그 글에서). 행동력 `CS_REPLY_AP`를 물고 평판이 `csRecover(cs)`만큼
+  /** 클레임에 **사과한다**(그 글에서). 행동력 `CS_REPLY_MINS`를 물고 평판이 `csRecover(cs)`만큼
    *  돌아온다 — **CS 스탯이 사는 유일한 자리다.**
    *  ⚠️ 되돌아오는 양은 클레임이 깎은 것(`CLAIM_REPUTATION_LOSS`)보다 **작다**(`CS_RECOVER`).
    *  ⚠️ 이미 사과했거나 행동력이 모자라면 아무 일도 일어나지 않는다. */
@@ -539,7 +553,7 @@ export type Viewport = { w: number; h: number }
 /** 수주 확률에 **능력치가 얼마나 실리는지**를 정하는 한 자리.
  *
  * ⚠️ 화면(수주센터)과 스토어(`bidListing`)가 **둘 다 이것을 부른다** — 갈리면 "적힌
- *    확률과 다르게 굴렸다"가 된다(`apCost`가 같은 이유로 하나인 것과 같다).
+ *    확률과 다르게 굴렸다"가 된다(`timeCost`가 같은 이유로 하나인 것과 같다).
  * ⚠️ 스탯은 **디자인 + 기획력의 평균**이다: 공고에 낼 수 있는 것이 그림과 기획안이라
  *    그 둘이 심사받는 축이다(숙련도는 만드는 속도지 회사의 실력이 아니다). 스탯 축이
  *    늘면 여기만 고친다 — `systems/bidding.ts`는 값 하나만 받는다.
@@ -590,7 +604,9 @@ export function focusedWindowId(windows: OpenWindow[]): ProgramId | null {
  *    빼 둔다 — 새로 켜면 바탕화면부터 시작하는 편이 창이 어디 있었는지 복원하는 것보다 낫다.
  * ⚠️ 테스트는 node 환경이라 `localStorage`가 없다. 없으면 **아무 데도 저장하지 않는 저장소**를
  *    쓴다(그래야 순수 로직 테스트가 브라우저 API에 묶이지 않는다). */
-const SAVE_KEY = 'webdi.save.v1'
+// ⚠️ v2: 시간 축이 행동력(주당 정수)에서 **분·요일**로 바뀌었다(`day`/`spent`/`dayMins`).
+//    옛 세이브의 `ap: 3`은 새 판에서 뜻이 없어 마이그레이션 없이 새 게임으로 떨어진다.
+const SAVE_KEY = 'webdi.save.v2'
 
 const noopStorage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = {
   getItem: () => null,
@@ -612,8 +628,10 @@ const saveStorage = (): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> =>
  *  ⚠️ 새 상태 축을 더하면 **여기**에 더한다. 열린 창(`windows`)은 화면을 보는 방식이라 뺀다. */
 const saveFields = (s: Store) => ({
   week: s.week,
-  ap: s.ap,
-  apMax: s.apMax,
+  day: s.day,
+  spent: s.spent,
+  dayMins: s.dayMins,
+  log: s.log,
   mental: s.mental,
   mentalMax: s.mentalMax,
   money: s.money,
@@ -662,8 +680,29 @@ const saveFields = (s: Store) => ({
 /** 게임을 처음 상태로 되돌릴 때 붓는 값. **새 게임과 불러오기가 같은 바닥을 쓴다** —
  *  불러오기는 이 위에 슬롯의 값을 덮으므로, 옛 세이브에 없는 축도 반드시 초기값을 갖는다.
  *  ⚠️ `windows`와 `slotsRevision`은 여기 없다 — 판이 아니라 화면이다(호출자가 따로 준다). */
+/** 일정표에 깔리는 블록 한 칸(어느 주 어느 요일 몇 시부터 몇 분). */
+export type LogBlock = Block & { week: number; label: string }
+
+/** **시간을 쓰는 유일한 자리.** 못 쓰면 `undefined`이고, 부르는 쪽은 그때 `{}`를 낸다.
+ *
+ * ⚠️ 판정은 `canSpend` 하나다 — 화면의 버튼도 같은 함수를 보므로 "할 수 있다고 적혀
+ *    있는데 눌러도 아무 일 없다"가 생기지 않는다(`timeCost`가 한 함수인 것과 같은 이유).
+ * ⚠️ 여기서 **주차를 넘기지 않는다.** 주를 넘기는 작업은 애초에 `canSpend`가 막고,
+ *    넘기는 손짓은 `advanceWeek` 하나뿐이다(되돌릴 수 없는 일은 사람이 묻는 창에서 정한다). */
+function spend(s: Store, mins: number, label: string) {
+  const clock = { day: s.day, spent: s.spent }
+  if (!canSpend(clock, mins, s.dayMins)) return undefined
+  const { end, blocks } = spendTime(clock, mins, s.dayMins)
+  return {
+    day: end.day,
+    spent: end.spent,
+    log: [...s.log, ...blocks.map((b) => ({ ...b, week: s.week, label }))],
+  }
+}
+
 const emptyGame = () => ({
   ...INITIAL_GAME,
+  log: [] as LogBlock[],
   readIds: [],
   meetings: {},
   jobs: [],
@@ -716,12 +755,14 @@ export const useGame = create<Store>()(
   publishJob: (id) =>
     set((s) => {
       const job = turnOf(s.jobs, id, 'editor')
-      const cost = apCost(PUBLISH_AP, s[skillFor('editor')])
-      if (!job || s.ap < cost) return {}
+      if (!job) return {}
+      const cost = timeCost(PUBLISH_MINS, s[skillFor('editor')])
+      const paid = spend(s, cost, `퍼블리싱 · ${job.from}`)
+      if (!paid) return {}
       const seq = s.publishes.filter((f) => f.jobId === id).length + 1
       // ⚠️ **내 손으로 돌렸을 때만** 숙련도가 오른다(직원 지시는 안 올린다 — `data/game.ts`).
       return {
-        ap: s.ap - cost,
+        ...paid,
         jobs: bumpStep(s.jobs, id),
         codingSkill: gainSkill(s.codingSkill),
         // 퍼블리싱도 **등급을 남긴다**. 남기지 않으면 완료 만족도가 시안·문서만 보고
@@ -865,13 +906,15 @@ export const useGame = create<Store>()(
       // ⚠️ 자기 차례가 아닌 업무는 여기서 만들 수 없다 — 공정의 줄을 건너뛰면
       //    회신 고리가 끊기고 마지막 공정만 눌러 업무를 끝낼 수 있게 된다.
       const job = turnOf(s.jobs, jobId, 'photoshop')
-      // ⚠️ 실제 비용은 숙련도가 깎는다(`apCost` 한 함수가 정본이다 — 화면도 같은 값을 적는다).
-      const cost = apCost(q.ap, s[skillFor('photoshop')])
-      if (!job || s.ap < cost) return {}
+      // ⚠️ 실제 비용은 숙련도가 깎는다(`timeCost` 한 함수가 정본이다 — 화면도 같은 값을 적는다).
+      if (!job) return {}
+      const cost = timeCost(q.mins, s[skillFor('photoshop')])
+      const paid = spend(s, cost, `팝업 · ${job.from}`)
+      if (!paid) return {}
       // seq는 그 업무로 만든 파일 수다 — 같은 업무를 다시 만들어도 id가 겹치지 않는다.
       const seq = s.files.filter((f) => f.jobId === jobId).length + 1
       return {
-        ap: s.ap - cost,
+        ...paid,
         photoshopSkill: gainSkill(s.photoshopSkill),
         jobs: bumpStep(s.jobs, jobId),
         files: [
@@ -895,8 +938,10 @@ export const useGame = create<Store>()(
     set((s) => {
       const q = findQuality(quality)
       const job = turnOf(s.jobs, jobId, 'figma')
-      const cost = apCost(q.ap, s[skillFor('figma')])
-      if (!job || s.ap < cost) return {}
+      if (!job) return {}
+      const cost = timeCost(q.mins, s[skillFor('figma')])
+      const paid = spend(s, cost, `시안 · ${job.from}`)
+      if (!paid) return {}
       const seq = s.drafts.filter((d) => d.jobId === jobId).length + 1
       // 맞춘 키워드가 등급을 민다. ⚠️ **정답은 여기서도 저장하지 않는다** — 업무 id에서
       //    그때그때 파생한다(`clientKeywords`). 그래서 세이브를 뜯어도 정답이 안 보이고,
@@ -910,7 +955,7 @@ export const useGame = create<Store>()(
         keywordShift(hitCount(keywords, clientKeywords(jobId))) +
         (s.inspiredWeek === s.week ? INSPIRE_SHIFT : 0)
       return {
-        ap: s.ap - cost,
+        ...paid,
         figmaSkill: gainSkill(s.figmaSkill),
         jobs: bumpStep(s.jobs, jobId),
         drafts: [
@@ -942,9 +987,10 @@ export const useGame = create<Store>()(
       // 알아내는 개수는 **가는 사람의 기획력**이 정한다(`data/keywords.ts`의 `MEETING_REVEAL`).
       // ⚠️ 표는 하나다 — 직원용 표를 따로 만들면 같은 기획력이 사람에 따라 다른 답을 낸다.
       if (employeeId === undefined) {
-        if (s.ap < MEETING_AP) return {}
+        const paid = spend(s, MEETING_MINS, `미팅 · ${job.from}`)
+        if (!paid) return {}
         return {
-          ap: s.ap - MEETING_AP,
+          ...paid,
           meetings: { ...s.meetings, [jobId]: revealedKeywords(jobId, s.planning) },
         }
       }
@@ -972,12 +1018,14 @@ export const useGame = create<Store>()(
     set((s) => {
       const q = findQuality(quality)
       const job = turnOf(s.jobs, jobId, 'ppt')
-      const cost = apCost(q.ap, s[skillFor('ppt')])
-      if (!job || s.ap < cost) return {}
+      if (!job) return {}
+      const cost = timeCost(q.mins, s[skillFor('ppt')])
+      const paid = spend(s, cost, `${job.kind === 'site' ? '화면정의서' : '발표자료'} · ${job.from}`)
+      if (!paid) return {}
       const seq = s.slides.filter((d) => d.jobId === jobId).length + 1
       const what = job.kind === 'site' ? '화면정의서' : '발표자료'
       return {
-        ap: s.ap - cost,
+        ...paid,
         photoshopSkill: gainSkill(s.photoshopSkill),
         jobs: bumpStep(s.jobs, jobId),
         slides: [
@@ -1066,10 +1114,12 @@ export const useGame = create<Store>()(
         jobs,
         money: s.money + fee,
         revenue,
-        // ⚠️ 상한만 올린다. **이번 주의 남은 행동력(`ap`)은 건드리지 않는다** —
-        //    레벨업으로 그 자리에서 행동력이 차면 회신을 미뤘다가 몰아 쓰는 것이 최적이 된다.
-        // ⚠️ 정신력도 이 값에 걸린다 — `apMaxOf` 하나가 상한의 정본이다.
-        apMax: apMaxOf(revenue, s.mental),
+        // ⚠️ 상한만 올린다. **오늘 이미 쓴 시간(`spent`)은 건드리지 않는다** —
+        //    레벨업으로 그 자리에서 하루가 늘어나면 회신을 미뤘다가 몰아 쓰는 것이 최적이 된다.
+        // ⚠️ 정신력도 이 값에 걸린다 — `dayMinsOf` 하나가 상한의 정본이다.
+        // ⚠️ 늘어난 하루는 **다음 주부터** 뜻을 가진다(`weekLeft`가 한 주 안에서 `dayMins`를
+        //    상수로 보기 때문이다) — 그래서 여기서 오늘 남은 시간을 다시 계산하지 않는다.
+        dayMins: dayMinsOf(revenue, s.mental),
         reputation: clampReputation(s.reputation + reputation),
         mails: [
           doneMail(job, grade, fee, s.week),
@@ -1111,7 +1161,10 @@ export const useGame = create<Store>()(
   //    (`systems/hire.ts`). 그래서 세이브를 불러와도 같은 사람들이 서 있다.
   // ⚠️ 행동력이 모자라면 아무 일도 일어나지 않는다(제작 액션들과 같은 규칙).
   postHiring: () =>
-    set((s) => (s.ap < POST_AP ? {} : { ap: s.ap - POST_AP, hirePostWeek: s.week })),
+    set((s) => {
+      const paid = spend(s, POST_MINS, '채용 공고')
+      return paid ? { ...paid, hirePostWeek: s.week } : {}
+    }),
 
   // ── 수주센터(업무 수주 사이트) ───────────────────────────
   // ⚠️ **메일 의뢰와 다른 고리다**: 조건을 맞춰야 입찰할 수 있고, **기한**이 있고,
@@ -1125,7 +1178,8 @@ export const useGame = create<Store>()(
   bidListing: (listing) =>
     set((s) => {
       if (s.bids.some((b) => b.listing.id === listing.id)) return {}
-      if (s.ap < BID_AP) return {}
+      const paid = spend(s, BID_MINS, `입찰 · ${listing.from}`)
+      if (!paid) return {}
       // ⚠️ **소기업 이상만 입찰한다**(`BID_MIN_GRADE`) — 공고마다 붙는 참가 조건과 다른
       //    축이라 조건 없는 공고에도 이 문이 걸린다. 화면도 막지만 가드는 여기에도 둔다.
       if (!canBid(s.reputation)) return {}
@@ -1144,7 +1198,7 @@ export const useGame = create<Store>()(
       // 전에 적는 값과 같은 함수·같은 인자여야 "적힌 것과 다르게 굴렸다"가 되지 않고,
       // 굳혀 두어야 결과를 기다리는 사이 평판이 움직여도 그 말이 지켜진다.
       return {
-        ap: s.ap - BID_AP,
+        ...paid,
         bids: [...s.bids, { listing, week: s.week, chance: winChance(tier, s.reputation, bidStats(s)) }],
       }
     }),
@@ -1187,7 +1241,8 @@ export const useGame = create<Store>()(
       if (!emp || !job || job.done) return {}
       const step = openStep(asStep(job))
       if (!step || !canOrder(emp, step.program, s.orders, s.trainings)) return {}
-      if (s.ap < ORDER_AP) return {}
+      const paid = spend(s, ORDER_MINS, `지시 · ${emp.name}`)
+      if (!paid) return {}
       const order: Order = {
         employeeId,
         jobId,
@@ -1198,7 +1253,7 @@ export const useGame = create<Store>()(
         grade: gradeOf(ORDER_QUALITY, statOf(emp, step.program)),
       }
       return {
-        ap: s.ap - ORDER_AP,
+        ...paid,
         orders: [...s.orders, order],
         // 받았다는 대답이 그 방에 남는다 — 언제 끝나는지가 대화에 적혀야 메신저를
         // 다시 열었을 때 무엇을 기다리는 중인지 알 수 있다.
@@ -1276,13 +1331,15 @@ export const useGame = create<Store>()(
         //    실패한 뒤 되돌아가 다시 굴릴 길이 있으면 확률이 도박으로 성립하지 않는다.
         // ⚠️ 등급은 **한 칸만** 오르고 사다리 밖으로 나가지 않는다(`raiseGrade`).
         case 'feedback': {
-          if (!req.target || s.ap < FEEDBACK_AP) return {}
+          if (!req.target) return {}
+          const paid = spend(s, FEEDBACK_MINS, '피드백')
+          if (!paid) return {}
           const ok = feedbackWorks(req.id)
           const bump = <T extends { id: string; grade: Grade }>(list: T[]): T[] =>
             ok ? list.map((f) => (f.id === req.target!.fileId ? { ...f, grade: raiseGrade(f.grade) } : f)) : list
           return {
             requests: rest,
-            ap: s.ap - FEEDBACK_AP,
+            ...paid,
             // **네 목록이 같은 손짓을 받는다** — 대상이 어느 목록에 사는지는 스토어만
             // 알고, 규칙(`raiseGrade`)은 그것을 모른다.
             // ⚠️ 하나라도 빠뜨리면 그 목록의 작업물은 **영영 못 고친다**(퍼블리싱이
@@ -1354,8 +1411,18 @@ export const useGame = create<Store>()(
   // ⚠️ 판정은 여기서 하지 않는다 — `systems/popup.ts`의 순수 함수가 내고 스토어는
   //    **적용만** 한다(평판을 만드는 규칙이 테스트 밖으로 새지 않게).
   //
-  // 행동력은 `apMax`로 완전 회복하고 **이월하지 않는다**(설계 결정). 남은 행동력을
+  // 시계는 **월요일 아침으로 돌아가고 이월하지 않는다**(설계 결정). 남은 시간을
   // 다음 주로 넘기면 아무것도 안 하고 모았다가 한 주에 쏟는 전략이 최적이 된다.
+
+  // ⚠️ 하루를 접는 것은 **되돌릴 수 없지만 묻지 않는다** — 잃는 것이 그날 남은 시간뿐이고
+  //    화면이 그 값을 이미 적고 있다. 묻는 창은 주차를 넘길 때 하나로 족하다(그때 마감·
+  //    정산·클레임이 함께 돈다). 금요일이면 화면이 그 창을 거쳐 `advanceWeek`를 부른다.
+  endDay: () => {
+    const s = get()
+    const next = nextDay({ day: s.day, spent: s.spent })
+    if (next) set(next)
+  },
+
   advanceWeek: () =>
     set((s) => {
       // ⚠️ 끝난 판은 더 나아가지 않는다. 화면이 막아도 스토어가 다시 막지 않으면
@@ -1627,7 +1694,7 @@ export const useGame = create<Store>()(
       const mental = recovered(s.mental, s.mentalMax, hit, welfareMental(s.invests))
       // **행동력 상한의 정본은 이 함수 하나다**(회사레벨이 상한, 정신력이 그 상한에서
       // 깎는다). ⚠️ `s.apMax`를 그대로 쓰지 마라 — 정신력이 움직여도 칸이 안 변한다.
-      const apMax = apMaxOf(s.revenue, mental)
+      const dayMins = dayMinsOf(s.revenue, mental)
 
       // 판정 자체는 순수 함수가 진다(`systems/gameover.ts`).
       const over = judgeOver(next, unpaidMonths, crisisWeeks)
@@ -1635,8 +1702,13 @@ export const useGame = create<Store>()(
       return {
         week: next,
         mental,
-        apMax,
-        ap: apMax,
+        dayMins,
+        // 새 주는 **월요일 아침에서 시작한다**(남은 시간을 이월하지 않는다 — 옛 규칙 그대로,
+        // 단위만 분이 됐다). ⚠️ `START_CLOCK`이 그 자리의 정본이다.
+        ...START_CLOCK,
+        // 일정표는 **한 달치만** 든다(달력이 그 달을 그린다) — 판이 길어져도 세이브가
+        // 업무 기록으로 불어나지 않는다. ⚠️ 기록이라 지워도 게임 규칙은 안 바뀐다.
+        log: s.log.filter((b) => b.week > next - WEEKS_PER_MONTH),
         money,
         unpaidMonths,
         over,
@@ -1729,20 +1801,22 @@ export const useGame = create<Store>()(
   // ⚠️ 남는 것은 **주차 하나**다(`inspiredWeek`). 주가 넘어가면 저절로 식으므로
   //    영감을 걷어 내는 자리를 따로 만들지 않는다.
   surfReference: () =>
-    set((s) =>
-      s.inspiredWeek === s.week || s.ap < REFERENCE_AP
-        ? {}
-        : { ap: s.ap - REFERENCE_AP, inspiredWeek: s.week },
-    ),
+    set((s) => {
+      if (s.inspiredWeek === s.week) return {}
+      const paid = spend(s, REFERENCE_MINS, '레퍼런스 구경')
+      return paid ? { ...paid, inspiredWeek: s.week } : {}
+    }),
 
   apologize: (mailId) =>
     set((s) => {
-      if (s.apologized.includes(mailId) || s.ap < CS_REPLY_AP) return {}
+      if (s.apologized.includes(mailId)) return {}
       // 그 글이 정말 클레임인가 — 화면이 버튼을 안 그려도 스토어에 길이 남으면 안 된다.
       const mail = s.mails.find((m) => m.id === mailId)
       if (!mail?.claim) return {}
+      const paid = spend(s, CS_REPLY_MINS, '클레임 사과')
+      if (!paid) return {}
       return {
-        ap: s.ap - CS_REPLY_AP,
+        ...paid,
         reputation: clampReputation(s.reputation + csRecover(s.cs)),
         apologized: [...s.apologized, mailId],
       }
@@ -1797,3 +1871,28 @@ export const useGame = create<Store>()(
     partialize: saveFields,
   },
 ))
+
+/** **화면이 시간을 묻는 유일한 창구.** 남은 시간·오늘 남은 시간·"이걸 할 수 있나"를 함께 낸다.
+ *
+ * ⚠️ 셀렉터는 **원시값만** 집는다 — 셀렉터 안에서 객체를 만들면 렌더마다 새 값이라
+ *    zustand가 무한 렌더를 돈다(`AdminSite`가 겪은 그 함정이다). 조립은 셀렉터 **밖**이다.
+ * ⚠️ `can`은 스토어의 `spend`와 **같은 판정**(`canSpend`)을 쓴다 — 갈리면 버튼이
+ *    "할 수 있다"고 적어 놓고 눌러도 아무 일 없는 컨트롤이 된다. */
+export function useClock() {
+  const day = useGame((s) => s.day)
+  const spent = useGame((s) => s.spent)
+  const dayMins = useGame((s) => s.dayMins)
+  return {
+    day,
+    spent,
+    dayMins,
+    /** 오늘 남은 분. */
+    today: dayMins - spent,
+    /** 이번 주에 남은 분(오늘 남은 것 + 남은 날들). */
+    left: weekLeft({ day, spent }, dayMins),
+    /** 그만큼 쓸 수 있는가. 주를 넘기는 작업은 시작하지 못한다. */
+    can: (mins: number) => canSpend({ day, spent }, mins, dayMins),
+    /** 그 작업이 오늘 안에 끝나는가 — 버튼이 "이틀 걸린다"고 적을지 정한다. */
+    fitsToday: (mins: number) => mins <= dayMins - spent,
+  }
+}

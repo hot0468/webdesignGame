@@ -1,6 +1,6 @@
 /** 이름 있는 세이브 슬롯 — **자동저장과 다른 자리다.**
  *
- * zustand `persist`는 `webdi.save.v1` **한 칸**에 계속 덮어쓴다(자동저장). 그것만으로는
+ * zustand `persist`는 `webdi.save.v2` **한 칸**에 계속 덮어쓴다(자동저장). 그것만으로는
  * "여기서 갈라져 보고 안 되면 돌아온다"가 안 된다 — 되돌릴 지점이 늘 직전 한 순간뿐이라
  * 이미 지나간 판은 어디에도 없다. 그래서 사람이 **직접 이름을 붙여 남기는 칸**을 따로 둔다.
  *
@@ -15,7 +15,7 @@
  *  저장하는 일보다 무거워진다. */
 export const SLOT_COUNT = 3
 
-/** 슬롯 번호(1부터) → localStorage 키. ⚠️ 자동저장 키(`webdi.save.v1`)와 **다른 이름**이다. */
+/** 슬롯 번호(1부터) → localStorage 키. ⚠️ 자동저장 키(`webdi.save.v2`)와 **다른 이름**이다. */
 export const slotKey = (n: number) => `webdi.slot.${n}`
 
 /** 슬롯에 담기는 게임 상태. 자동저장의 `partialize` 결과와 **같은 모양**이라

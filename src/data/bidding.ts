@@ -13,15 +13,15 @@
 import type { Grade } from './game'
 import type { JobKind } from '../systems/pipeline'
 
-/** 한 주에 뜨는 공고 수. ⚠️ 입찰 비용(`BID_AP`)과 함께 읽어야 한다 —
+/** 한 주에 뜨는 공고 수. ⚠️ 입찰 비용(`BID_MINS`)과 함께 읽어야 한다 —
  *  공고가 행동력보다 훨씬 많으면 "무엇에 걸까"가 선택이 되고, 적으면 전부 걸게 된다.
  *  ⚠️ 기한(`BID_OPEN_WEEKS`)이 있어 화면에는 **이 수보다 많이** 선다(지난 주 공고가 함께). */
 export const LISTINGS_PER_WEEK = 4
 
 /** 입찰 한 건의 값(행동력). ⚠️ **0으로 두지 마라** — 공짜면 조건이 맞는 공고에 전부
- *  입찰하는 것이 늘 정답이라 이 화면이 선택이 아니라 버튼 누르기가 된다(`POST_AP`와
+ *  입찰하는 것이 늘 정답이라 이 화면이 선택이 아니라 버튼 누르기가 된다(`POST_MINS`와
  *  같은 이유로 무는 값이다). 떨어져도 돌려주지 않는다 — 추첨에 건 값이라서다. */
-export const BID_AP = 1
+export const BID_MINS = 30
 
 /** 입찰할 수 있는 **최소 회사등급**(`COMPANY_GRADES`의 id, 설계자 확정 2026-08-13).
  *

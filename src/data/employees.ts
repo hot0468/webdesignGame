@@ -94,9 +94,9 @@ export const EMPLOYEE_BASE_WEEKS = 3
  *    **무난한 결과를 시간으로 사는 길**이고, 최고 등급은 여전히 내 손에서만 나온다. */
 export const ORDER_QUALITY: QualityId = 'hard'
 
-/** 지시가 무는 행동력. **퀄리티와 무관하게 1 고정이다**(설계 결정표) —
+/** 지시가 무는 시간(분). **퀄리티와 무관하게 1 고정이다**(설계 결정표) —
  *  퀄리티를 고르는 것이 아니라 **누구에게 맡기느냐**가 이 축의 선택이다. */
-export const ORDER_AP = 1
+export const ORDER_MINS = 20
 
 /** 직원 레벨의 범위. 지원자는 이 안에서 나온다. */
 export const EMPLOYEE_LEVEL = { min: 1, max: 5 } as const
@@ -155,9 +155,9 @@ export const ORDER_FILE_EXT: Partial<Record<ProgramId, string>> = {
   photoshop: '.png',
 }
 
-/** 공고를 올리는 데 드는 행동력. ⚠️ 0이면 매주 눌러 지원자를 무한히 새로 뽑을 수 있다 —
+/** 공고를 올리는 데 드는 시간(분). ⚠️ 0이면 매주 눌러 지원자를 무한히 새로 뽑을 수 있다 —
  *  씨앗이 주차라 다시 눌러도 같은 사람이 오지만, 값이 없으면 공고가 선택이 아니다. */
-export const POST_AP = 1
+export const POST_MINS = 30
 
 /** ── 교육 ────────────────────────────────────────────────────────────────
  *
@@ -209,9 +209,9 @@ export const LEAVE_WEEKS = 2
  *    **가산 칸만** 직원에게 두고 `salaryOf`가 레벨분 위에 더한다(파생은 그대로 산다). */
 export const RAISE_AMOUNT = 100_000
 
-/** 피드백 요청을 들어 주는 데 드는 **내 행동력**. ⚠️ 0이면 늘 들어 주는 것이 정답이라
- *  선택이 아니다 — 등급 한 칸과 행동력 하나를 저울에 올리는 것이 이 요청의 전부다. */
-export const FEEDBACK_AP = 1
+/** 피드백 요청을 들어 주는 데 드는 **내 시간(분)**. ⚠️ 0이면 늘 들어 주는 것이 정답이라
+ *  선택이 아니다 — 등급 한 칸과 30분을 저울에 올리는 것이 이 요청의 전부다. */
+export const FEEDBACK_MINS = 30
 
 /** 피드백이 **실제로 등급을 올릴 확률**(0~1). ⚠️ 1이 아닌 이유: 확실하면 행동력을
  *  등급으로 바꾸는 환전소가 되어 제작 퀄리티를 고르는 선택이 죽는다. 실패해도

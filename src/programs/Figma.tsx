@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { FIGMA_ICONS } from '../data/icons'
-import { apCost, QUALITY, skillFor } from '../data/game'
+import { timeCost, QUALITY, skillFor } from '../data/game'
 import { KEYWORDS, SITE_KEYWORDS, type KeywordId } from '../data/keywords'
-import { formatDate } from '../systems/calendar'
+import { formatDate, formatSpan } from '../systems/calendar'
 import { gradeOf } from '../systems/craft'
 import { isTurnOf, showsIn } from '../systems/pipeline'
-import { asStep, useGame } from '../store'
+import { asStep, useClock, useGame } from '../store'
 import { useWorking } from '../components/Working'
 import './figma.css'
 import { CHANNEL_LABEL } from '../data/inbox'
@@ -26,7 +26,7 @@ import { CHANNEL_LABEL } from '../data/inbox'
 export function Figma() {
   const jobs = useGame((s) => s.jobs)
   const drafts = useGame((s) => s.drafts)
-  const ap = useGame((s) => s.ap)
+  const clock = useClock()
   // ⚠️ 화면이 적는 값과 스토어가 깎는 값은 **같은 함수**에서 나와야 한다.
   const skill = useGame((s) => s[skillFor('figma')])
   const design = useGame((s) => s.design)
@@ -207,7 +207,7 @@ export function Figma() {
 
                 <div className="fig__makes">
                   {/* ⚠️ 얼마나 공들일지를 **누르기 전에** 알 수 있어야 고를 수 있다 —
-                      버튼마다 무는 행동력과 지금 스탯이면 나올 등급을 함께 적는다.
+                      버튼마다 무는 시간과 지금 스탯이면 나올 등급을 함께 적는다.
                       ⚠️ 여기 적는 등급은 **키워드 보정 전**이다 — 맞췄는지는 만들기 전에
                          알 수 없고, 알 수 있으면 미팅이 뜻을 잃는다. */}
                   <p className="fig__prop">시안 만들기</p>
@@ -216,7 +216,7 @@ export function Figma() {
                       key={q.id}
                       type="button"
                       className="fig__make"
-                      disabled={ap < apCost(q.ap, skill) || !full}
+                      disabled={!clock.can(timeCost(q.mins, skill)) || !full}
                       onClick={() => {
                         makeDraft(picked.id, q.id, picks)
                         // ⚠️ 등급은 만든 **뒤에** 파일에서 집는다 — 키워드 보정이 들어간
@@ -230,14 +230,16 @@ export function Figma() {
                     >
                       {q.label}
                       <span className="fig__cost">
-                        행동력 {apCost(q.ap, skill)} · {gradeOf(q.id, design)}
+                        {formatSpan(timeCost(q.mins, skill), clock.dayMins)} · {gradeOf(q.id, design)}
                       </span>
                     </button>
                   ))}
                   {!full && (
                     <p className="fig__short">키워드 {SITE_KEYWORDS}개를 골라야 만들 수 있다.</p>
                   )}
-                  {ap < QUALITY[0].ap && <p className="fig__short">행동력이 모자란다.</p>}
+                  {!clock.can(timeCost(QUALITY[0].mins, skill)) && (
+              <p className="fig__short">이번 주에 남은 시간으로는 시작할 수 없다.</p>
+            )}
                 </div>
               </>
             )}

@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   APPLICANTS_PER_POST,
-  ORDER_AP,
+  ORDER_MINS,
   ORDER_QUALITY,
   orderWeeks,
-  POST_AP,
+  POST_MINS,
   salaryOf,
   TRAIN_COST,
   TRAIN_STAT_GAIN,
@@ -16,6 +16,7 @@ import {
   INITIAL_GAME,
   REPUTATION_CRISIS,
   WEEKS_PER_MONTH,
+  WORKDAY_COUNT,
 } from './data/game'
 import { gradeOf } from './systems/craft'
 import { isBusy, type Employee } from './systems/employee'
@@ -76,19 +77,31 @@ const siteJob = (over: Partial<Job> = {}): Job => ({
   ...over,
 })
 
+/** ── 시간 축 도우미 ────────────────────────────────────────
+ *  옛 `ap` 비교를 그대로 옮기는 자리다. **이번 주에 쓴 분**이 그때의 "쓴 행동력"에 해당한다. */
+/** 시간이 넉넉한 월요일 아침. */
+const FRESH = { day: 0, spent: 0 }
+/** 이번 주를 다 쓴 자리 — 무엇도 시작할 수 없다(옛 `ap: 0`). */
+const NO_TIME = { day: WORKDAY_COUNT - 1, spent: INITIAL_GAME.dayMins }
+/** 이번 주에 쓴 분. */
+const usedMins = () => {
+  const s = useGame.getState()
+  return s.day * s.dayMins + s.spent
+}
+
 describe('채용', () => {
   it('공고는 행동력을 물고 그 주차를 남긴다 — 지원자는 저장하지 않는다', () => {
-    useGame.setState({ week: 5, ap: 3 })
+    useGame.setState({ week: 5, ...FRESH })
     useGame.getState().postHiring()
     const s = useGame.getState()
-    expect(s.ap).toBe(3 - POST_AP)
+    expect(usedMins()).toBe(POST_MINS)
     expect(s.hirePostWeek).toBe(5)
     // 목록은 주차 하나에서 파생한다(세이브에 지원자가 들어가지 않는다).
     expect(applicants(5)).toHaveLength(APPLICANTS_PER_POST)
   })
 
   it('행동력이 모자라면 공고가 올라가지 않는다', () => {
-    useGame.setState({ ap: 0 })
+    useGame.setState(NO_TIME)
     useGame.getState().postHiring()
     expect(useGame.getState().hirePostWeek).toBeUndefined()
   })
@@ -133,11 +146,11 @@ describe('채용', () => {
 describe('지시', () => {
   it('행동력 1을 물고 N주 뒤로 잡힌다 — 등급은 그 직원 스탯이 정한다', () => {
     const e = emp({ level: 1, stats: { design: 90, publishing: 10, planning: 40, cs: 0 } })
-    useGame.setState({ week: 2, ap: 3, employees: [e], jobs: [siteJob()] })
+    useGame.setState({ week: 2, ...FRESH, employees: [e], jobs: [siteJob()] })
     useGame.getState().orderJob('e1', 'j1')
 
     const s = useGame.getState()
-    expect(s.ap).toBe(3 - ORDER_AP)
+    expect(usedMins()).toBe(ORDER_MINS)
     expect(s.orders).toHaveLength(1)
     expect(s.orders[0]!.doneWeek).toBe(2 + orderWeeks(1))
     // 등급의 단일 출처는 `gradeOf`다 — 새 사다리를 만들지 않았다.
@@ -150,7 +163,7 @@ describe('지시', () => {
   it('지시받은 직원은 N주간 다시 못 쓴다', () => {
     useGame.setState({
       week: 1,
-      ap: 5,
+      ...FRESH,
       employees: [emp({ level: 1 })],
       jobs: [siteJob(), siteJob({ id: 'j2' })],
     })
@@ -168,20 +181,20 @@ describe('지시', () => {
 
   it('종류가 맞지 않으면 지시가 걸리지 않는다', () => {
     // 웹퍼블리셔에게 시안(피그마)을 맡길 수 없다.
-    useGame.setState({ ap: 3, employees: [emp({ role: 'publisher' })], jobs: [siteJob()] })
+    useGame.setState({ ...FRESH, employees: [emp({ role: 'publisher' })], jobs: [siteJob()] })
     useGame.getState().orderJob('e1', 'j1')
     expect(useGame.getState().orders).toHaveLength(0)
-    expect(useGame.getState().ap).toBe(3)
+    expect(usedMins()).toBe(0)
   })
 
   it('행동력이 모자라면 지시가 걸리지 않는다', () => {
-    useGame.setState({ ap: 0, employees: [emp()], jobs: [siteJob()] })
+    useGame.setState({ ...NO_TIME, employees: [emp()], jobs: [siteJob()] })
     useGame.getState().orderJob('e1', 'j1')
     expect(useGame.getState().orders).toHaveLength(0)
   })
 
   it('N주 뒤 공정이 오르고 시안이 목록에 선다 — 회신은 여전히 내 손이다', () => {
-    useGame.setState({ week: 1, ap: 3, employees: [emp({ level: 1 })], jobs: [siteJob()] })
+    useGame.setState({ week: 1, ...FRESH, employees: [emp({ level: 1 })], jobs: [siteJob()] })
     useGame.getState().orderJob('e1', 'j1')
     const done = useGame.getState().orders[0]!.doneWeek
     for (let w = 1; w < done; w++) useGame.getState().advanceWeek()
@@ -267,7 +280,7 @@ describe('평판 위기', () => {
   it('나간 사람이 들고 있던 지시도 사라진다 — 맡을 사람 없는 일은 끝나지 않는다', () => {
     useGame.setState({
       week: 1,
-      ap: 3,
+      ...FRESH,
       money: 10_000_000,
       employees: [emp({ id: 'a', level: 1 })],
       jobs: [siteJob()],

@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { clientsOf } from '../data/company'
-import { apCost, PUBLISH_AP, PUBLISH_QUALITY, skillFor } from '../data/game'
+import { timeCost, PUBLISH_MINS, PUBLISH_QUALITY, skillFor } from '../data/game'
 import { CHANNEL_LABEL } from '../data/inbox'
 import { EDITOR_ICONS } from '../data/icons'
-import { formatDate } from '../systems/calendar'
+import { formatDate, formatSpan } from '../systems/calendar'
 import { gradeOf } from '../systems/craft'
 import { checkFtp } from '../systems/ftp'
 import { isTurnOf, showsIn } from '../systems/pipeline'
-import { asStep, useGame } from '../store'
+import { asStep, useClock, useGame } from '../store'
 import { useWorking } from '../components/Working'
 import './editor.css'
 
@@ -43,8 +43,8 @@ const EMPTY_FORM: FtpForm = { host: '', port: '', user: '', pw: '' }
 
 export function Editor() {
   const jobs = useGame((s) => s.jobs)
-  const ap = useGame((s) => s.ap)
-  const cost = apCost(PUBLISH_AP, useGame((s) => s[skillFor('editor')]))
+  const clock = useClock()
+  const cost = timeCost(PUBLISH_MINS, useGame((s) => s[skillFor('editor')]))
   // ⚠️ **누르기 전에 나올 등급을 적는다** — 제작 창들(포토샵·피그마·PPT)이 "행동력 N ·
   //    등급 X"를 적는 것과 같은 규칙이다. 모르고 누르는 버튼은 선택이 아니다.
   //    등급은 `gradeOf` 하나에서 나온다(밴드는 고정, 칸은 퍼블리싱 스탯).
@@ -210,7 +210,7 @@ export function Editor() {
                     <button
                       type="button"
                       className="ed__job"
-                      disabled={!isTurnOf(asStep(j), 'editor') || ap < cost}
+                      disabled={!isTurnOf(asStep(j), 'editor') || !clock.can(cost)}
                       onClick={() => {
                         publishJob(j.id)
                         // 퀄리티 선택은 없지만 **등급은 난다**(퍼블리싱 스탯이 정한다) —
@@ -223,7 +223,7 @@ export function Editor() {
                       <span className="ed__job-meta">마감 {formatDate(j.due)}</span>
                       <span className="ed__job-cost">
                         {isTurnOf(asStep(j), 'editor')
-                          ? `행동력 ${cost} · 등급 ${grade}`
+                          ? `${formatSpan(cost, clock.dayMins)} · 등급 ${grade}`
                           : `올렸다 · ${CHANNEL_LABEL[j.channel]}에서 회신해야 끝난다`}
                       </span>
                     </button>
@@ -231,19 +231,20 @@ export function Editor() {
                 ))}
               </ul>
             )}
-            {ap < cost && todo.length > 0 && (
-              <p className="ed__note">행동력이 모자란다. 다음 주가 되면 채워진다.</p>
+            {!clock.can(cost) && todo.length > 0 && (
+              <p className="ed__note">이번 주에 남은 시간으로는 시작할 수 없다.</p>
             )}
           </section>
         ) : (
           <div className="ed__welcome-pane">
             <p className="ed__welcome">webdi</p>
-            {/* 값은 `apCost`가 낸다(코딩 숙련도 감면이 이미 걸린 값이다) — 화면이
+            {/* 값은 `timeCost`가 낸다(코딩 숙련도 감면이 이미 걸린 값이다) — 화면이
                 따로 계산하지 않는다. */}
             <p className="ed__note">
-              업체 폴더를 열면 그 업체의 남은 업무가 여기 뜬다. 올리면 행동력 {cost}를
-              쓰고 등급 {grade}짜리 결과가 나온다 — 그 결과를 **그 일이 온 곳**(메일·고객게시판·
-              톡톡)에서 회신해야 업무가 끝난다.
+              {/* ⚠️ 조사는 **을**이다 — 값이 늘 `분`·`시간`·`일`로 끝나 받침이 있다. */}
+              업체 폴더를 열면 그 업체의 남은 업무가 여기 뜬다. 올리면{' '}
+              {formatSpan(cost, clock.dayMins)}을 쓰고 등급 {grade}짜리 결과가 나온다 — 그 결과를{' '}
+              <b>그 일이 온 곳</b>(메일·고객게시판·톡톡)에서 회신해야 업무가 끝난다.
             </p>
           </div>
         )}

@@ -1,14 +1,14 @@
 import { AppIcon } from '../icons/AppIcon'
 import { BROWSER_ICONS } from '../data/icons'
-import { REFERENCE_AP } from '../data/reference'
-import { formatWeek } from '../systems/calendar'
+import { REFERENCE_MINS } from '../data/reference'
+import { formatSpan, formatWeek } from '../systems/calendar'
 import { awardWorks } from '../systems/reference'
-import { useGame } from '../store'
+import { useClock, useGame } from '../store'
 
 /** 레퍼런스 사이트(어워더즈). 브라우저 첫화면의 바로가기로 들어온다.
  *
  * **웹디가 일을 미루고 남의 잘된 사이트를 구경하는 자리다.** 그 시간이 행동력으로 나가고
- * (`REFERENCE_AP`), 대신 그 주에 만드는 시안이 한 등급 좋아진다(`INSPIRE_SHIFT`).
+ * (`REFERENCE_MINS`), 대신 그 주에 만드는 시안이 한 등급 좋아진다(`INSPIRE_SHIFT`).
  *
  * ⚠️ **효과를 화면이 말한다** — 플레이어가 "레퍼런스를 보면 시안이 좋아진다"를 알 길이
  *    여기밖에 없다. 구경 전에는 무엇을 얻는지, 구경 뒤에는 지금 무엇이 걸려 있는지를 적는다.
@@ -24,13 +24,13 @@ import { useGame } from '../store'
  *    금지다. 시각 언어도 브라우저 창의 `--nv-*` 안에서 끝낸다. */
 export function RefSite() {
   const week = useGame((s) => s.week)
-  const ap = useGame((s) => s.ap)
+  const clock = useClock()
   const inspiredWeek = useGame((s) => s.inspiredWeek)
   const surfReference = useGame((s) => s.surfReference)
 
   const works = awardWorks(week)
   const inspired = inspiredWeek === week
-  const broke = ap < REFERENCE_AP
+  const broke = !clock.can(REFERENCE_MINS)
 
   return (
     <div className="nv-site">
@@ -42,7 +42,7 @@ export function RefSite() {
         <header className="nv-bid__head">
           <div className="nv-bid__facts">
             <span className="nv-bid__chip">{formatWeek(week)}</span>
-            <span className="nv-bid__chip">구경 행동력 {REFERENCE_AP}</span>
+            <span className="nv-bid__chip">구경 {formatSpan(REFERENCE_MINS, clock.dayMins)}</span>
             <span className="nv-bid__chip">주 1회</span>
           </div>
 
@@ -57,7 +57,7 @@ export function RefSite() {
             <>
               <p className="nv-hire__meta">
                 한참 구경하면 손이 근질거립니다 — 구경한 주에 만드는 <b>시안이 한 등급</b>{' '}
-                좋아집니다. 대신 그 시간만큼 <b>행동력 {REFERENCE_AP}</b>이 나갑니다.
+                좋아집니다. 대신 <b>{formatSpan(REFERENCE_MINS, clock.dayMins)}</b>이 나갑니다.
               </p>
               <button
                 type="button"
@@ -65,7 +65,7 @@ export function RefSite() {
                 disabled={broke}
                 onClick={surfReference}
               >
-                구경하기 (행동력 {REFERENCE_AP})
+                구경하기 (행동력 {REFERENCE_MINS})
               </button>
               {/* ⚠️ 못 누르는 이유는 흐린 버튼이 아니라 **글자가** 말한다. */}
               {broke && (

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { PHOTOSHOP_ICONS, PROGRAM_ICONS } from '../data/icons'
-import { apCost, QUALITY, skillFor } from '../data/game'
+import { timeCost, QUALITY, skillFor } from '../data/game'
 import { gradeOf } from '../systems/craft'
-import { formatPeriod } from '../systems/calendar'
+import { formatPeriod, formatSpan } from '../systems/calendar'
 import { isTurnOf, showsIn } from '../systems/pipeline'
-import { asStep, useGame } from '../store'
+import { asStep, useClock, useGame } from '../store'
 import { useWorking } from '../components/Working'
 import './photoshop.css'
 import { CHANNEL_LABEL } from '../data/inbox'
@@ -30,7 +30,7 @@ import { CHANNEL_LABEL } from '../data/inbox'
 export function Photoshop() {
   const jobs = useGame((s) => s.jobs)
   const files = useGame((s) => s.files)
-  const ap = useGame((s) => s.ap)
+  const clock = useClock()
   const skill = useGame((s) => s[skillFor('photoshop')])
   const design = useGame((s) => s.design)
   const makePopup = useGame((s) => s.makePopup)
@@ -119,14 +119,14 @@ export function Photoshop() {
         {open && isTurnOf(asStep(open), 'photoshop') && (
           <div className="ps__makes">
             {/* ⚠️ 얼마나 공들일지를 **누르기 전에** 알 수 있어야 고를 수 있다 —
-                버튼마다 무는 행동력과 지금 스탯이면 나올 등급을 함께 적는다. */}
+                버튼마다 무는 시간과 지금 스탯이면 나올 등급을 함께 적는다. */}
             <p className="ps__panel-head">팝업 만들기</p>
             {QUALITY.map((q) => (
               <button
                 key={q.id}
                 type="button"
                 className="ps__make"
-                disabled={ap < apCost(q.ap, skill)}
+                disabled={!clock.can(timeCost(q.mins, skill))}
                 onClick={() => {
                   makePopup(open.id, q.id)
                   // ⚠️ 등급은 만든 **뒤에** 파일에서 집는다(등급의 정본은 파일이다).
@@ -139,11 +139,13 @@ export function Photoshop() {
               >
                 {q.label}
                 <span className="ps__cost">
-                  행동력 {apCost(q.ap, skill)} · {gradeOf(q.id, design)}
+                  {formatSpan(timeCost(q.mins, skill), clock.dayMins)} · {gradeOf(q.id, design)}
                 </span>
               </button>
             ))}
-            {ap < QUALITY[0].ap && <p className="ps__short">행동력이 모자란다.</p>}
+            {!clock.can(timeCost(QUALITY[0].mins, skill)) && (
+              <p className="ps__short">이번 주에 남은 시간으로는 시작할 수 없다.</p>
+            )}
           </div>
         )}
       </div>

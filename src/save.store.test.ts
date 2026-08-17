@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { INITIAL_GAME } from './data/game'
+import { INITIAL_GAME
+} from './data/game'
 import { slotKey } from './systems/save'
 import { useGame } from './store'
 
@@ -102,7 +103,7 @@ describe('이름 있는 슬롯', () => {
         },
       ],
       hirePostWeek: 2,
-      hiredApplicantIds: ['ap:2:0'],
+      hiredApplicantIds: ['...FRESH:0'],
       // ⚠️ 수주센터의 입찰 기록도 같은 함정을 진다 — `saveFields`에서 빠지면 불러온
       //    판에서 이미 떨어진 공고에 행동력을 다시 태우고, **기다리던 결과가 통째로 사라진다**.
       bids: [
@@ -133,7 +134,7 @@ describe('이름 있는 슬롯', () => {
     expect(s.employees[0]!.level).toBe(3)
     expect(s.orders).toHaveLength(1)
     expect(s.hirePostWeek).toBe(2)
-    expect(s.hiredApplicantIds).toEqual(['ap:2:0'])
+    expect(s.hiredApplicantIds).toEqual(['...FRESH:0'])
     expect(s.bids.map((b) => b.listing.id)).toEqual(['wk:2:0'])
     // ⚠️ **결과를 기다리는 중이라는 사실까지** 살아 돌아와야 한다 — 굳은 확률이 빠지면
     //    불러온 판이 그때의 평판으로 다시 재게 된다.
@@ -171,7 +172,7 @@ describe('이름 있는 슬롯', () => {
     const s = useGame.getState()
     expect(s.week).toBe(4)
     expect(s.jobs).toEqual([])
-    expect(s.apMax).toBe(INITIAL_GAME.apMax)
+    expect(s.dayMins).toBe(INITIAL_GAME.dayMins)
   })
 
   it('삭제하면 그 칸은 다시 못 불러온다', () => {

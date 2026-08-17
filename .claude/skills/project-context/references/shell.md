@@ -141,8 +141,9 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/data/invest.ts` | 월 투자 항목(광고·복지)의 값과 효과 |
 | `src/data/intro.ts` | 소개 5장 문안 + 조준 `target` |
 | `src/data/icons.ts` | 아이콘 이름 단일 출처 |
+| `src/systems/clock.ts` | 요일·시계의 순수 함수(`canSpend`·`spendTime`·`weekLeft`·`nextDay`). **작업은 주를 못 넘는다** |
 | `src/systems/seed.ts` | 무작위 유일 출처(FNV-1a→mulberry32, `roller`) |
-| `src/systems/calendar.ts` | 주차 → 날짜 표기(`formatDate`/`formatPeriod`/`formatWeek`) |
+| `src/systems/calendar.ts` | 주차 → 날짜(`formatDate`/`formatPeriod`/`formatWeek`) + 시간 표기(`formatSpan` 날 단위 · `formatHours` 하루 안 · `formatClock` 벽시계 · `dayName`) |
 | `src/systems/pipeline.ts` | 공정·회신 규칙 정본(`PIPELINE`·`openStep`·`canReply`·`isTurnOf`·`satisfaction`) |
 | `src/systems/craft.ts` | 제작 등급(`gradeOf`) — 퀄리티가 밴드, 스탯이 칸, 무작위 없음 |
 | `src/systems/keywords.ts` | 키워드 규칙 정본(`clientKeywords`·`keywordShift`·`meetingScript`) |
@@ -191,7 +192,7 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/programs/ShopSite.tsx` | 쇼핑몰 |
 | `src/programs/RefSite.tsx` | 어워더즈 — 썸네일은 CSS 그라디언트(그 값만 `--nv-*` 밖) |
 | `src/programs/Folder.tsx` | 작업물 창 — 읽기 전용, `.company*` 골격 재사용 |
-| `src/programs/Schedule.tsx` | 일정 창(기본 크기 창) |
+| `src/programs/Schedule.tsx` | 일정 창 — 달력 + 그 주에 한 일(칸은 막대, 읽을 것은 줄 아래) + 주말 판 |
 | `src/programs/*.css` | 그 창 전용 팔레트 — **파일 밖으로 새지 않는다**. mail=Fluent · browser=뉴트럴 · messenger=카카오 · talk=클라이언트용(메신저와 다른 색) · editor=VS Code Dark+ · photoshop=CC Dark(어두운 창 둘) · figma=캔버스 뉴트럴(액센트 없음) · ppt=Office 밝은 테마 · folder=목록 줄만 |
 | `src/icons/AppIcon.tsx` | 유일한 아이콘 창구(`@iconify/react/offline`) |
 | `scripts/build-icon-subset.mjs` | 아이콘 번들 생성(`npm run icons`) |

@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { MESSENGER_ICONS } from '../data/icons'
-import { findRole, ORDER_AP, ORDER_QUALITY,
+import { findRole, ORDER_MINS, ORDER_QUALITY,
   EMPLOYEE_LEVEL,
-  FEEDBACK_AP,
+  FEEDBACK_MINS,
   GRUDGE_QUIT,
   LEAVE_WEEKS,
   RAISE_AMOUNT,
@@ -12,7 +12,7 @@ import { findRole, ORDER_AP, ORDER_QUALITY,
   TRAIN_COST,
   TRAIN_STAT_GAIN,
 } from '../data/employees'
-import { formatDate, formatWeek } from '../systems/calendar'
+import { formatDate, formatSpan, formatWeek } from '../systems/calendar'
 import {
   busyUntil,
   canOrder,
@@ -25,7 +25,7 @@ import {
 import { gradeOf } from '../systems/craft'
 import { openStep } from '../systems/pipeline'
 import { leaveDoneWeek, raiseGrade, type EmployeeRequest } from '../systems/request'
-import { asStep, useGame } from '../store'
+import { asStep, useClock, useGame } from '../store'
 import './messenger.css'
 
 /** `메신저` 창. **직원과의 소통**이 여기서 일어난다 — 업무 지시와 보고가 오가는 자리다.
@@ -135,7 +135,7 @@ function Room({
  *    대신 왜 없는지를 적는다 — 종류가 안 맞는 것과 할 일이 없는 것은 다른 사정이다. */
 function Chat({ employee }: { employee: Employee }) {
   const week = useGame((s) => s.week)
-  const ap = useGame((s) => s.ap)
+  const clock = useClock()
   const jobs = useGame((s) => s.jobs)
   const orders = useGame((s) => s.orders)
   // ⚠️ 셀렉터 안에서 `filter`를 돌리지 마라 — 새 배열이 나와 무한 렌더가 된다(`AdminSite`).
@@ -205,7 +205,7 @@ function Chat({ employee }: { employee: Employee }) {
         ) : (
           <>
             <p className="msgr__note">
-              맡기면 <b>행동력 {ORDER_AP}</b>을 쓰고 결과는 몇 주 뒤에 나온다. 등급은 이 사람의
+              맡기면 <b>{formatSpan(ORDER_MINS, clock.dayMins)}</b>을 쓰고 결과는 몇 주 뒤에 나온다. 등급은 이 사람의
               실력이 정한다.
             </p>
             <ul className="msgr__offers">
@@ -214,7 +214,7 @@ function Chat({ employee }: { employee: Employee }) {
                   <button
                     type="button"
                     className="msgr__give"
-                    disabled={ap < ORDER_AP}
+                    disabled={!clock.can(ORDER_MINS)}
                     onClick={() => orderJob(employee.id, job.id)}
                   >
                     <span className="msgr__give-what">
@@ -230,14 +230,16 @@ function Chat({ employee }: { employee: Employee }) {
                 </li>
               ))}
             </ul>
-            {ap < ORDER_AP && <p className="msgr__note">행동력이 모자라다.</p>}
+            {!clock.can(ORDER_MINS) && (
+              <p className="msgr__note">이번 주에 남은 시간으로는 지시할 수 없다.</p>
+            )}
           </>
         )}
       </div>
 
       {/* ── 교육 ────────────────────────────────────────────────
           ⚠️ 지시 판과 **다른 칸**이다. 둘은 같은 사람을 잡지만 무는 것이 다르다 —
-             지시는 행동력, 교육은 돈이다. 한 칸에 섞으면 무엇을 내는지가 흐려진다. */}
+             지시는 시간, 교육은 돈이다. 한 칸에 섞으면 무엇을 내는지가 흐려진다. */}
       <div className="msgr__train">
         {maxed ? (
           <p className="msgr__note">
@@ -280,7 +282,7 @@ function Chat({ employee }: { employee: Employee }) {
  *    모자라면 그 문장이 버튼 아래 선다. */
 function RequestPanel({ employee, request }: { employee: Employee; request: EmployeeRequest }) {
   const week = useGame((s) => s.week)
-  const ap = useGame((s) => s.ap)
+  const clock = useClock()
   const money = useGame((s) => s.money)
   const accept = useGame((s) => s.acceptRequest)
   const refuse = useGame((s) => s.refuseRequest)
@@ -302,13 +304,13 @@ function RequestPanel({ employee, request }: { employee: Employee; request: Empl
     },
     feedback: {
       title: '작업 피드백 요청',
-      cost: `행동력 ${FEEDBACK_AP}`,
+      cost: formatSpan(FEEDBACK_MINS, clock.dayMins),
       // 확률이라는 것을 **적는다** — 실패했을 때 버그로 읽히지 않아야 한다.
       note: `${request.target?.name ?? '작업물'}(${request.target?.grade})을 봐 준다. 잘되면 ${
         request.target ? raiseGrade(request.target.grade) : ''
       }로 오르지만 확실하지는 않다.`,
-      can: ap >= FEEDBACK_AP,
-      why: '행동력이 모자라다.',
+      can: clock.can(FEEDBACK_MINS),
+      why: '이번 주에 남은 시간으로는 할 수 없다.',
     },
     training: {
       title: '교육 요청',

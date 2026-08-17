@@ -7,8 +7,10 @@ import {
   mentalPenalty,
   REPUTATION_CRISIS,
   REPUTATION_MAX,
+  WORKDAY_COUNT,
 } from '../data/game'
-import { formatDate, toCalendar } from '../systems/calendar'
+import { dayName, formatClock, formatDate, formatHours, formatSpan, toCalendar } from '../systems/calendar'
+import { weekLeft } from '../systems/clock'
 import { useGame } from '../store'
 
 /** 오른쪽 위 계기판. **주차 판** 옆에 **스탯 판 + 업무목록 판**이 세로로 선다.
@@ -31,6 +33,7 @@ import { useGame } from '../store'
  * 하나뿐인 이 팔레트의 절제가 무너진다). */
 export function Hud() {
   const g = useGame()
+  const lastDay = g.day >= WORKDAY_COUNT - 1
   const { year, month, weekOfMonth } = toCalendar(g.week)
   /** 넘기기 전에 묻는 창을 띄웠는가. ⚠️ 창을 보는 방식이라 `useState`다(세이브 밖). */
   const [asking, setAsking] = useState(false)
@@ -38,18 +41,26 @@ export function Hud() {
   return (
     <div className="hud">
       {/* 주차를 미는 자리는 **여기 하나뿐이다** — 시간이 적힌 판에 있어야 무엇이 움직이는지가
-          보인다. 행동력을 다 써도 그 주에 머물 수 있으므로, 넘기는 것은 늘 사람의 선택이다. */}
+          보인다. 시간을 다 써도 그 주에 머물 수 있으므로, 넘기는 것은 늘 사람의 선택이다. */}
       <p className="hud__panel hud__week">
         <AppIcon name={STAT_ICONS.week} />
         {year}년 {month}월 {weekOfMonth}째 주
-        <button type="button" className="hud__next" onClick={() => setAsking(true)}>
-          다음 주
+        {/* ⚠️ 손짓이 **둘로 갈린다**: 평일은 하루를 접고(`endDay`), 금요일 퇴근이 곧 주차
+            넘김이다. 묻는 창은 **주를 넘길 때만** 뜬다 — 그때만 마감·정산·클레임이 돌기
+            때문이다(하루를 접을 때 잃는 것은 그날 남은 시간뿐이고 그 값은 이미 적혀 있다). */}
+        <button
+          type="button"
+          className="hud__next"
+          onClick={() => (lastDay ? setAsking(true) : g.endDay())}
+        >
+          {lastDay ? '다음 주' : '퇴근'}
         </button>
       </p>
 
       {asking && (
         <Confirm
-          ap={g.ap}
+          left={weekLeft({ day: g.day, spent: g.spent }, g.dayMins)}
+          dayMins={g.dayMins}
           onGo={() => {
             g.advanceWeek()
             setAsking(false)
@@ -76,13 +87,19 @@ export function Stats() {
 
   return (
     <dl className="hud__panel stats" aria-label="회사 현황">
+      {/* ⚠️ 시간은 **연속량이라 막대로 센다**(옛 행동력은 정수라 칸이었다 — `Ticks`가
+          사라진 이유다). 값에는 **지금 시각과 오늘 남은 시간**을 함께 적는다: 하루 안에
+          끝나는지를 재려면 남은 양만으로는 모자라고 몇 시인지가 필요하다.
+          ⚠️ 이번 주에 남은 시간은 **자기 줄로** 선다(`stat__warn`) — 값 줄은 nowrap이라
+          이어 붙이면 계기판이 화면 밖으로 밀려난다(겪었다). */}
       <Stat
         icon={STAT_ICONS.ap}
-        label="행동력"
-        value={`${g.ap}/${g.apMax}`}
-        bar={<Ticks value={g.ap} max={g.apMax} tone="accent" />}
+        label="시간"
+        value={`${formatClock(g.spent)} · ${formatHours(g.dayMins - g.spent)}`}
+        bar={<Bar value={g.dayMins - g.spent} max={g.dayMins} tone="accent" />}
+        warn={`${dayName(g.day)}요일 · 이번 주 ${formatSpan(weekLeft({ day: g.day, spent: g.spent }, g.dayMins), g.dayMins)} 남음`}
       />
-      {/* ⚠️ 정신력이 깎는 것은 **다음 주 행동력 상한**이라, 그 몫을 적지 않으면 다음
+      {/* ⚠️ 정신력이 깎는 것은 **다음 주 하루 근무 시간**이라, 그 몫을 적지 않으면 다음
           주에 칸이 왜 줄었는지 알 자리가 없다(깎일 때가 아니라 깎이기 전에 읽힌다).
           깎을 것이 없으면 아무것도 붙지 않는다 — 늘 서 있는 라벨은 정보가 아니다.
           ⚠️ 값(`stat__value`)에 이어 붙이지 마라. 그 줄은 `white-space: nowrap`이라
@@ -96,7 +113,7 @@ export function Stats() {
           <>
             <Bar value={g.mental} max={g.mentalMax} tone="success" />
             {mentalPenalty(g.mental) > 0 && (
-              <p className="stat__warn">다음 주 행동력 −{mentalPenalty(g.mental)}</p>
+              <p className="stat__warn">다음 주 하루 −{formatSpan(mentalPenalty(g.mental), g.dayMins)}</p>
             )}
           </>
         }
@@ -184,7 +201,7 @@ export function Jobs() {
   )
 }
 
-/** 주차를 넘기기 전에 묻는 창. **되돌릴 수 없는 일이라 한 번 묻는다** — 남은 행동력은
+/** 주차를 넘기기 전에 묻는 창. **되돌릴 수 없는 일이라 한 번 묻는다** — 남은 시간은
  *  이월되지 않고, 어긋난 팝업이 있으면 그 자리에서 클레임이 들어온다.
  *
  * ⚠️ `window.confirm`을 쓰지 않는다. 브라우저 기본 대화상자는 이 가짜 OS의 시각 언어를
@@ -192,15 +209,25 @@ export function Jobs() {
  *
  * ⚠️ `body`로 **포털**한다. 계기판은 `--z-desktop`(창이 덮는 층)이라 그 안에 그리면
  *    열린 창 뒤로 들어간다 — 물어보는 창이 창 뒤에 숨으면 아무것도 못 한다. */
-function Confirm({ ap, onGo, onCancel }: { ap: number; onGo: () => void; onCancel: () => void }) {
+function Confirm({
+  left,
+  dayMins,
+  onGo,
+  onCancel,
+}: {
+  left: number
+  dayMins: number
+  onGo: () => void
+  onCancel: () => void
+}) {
   return createPortal(
     <div className="confirm" role="dialog" aria-modal="true" aria-label="다음 주로">
       <div className="confirm__panel">
         <p className="confirm__title">다음 주로 넘어가시겠습니까?</p>
         <p className="confirm__note">
-          {ap > 0
-            ? `남은 행동력 ${ap}은 이월되지 않는다.`
-            : '이번 주에 쓸 행동력을 다 썼다.'}{' '}
+          {left > 0
+            ? `이번 주에 남은 ${formatSpan(left, dayMins)}은 이월되지 않는다.`
+            : '이번 주에 쓸 시간을 다 썼다.'}{' '}
           걸어 둔 팝업이 요청과 어긋나면 항의가 들어온다.
         </p>
         <div className="confirm__buttons">
@@ -222,11 +249,14 @@ function Stat({
   label,
   value,
   bar,
+  warn,
 }: {
   icon: string
   label: string
   value: string
   bar?: React.ReactNode
+  /** 값 줄에 이어 붙일 수 없는 덧말(`stat__value`는 nowrap이다). 자기 줄로 선다. */
+  warn?: string
 }) {
   return (
     <div className={`stat${bar ? ' stat--bar' : ''}`}>
@@ -236,6 +266,7 @@ function Stat({
       </dt>
       <dd className="stat__value">{value}</dd>
       {bar}
+      {warn && <p className="stat__warn">{warn}</p>}
     </div>
   )
 }
@@ -258,19 +289,6 @@ function Bar({
   return (
     <div className={`gauge${toneClass(tone)}${crisis ? ' gauge--crisis' : ''}`} aria-hidden="true">
       <div className="gauge__fill" style={{ width: `${(value / max) * 100}%` }} />
-    </div>
-  )
-}
-
-/** 눈금 막대. ⚠️ 행동력은 **정수 자원**이라 칸으로 센다 — 연속 막대로 그리면 "2.5쯤 남았다"로
- *  읽히는데, 실제로는 공정 하나를 더 돌릴 수 있느냐 없느냐뿐이다.
- *  칸 수는 `apMax`라 회사레벨이 올라 최대치가 늘면 칸도 같이 는다. */
-function Ticks({ value, max, tone }: { value: number; max: number; tone?: Tone }) {
-  return (
-    <div className={`gauge gauge--ticks${toneClass(tone)}`} aria-hidden="true">
-      {Array.from({ length: max }, (_, i) => (
-        <span key={i} className={`gauge__tick${i < value ? ' gauge__tick--on' : ''}`} />
-      ))}
     </div>
   )
 }

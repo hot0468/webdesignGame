@@ -6,8 +6,13 @@
 export const INITIAL_GAME = {
   /** 1부터 세는 통산 주차. */
   week: 1,
-  ap: 3,
-  apMax: 3,
+  /** 0 = 월요일. 주말은 이 축에 없다(`WORKDAY_COUNT`일뿐). */
+  day: 0,
+  /** 오늘 쓴 분. 09:00 출근이라 0은 곧 아홉 시다. */
+  spent: 0,
+  /** 하루 근무 분. ⚠️ `COMPANY_LEVELS[0].dayMins`와 같아야 한다 — 첫 주에만 두 곳이
+   *  갈리면 시작하자마자 남은 시간이 표와 다르게 적힌다. */
+  dayMins: 240,
   mental: 100,
   mentalMax: 100,
   money: 1_000_000,
@@ -111,14 +116,18 @@ export const nextGrade = (grade: CompanyGrade): CompanyGrade | undefined =>
  *     10주였고 수주센터는 36~60주라, 잠금이 목표가 아니라 벽이었다. 해금은 "다음에 뭐가
  *     열리는지 보이는 것"이 전부인데 그 다음이 한 시간 뒤면 보이지 않는 것과 같다.
  *
- *  ⚠️ 이 표는 **해금(`systems/unlock.ts`)과 행동력 상한(`apMaxOf`)을 함께** 진다 —
+ *  ⚠️ 이 표는 **해금(`systems/unlock.ts`)과 행동력 상한(`dayMinsOf`)을 함께** 진다 —
  *     문턱을 내리면 행동력도 같이 빨라진다. 그것이 의도다(초반의 답답함이 같은 원인이다). */
+/** ⚠️ `dayMins`는 **하루에 제대로 일할 수 있는 분**이다(주당이 아니다). 1인 회사의
+ *  시작은 하루 넉 점이고, 회사가 커질수록 버티는 시간이 는다 — 레벨이 올리는 것은
+ *  여전히 **상한 하나**이고 단위만 분이 됐다. ⚠️ 60의 배수로 둔다(퇴근 시각이 정시에
+ *  떨어져야 `formatClock`이 09:00~13:00처럼 읽힌다). */
 export const COMPANY_LEVELS = [
-  { level: 1, minRevenue: 0, apMax: 3 },
-  { level: 2, minRevenue: 600_000, apMax: 4 },
-  { level: 3, minRevenue: 1_800_000, apMax: 5 },
-  { level: 4, minRevenue: 4_500_000, apMax: 6 },
-  { level: 5, minRevenue: 9_000_000, apMax: 7 },
+  { level: 1, minRevenue: 0, dayMins: 240 },
+  { level: 2, minRevenue: 600_000, dayMins: 300 },
+  { level: 3, minRevenue: 1_800_000, dayMins: 360 },
+  { level: 4, minRevenue: 4_500_000, dayMins: 420 },
+  { level: 5, minRevenue: 9_000_000, dayMins: 480 },
 ] as const
 
 export type CompanyLevel = (typeof COMPANY_LEVELS)[number]
@@ -185,11 +194,20 @@ export const WINDOW_DRAG = { keepVisible: 96 } as const
  *    **범위만** 준다. 어느 칸이 나오는지를 이 파일에서 계산하지 말 것(순수 함수의 몫이다).
  * ⚠️ 비용은 코어 설계의 퀄리티 비용(하1·중2·상3) 그대로다. 숙련도 감면은 그 스탯이
  *    생길 때 이 값에서 빼되 **하한 1**을 지킨다(0이면 무한 실행으로 붕괴). */
+/** ⚠️ **밴드가 올라갈수록 하루를 넘어간다**(설계자 확정): 간단하게는 몇 시간이라 하루에
+ *  여럿 돌릴 수 있고, 매우 신경써서는 며칠에 걸친다. 이것이 분 단위로 옮긴 이유다 —
+ *  퀄리티 선택이 "행동력 1이냐 3이냐"가 아니라 **"오늘 안에 끝내느냐 사흘을 쓰느냐"**가 된다.
+ *  ⚠️ 남는 시간이 모자라도 **시작할 수 있다** — 넘치는 만큼 다음 날로 넘어간다(`spendTime`). */
 export const QUALITY = [
-  { id: 'light', label: '간단하게', ap: 1, grades: ['F', 'D', 'C', 'B'] },
-  { id: 'hard', label: '열심히', ap: 2, grades: ['C', 'B', 'A'] },
-  { id: 'care', label: '매우 신경써서', ap: 3, grades: ['S', 'SS', 'SSS'] },
-] as const satisfies readonly { id: string; label: string; ap: number; grades: readonly string[] }[]
+  { id: 'light', label: '간단하게', mins: 120, grades: ['F', 'D', 'C', 'B'] },
+  { id: 'hard', label: '열심히', mins: 360, grades: ['C', 'B', 'A'] },
+  { id: 'care', label: '매우 신경써서', mins: 720, grades: ['S', 'SS', 'SSS'] },
+] as const satisfies readonly {
+  id: string
+  label: string
+  mins: number
+  grades: readonly string[]
+}[]
 
 export type QualityId = (typeof QUALITY)[number]['id']
 export type Grade = (typeof QUALITY)[number]['grades'][number]
@@ -199,10 +217,13 @@ export const findQuality = (id: QualityId) => QUALITY.find((q) => q.id === id)!
 /** 숙련도 → 행동력 감면. **표가 오름차순이고 첫 칸이 0이어야 한다**
  *  (`MENTAL_PENALTY`·`LEVEL_SPEEDUP`과 같은 모양 — 표를 읽는 규칙을 둘로 만들지 않는다).
  *  코어 설계의 "40+ → −1, 80+ → −2"가 그대로 온다. */
+/** ⚠️ 분 단위에서는 **비율로 깎는다**(정수 −1·−2는 뜻을 잃는다 — 120분짜리에서 1분을
+ *  빼는 꼴이 되거나, 60분씩 빼면 짧은 공정이 통째로 사라진다). 코어 설계의 "40+·80+"
+ *  두 문턱은 그대로다. */
 export const SKILL_DISCOUNT = [
-  { minSkill: 0, ap: 0 },
-  { minSkill: 40, ap: 1 },
-  { minSkill: 80, ap: 2 },
+  { minSkill: 0, cut: 0 },
+  { minSkill: 40, cut: 0.15 },
+  { minSkill: 80, cut: 0.3 },
 ] as const
 
 /** 공정 1회의 실제 비용. **비용을 내는 곳은 전부 이 함수를 쓴다** —
@@ -243,20 +264,21 @@ export const gainSkill = (skill: number): number => raiseSkill(skill, SKILL_GAIN
  *  `gainSkill`도 이것을 부른다(두 곳에서 자르면 한 곳을 빠뜨린다). */
 export const raiseSkill = (skill: number, amount: number): number => Math.min(100, skill + amount)
 
-export const apCost = (base: number, skill: number): number =>
-  Math.max(
-    AP_MIN,
-    base - SKILL_DISCOUNT.reduce((best, d) => (skill >= d.minSkill ? d.ap : best), 0),
-  )
+/** 공정 1회의 실제 분. ⚠️ **10분 단위로 떨어뜨린다** — 감면이 비율이라 그냥 두면
+ *  102분·306분 같은 값이 나오고, 그 숫자가 버튼과 일정표에 그대로 선다. */
+export const timeCost = (base: number, skill: number): number => {
+  const cut = SKILL_DISCOUNT.reduce((best, d) => (skill >= d.minSkill ? d.cut : best), 0)
+  return Math.max(MIN_COST, Math.round((base * (1 - cut)) / 10) * 10)
+}
 
 /** 사이트 퍼블리싱(에디터) 1회 비용. 이 공정이 **그 업무의 마지막 공정**이라 여기서
  *  업무가 완료된다. ⚠️ 퀄리티 선택이 붙으면 이 값도 퀄리티 비용표(하1·중2·상3)로 바뀐다 —
  *  지금은 `QUALITY`의 '열심히'와 같은 고정값이다 — 퍼블리싱에도 퀄리티 선택이 붙으면
  *  이 상수 대신 그 표를 쓴다(제작 쪽은 이미 그렇게 돈다). */
-export const PUBLISH_AP = 2
+export const PUBLISH_MINS = 360
 
 /** 퍼블리싱 결과가 타는 **퀄리티 밴드**. ⚠️ 퍼블리싱에는 아직 고를 것이 없어서
- *  (`PUBLISH_AP` 고정) 밴드를 **비용에서 읽는다** — `PUBLISH_AP`가 '열심히'(2)와 같은
+ *  (`PUBLISH_MINS` 고정) 밴드를 **비용에서 읽는다** — `PUBLISH_MINS`가 '열심히'(2)와 같은
  *  값이라 그 밴드(C~A)를 쓴다. 제작 공정들이 `QUALITY`를 **고르는 것**과 다른 점이 이것이다:
  *  저쪽은 밴드가 선택이고 여기서는 밴드가 **고정**이라, 퍼블리싱에서 플레이어가 결과를
  *  움직이는 길은 스탯(`publishing`)뿐이다.
@@ -276,7 +298,7 @@ export const CLAIM_REPUTATION_LOSS = 5
 
 /** 클레임에 사과할 때 드는 행동력. ⚠️ **0으로 두지 마라** — 공짜면 사과가 선택이 아니라
  *  버튼 누르기가 된다. 공정을 하나 덜 돌리는 대신 평판을 되돌리는 맞바꿈이어야 한다. */
-export const CS_REPLY_AP = 1
+export const CS_REPLY_MINS = 30
 
 /** CS 스탯 → 사과로 되돌아오는 평판. **오름차순이고 첫 칸이 0 스탯**이어야 한다
  *  (`csRecover`가 "조건을 만족하는 마지막 칸"을 답으로 낸다 — `COMPANY_GRADES`와 같은 관용구).
@@ -393,32 +415,51 @@ export const MENTAL_HIT = {
   quit: 8,
 } as const
 
-/** 정신력 → **행동력 상한에서 깎는 칸 수**.
+/** 정신력 → **하루 근무 시간에서 깎는 분**.
  *
- * ⚠️ **`apMax`의 정본은 회사레벨이다**(`companyLevel(revenue).apMax`) — 정신력은 그
+ * ⚠️ **하루 시간의 정본은 회사레벨이다**(`companyLevel(revenue).dayMins`) — 정신력은 그
  *    상한을 **덮어쓰지 않고 거기서 뺀다**. 두 곳이 각자 상한을 계산하면 반드시 어긋난다.
- *    실제 상한 = `apMaxOf(revenue, mental)` **한 함수**가 낸다.
+ *    실제 상한 = `dayMinsOf(revenue, mental)` **한 함수**가 낸다.
  *
- * ⚠️ 하한은 **1**이다(`AP_MIN`) — 0이면 아무것도 못 해 정신력을 회복시킬 길도, 돈을 벌
+ * ⚠️ 하한은 `MIN_DAY`다 — 0이면 아무것도 못 해 정신력을 회복시킬 길도, 돈을 벌
  *    길도 없는 죽은 판이 된다. 정신력은 느려지게 할 뿐 멈추지 못한다.
  * ⚠️ `maxMental` 내림차순이고 첫 칸이 `mentalMax`(100)여야 한다 — `mentalPenalty`가
  *    "조건을 만족하는 **마지막** 칸"을 답으로 낸다(`COMPANY_GRADES`와 같은 관용구이고,
  *    방향만 반대다). 여러 칸이 함께 참이므로 **가장 나쁜 칸이 이긴다**. */
 export const MENTAL_PENALTY = [
-  { maxMental: 100, ap: 0 },
-  { maxMental: 59, ap: 1 },
-  { maxMental: 29, ap: 2 },
+  { maxMental: 100, mins: 0 },
+  { maxMental: 59, mins: 60 },
+  { maxMental: 29, mins: 120 },
 ] as const
 
-/** 행동력 상한의 하한. ⚠️ 0으로 내리지 말 것 — 되돌아올 길이 없는 판이 생긴다. */
-export const AP_MIN = 1
+/** 하루 근무 시간의 하한. ⚠️ 0으로 내리지 말 것 — 되돌아올 길이 없는 판이 생긴다.
+ *  가장 짧은 공정(`MIN_COST`) 하나는 늘 들어가야 하루가 뜻을 가진다. */
+export const MIN_DAY = 60
 
-/** 정신력 → 깎이는 행동력 칸 수. 표가 내림차순이라 조건을 만족하는 칸이 여럿이고,
+/** 공정 1회 비용의 하한. ⚠️ 0이면 시간을 안 쓰고 무한히 만들 수 있어 이 게임의
+ *  유일한 제약이 사라진다(코어 설계의 명시적 규칙 — 단위만 분으로 바뀌었다). */
+export const MIN_COST = 30
+
+/** 정신력 → 깎이는 분. 표가 내림차순이라 조건을 만족하는 칸이 여럿이고,
  *  **마지막 칸(가장 나쁜 칸)이 답이다**. ⚠️ `find`로 첫 칸을 집으면 늘 0이 나온다. */
 export const mentalPenalty = (mental: number): number =>
-  MENTAL_PENALTY.reduce((worst, p) => (mental <= p.maxMental ? p.ap : worst), 0)
+  MENTAL_PENALTY.reduce((worst, p) => (mental <= p.maxMental ? p.mins : worst), 0)
 
-/** **행동력 상한의 유일한 출처.** 회사레벨이 정본이고 정신력이 거기서 깎는다.
- *  ⚠️ 화면도 스토어도 이 함수만 부른다 — `companyLevel(...).apMax`를 직접 쓰지 말 것. */
-export const apMaxOf = (revenue: number, mental: number): number =>
-  Math.max(AP_MIN, companyLevel(revenue).apMax - mentalPenalty(mental))
+/** **하루 근무 시간의 유일한 출처.** 회사레벨이 정본이고 정신력이 거기서 깎는다.
+ *  ⚠️ 화면도 스토어도 이 함수만 부른다 — `companyLevel(...).dayMins`를 직접 쓰지 말 것. */
+export const dayMinsOf = (revenue: number, mental: number): number =>
+  Math.max(MIN_DAY, companyLevel(revenue).dayMins - mentalPenalty(mental))
+
+/** 출근 시각(자정 기준 분). 퇴근은 `출근 + 그날의 dayMins`라 레벨이 낮으면 일찍 끝난다.
+ *  ⚠️ 점심을 만들지 않는다 — 근무 시간에서 빼고 더하는 칸이 하나 더 생길 뿐,
+ *     플레이어가 고를 것이 없다(죽은 눈금을 그리지 않는다는 규칙과 같다). */
+export const WORK_START = 9 * 60
+
+/** 일하는 요일 수. ⚠️ `WEEKDAYS.length - WEEKEND_COUNT`와 **같아야 한다** —
+ *  달력이 주말로 칠하는 칸과 진행이 도는 날이 갈리면 금요일이 두 번 오거나 사라진다. */
+export const WORKDAY_COUNT = WEEKDAYS.length - WEEKEND_COUNT
+
+/** 결과를 **보내는** 손짓의 값. ⚠️ 공정이 아니라서 작다 — 그래도 0이 아닌 이유는
+ *  자투리 시간에 무엇을 끼워 넣을지가 이 게임의 새 선택이기 때문이다(0이면 선택이 아니다). */
+export const REPLY_MINS = 10
+export const UPLOAD_MINS = 20

@@ -1,6 +1,6 @@
 import { AppIcon } from '../icons/AppIcon'
 import { BROWSER_ICONS } from '../data/icons'
-import { BID_AP, BID_OPEN_WEEKS, findTier } from '../data/bidding'
+import { BID_MINS, BID_OPEN_WEEKS, findTier } from '../data/bidding'
 import { BASE_FEE, companyGrade, REPUTATION_CRISIS } from '../data/game'
 import { formatDate, formatWeek } from '../systems/calendar'
 import {
@@ -14,11 +14,11 @@ import {
   winChance,
 } from '../systems/bidding'
 import { stepsOf } from '../systems/pipeline'
-import { bidStats, useGame } from '../store'
+import { bidStats, useClock, useGame } from '../store'
 
 /** 수주센터. 브라우저 첫화면의 바로가기로 들어온다.
  *
- * 고리는 이렇다: **참가 조건 확인 → 기한 안에 입찰(행동력 `BID_AP`) → 익주에 결과 메일
+ * 고리는 이렇다: **참가 조건 확인 → 기한 안에 입찰(행동력 `BID_MINS`) → 익주에 결과 메일
  * → 낙찰 메일의 `사업 시작`을 누르면 평소 업무**.
  *
  * ⚠️ **메일 의뢰와 다른 고리다.** 메일은 오면 무조건 받을 수 있지만 공고는 조건을 맞춰야
@@ -39,7 +39,7 @@ import { bidStats, useGame } from '../store'
  *    **아이콘 + 글자**가 말한다. */
 export function WorkSite() {
   const week = useGame((s) => s.week)
-  const ap = useGame((s) => s.ap)
+  const clock = useClock()
   const reputation = useGame((s) => s.reputation)
   const design = useGame((s) => s.design)
   const planning = useGame((s) => s.planning)
@@ -85,7 +85,7 @@ export function WorkSite() {
             <span className="nv-bid__chip">
               {grade.label} · 평판 {reputation}
             </span>
-            <span className="nv-bid__chip">입찰 행동력 {BID_AP}</span>
+            <span className="nv-bid__chip">입찰 행동력 {BID_MINS}</span>
             <span className="nv-bid__chip">게시 후 {BID_OPEN_WEEKS}주간 접수</span>
           </div>
           <p className="nv-hire__meta">
@@ -211,12 +211,12 @@ export function WorkSite() {
                     <button
                       type="button"
                       className="nv-site__go"
-                      disabled={!fit.ok || ap < BID_AP}
+                      disabled={!fit.ok || !clock.can(BID_MINS)}
                       onClick={() => bidListing(l)}
                     >
-                      입찰하기 (행동력 {BID_AP})
+                      입찰하기 (행동력 {BID_MINS})
                     </button>
-                    {fit.ok && ap < BID_AP && (
+                    {fit.ok && !clock.can(BID_MINS) && (
                       <p className="nv-site__fail">
                         <AppIcon name={BROWSER_ICONS.warn} size={16} />
                         행동력이 모자랍니다.

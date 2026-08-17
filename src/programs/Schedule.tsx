@@ -8,7 +8,7 @@ import {
   WEEKS_PER_MONTH,
   mentalPenalty,
 } from '../data/game'
-import { formatDate, toCalendar } from '../systems/calendar'
+import { formatClock, formatDate, formatHours, formatSpan, toCalendar } from '../systems/calendar'
 import { weekendEvent } from '../systems/weekend'
 import { useGame } from '../store'
 
@@ -24,6 +24,11 @@ import { useGame } from '../store'
  *    달마다 28~31일로 흔들리게 만들지 마라 — 월말 정산 주차가 같이 흔들린다. */
 export function Schedule() {
   const week = useGame((s) => s.week)
+  const day = useGame((s) => s.day)
+  const spent = useGame((s) => s.spent)
+  const dayMins = useGame((s) => s.dayMins)
+  // ⚠️ 셀렉터 안에서 거르지 마라 — 새 배열이 나와 무한 렌더가 된다(이 리포의 단골 사고).
+  const log = useGame((s) => s.log)
   const jobs = useGame((s) => s.jobs)
   const trainings = useGame((s) => s.trainings)
   const employees = useGame((s) => s.employees)
@@ -51,6 +56,7 @@ export function Schedule() {
 
         {Array.from({ length: WEEKS_PER_MONTH }, (_, w) => {
           const rowWeek = firstWeek + w
+          const rowLog = log.filter((b) => b.week === rowWeek)
           // ⚠️ 마감·휴무는 **주차 단위로** 붙는다 — 이 게임의 시간은 한 주가 최소 눈금이라
           //    날짜 칸 하나에 매달면 없는 정밀도를 지어내게 된다. 날짜는 `formatDate`가
           //    말하는 그 주의 마지막 날이고(마감 표기와 같은 함수), 자리는 줄이다.
@@ -64,14 +70,45 @@ export function Schedule() {
               className={`cal__row${w + 1 === weekOfMonth ? ' cal__row--now' : ''}`}
               aria-current={w + 1 === weekOfMonth ? 'date' : undefined}
             >
-              {WEEKDAYS.map((d, i) => (
-                <span key={d} className={`cal__cell${isWeekend(i) ? ' cal__cell--weekend' : ''}`}>
-                  {w * WEEKDAYS.length + i + 1}
-                </span>
-              ))}
+              {/* ⚠️ 칸은 여전히 **버튼이 아니다** — 고르는 것은 요일이 아니라 "지금 무엇을
+                  하는가"이고, 그 선택은 프로그램 창에서 일어난다. 여기 서는 것은 **한 일의
+                  기록**이다(`log`, 스토어). 기록이라 지워도 게임 규칙은 안 바뀐다.
+                  ⚠️ 하루를 넘는 작업은 날마다 한 칸씩 쪼개져 들어온다(`spendTime`) —
+                     한 칸이 두 날에 걸칠 수 없기 때문이다. */}
+              {WEEKDAYS.map((d, i) => {
+                const blocks = isWeekend(i) ? [] : rowLog.filter((b) => b.day === i)
+                const now = rowWeek === week && i === day
+                return (
+                  <span
+                    key={d}
+                    className={`cal__cell${isWeekend(i) ? ' cal__cell--weekend' : ''}${now ? ' cal__cell--now' : ''}`}
+                    aria-current={now ? 'date' : undefined}
+                  >
+                    <b className="cal__date">{w * WEEKDAYS.length + i + 1}</b>
+                    {/* ⚠️ 칸에는 **글자를 넣지 않는다** — 일곱 칸 폭에 업무 제목이 안 들어가
+                        "09:0…"처럼 잘린다(겪었다. 줄 아래 마감 목록이 생긴 이유와 같다).
+                        칸이 지는 것은 **그날이 얼마나 찼는가** 하나이고, 무엇을 했는지는
+                        아래 목록이 읽어 준다. */}
+                    {blocks.map((b, n) => (
+                      <span
+                        key={n}
+                        className="cal__block"
+                        style={{ width: `${Math.min(100, (b.mins / dayMins) * 100)}%` }}
+                        aria-hidden="true"
+                      />
+                    ))}
+                    {now && <span className="cal__here">{formatClock(spent)}</span>}
+                  </span>
+                )
+              })}
 
-              {(due.length > 0 || leave.length > 0) && (
+              {(due.length > 0 || leave.length > 0 || rowLog.length > 0) && (
                 <ul className="cal__marks">
+                  {rowLog.map((b, n) => (
+                    <li key={`b${n}`} className="cal__mark cal__mark--work">
+                      {WEEKDAYS[b.day]} {formatClock(b.start)} · {b.label}
+                    </li>
+                  ))}
                   {due.map((j) => (
                     <li
                       key={j.id}
@@ -95,7 +132,7 @@ export function Schedule() {
       <Weekend />
 
       <p className="schedule__note">
-        {weekOfMonth}째 주 진행 중 · 통산 {week}주차 · 한 턴은 한 주다
+        {weekOfMonth}째 주 · {WEEKDAYS[day]}요일 {formatClock(spent)} · 오늘 {formatHours(dayMins - spent)} 남음
       </p>
     </div>
   )
@@ -106,9 +143,10 @@ export function Schedule() {
  * ⚠️ 의뢰는 **주차 하나에서 파생한다**(`systems/weekend.ts` — 저장하지 않는다). 창을
  *    닫았다 열어도 같은 주면 같은 의뢰다.
  * ⚠️ 대가(정신력)와 그 대가가 다음 주에 무엇이 되는지를 **누르기 전에** 적는다 —
- *    행동력이 깎이는 것은 다음 주에 일어나므로, 그때 가서 이유를 알면 늦다. */
+ *    하루가 깎이는 것은 다음 주에 일어나므로, 그때 가서 이유를 알면 늦다. */
 function Weekend() {
   const week = useGame((s) => s.week)
+  const dayMins = useGame((s) => s.dayMins)
   const mental = useGame((s) => s.mental)
   const worked = useGame((s) => s.weekendWorked.includes(s.week))
   const workWeekend = useGame((s) => s.workWeekend)
@@ -116,7 +154,7 @@ function Weekend() {
   const event = weekendEvent(week)
   if (!event) return null
 
-  /** 일했을 때의 정신력과, 그것이 다음 주 행동력에서 깎을 칸. */
+  /** 일했을 때의 정신력과, 그것이 다음 주 하루 근무 시간에서 깎을 분. */
   const after = Math.max(0, mental - WEEKEND_MENTAL_COST)
   const lose = mentalPenalty(after)
 
@@ -149,7 +187,7 @@ function Weekend() {
           <p className="weekend__note">
             <AppIcon name={STAT_ICONS.mental} />
             일하면 정신력 {mental} → {after}
-            {lose > 0 && ` · 다음 주 행동력 상한 −${lose}`}. 쉬면 이 의뢰만 놓친다.
+            {lose > 0 && ` · 다음 주 하루 −${formatSpan(lose, dayMins)}`}. 쉬면 이 의뢰만 놓친다.
           </p>
         </>
       )}

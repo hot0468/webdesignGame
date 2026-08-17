@@ -18,9 +18,11 @@ import {
   companyLevel,
   nextLevel,
   SKILL_DISCOUNT,
+  MIN_COST,
 } from '../data/game'
 import { payroll } from '../systems/employee'
 import { canContract } from '../systems/money'
+import { formatSpan } from '../systems/calendar'
 import { useGame } from '../store'
 
 /** `사내시스템` 창. 왼쪽 메뉴로 화면을 가르는 백오피스형이다.
@@ -165,12 +167,13 @@ function Status() {
         <span className="company__value">{level.level}</span>
       </div>
       <p className="company__note">
-        행동력 상한 {level.apMax} · 누적 매출 {revenue.toLocaleString('ko-KR')}원
-        {up && ` · ${up.minRevenue.toLocaleString('ko-KR')}원부터 레벨 ${up.level}(행동력 ${up.apMax})`}
+        하루 근무 {formatSpan(level.dayMins, level.dayMins)} · 누적 매출 {revenue.toLocaleString('ko-KR')}원
+        {up &&
+          ` · ${up.minRevenue.toLocaleString('ko-KR')}원부터 레벨 ${up.level}(하루 ${formatSpan(up.dayMins, up.dayMins)})`}
       </p>
 
       {/* 내 스탯. ⚠️ **두 축을 갈라서 적는다** — 등급을 정하는 축(디자인·기획)과
-          행동력을 깎는 축(숙련도 3종)을 한 줄에 섞으면 무엇을 올려야 무엇이 좋아지는지가
+          작업 시간을 깎는 축(숙련도 3종)을 한 줄에 섞으면 무엇을 올려야 무엇이 좋아지는지가
           흐려진다. 이 게임의 단골 사고 지점이라 설계 결정표도 한 줄을 따로 쓴다. */}
       <div className="company__head">
         <span className="company__label">내 스탯</span>
@@ -179,11 +182,11 @@ function Status() {
         결과물 등급 — 디자인 {design} · 퍼블리싱 {publishing} · 기획 {planning}
       </p>
       <p className="company__note">
-        행동력 감면 — 피그마 {figmaSkill} · 포토샵 {photoshopSkill} · 코딩 {codingSkill}
+        작업 시간 감면 — 피그마 {figmaSkill} · 포토샵 {photoshopSkill} · 코딩 {codingSkill}
       </p>
       <p className="company__note">
-        숙련도 {SKILL_DISCOUNT[1].minSkill}부터 −{SKILL_DISCOUNT[1].ap},{' '}
-        {SKILL_DISCOUNT[2].minSkill}부터 −{SKILL_DISCOUNT[2].ap} (최소 1)
+        숙련도 {SKILL_DISCOUNT[1].minSkill}부터 −{SKILL_DISCOUNT[1].cut * 100}%,{' '}
+        {SKILL_DISCOUNT[2].minSkill}부터 −{SKILL_DISCOUNT[2].cut * 100}% (최소 {MIN_COST}분)
       </p>
 
       <div className="company__head">

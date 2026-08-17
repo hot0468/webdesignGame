@@ -1,4 +1,4 @@
-import { MONTHS_PER_YEAR, WEEKS_PER_MONTH } from '../data/game'
+import { MONTHS_PER_YEAR, WEEKDAYS, WEEKS_PER_MONTH, WORK_START } from '../data/game'
 
 /** 통산 주차 → 달력 위치. `일정` 창과 작업 표시줄이 **같은 출처**를 쓰게 하려고 함수로 뺐다.
  *
@@ -47,3 +47,38 @@ export function formatDate(week: number, edge: 'start' | 'end' = 'end') {
  *  두 곳을 눈으로 대조할 수 있다(어긋남을 알아채는 것이 팝업 고리의 전부다). */
 export const formatPeriod = (from: number, to: number) =>
   `${formatDate(from, 'start')} ~ ${formatDate(to)}`
+
+/** 걸리는 시간(분) → 사람이 읽는 길이. **비용을 적는 모든 자리가 이 함수를 쓴다** —
+ *  버튼이 "360분"이라고 적고 일정표가 "6시간"이라고 적으면 같은 값이 둘로 보인다.
+ *
+ * ⚠️ 하루를 넘는 값은 **날로 말한다**(`dayMins`를 받아 환산한다) — 720분을 "12시간"이라고
+ *    적으면 하루가 4~8시간인 이 게임에서 그것이 며칠인지 암산해야 한다. 퀄리티를 올릴수록
+ *    일 단위가 되는 것이 이 축의 선택이므로, 그 단위가 그대로 읽혀야 한다. */
+export function formatSpan(mins: number, dayMins: number): string {
+  if (mins >= dayMins) {
+    const days = Math.floor(mins / dayMins)
+    const rest = mins % dayMins
+    return rest === 0 ? `${days}일` : `${days}일 ${formatHours(rest)}`
+  }
+  return formatHours(mins)
+}
+
+/** 시·분으로만 적는다 — **날로 바꾸지 않는다**.
+ *  ⚠️ **하루 안의 양**에 쓴다(오늘 남은 시간 등): 그런 값을 `formatSpan`에 넘기면
+ *     하루치가 통째로 "1일"로 접혀, 넉 점 남은 것이 하루 남은 것처럼 읽힌다(겪었다). */
+export function formatHours(mins: number): string {
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return h === 0 ? `${m}분` : m === 0 ? `${h}시간` : `${h}시간 ${m}분`
+}
+
+/** 그날 흐른 분 → 벽시계. `WORK_START`(09:00)에서 시작해 그날 쓴 만큼 흐른다.
+ *  ⚠️ 자정을 넘기지 않는다 — 하루 근무는 길어야 여덟 시간이라 넘길 일이 없고,
+ *     넘긴다면 그것은 `spendTime`이 날을 안 넘긴 버그다. */
+export function formatClock(spent: number) {
+  const t = WORK_START + spent
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
+}
+
+/** 요일 인덱스(0=월) → 이름. ⚠️ `WEEKDAYS`가 정본이다 — 화면마다 배열을 다시 적지 마라. */
+export const dayName = (day: number) => WEEKDAYS[day] ?? WEEKDAYS[0]

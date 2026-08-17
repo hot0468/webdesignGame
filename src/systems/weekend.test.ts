@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  AP_MIN,
-  apMaxOf,
+  MIN_DAY,
+  dayMinsOf,
   COMPANY_LEVELS,
   INITIAL_GAME,
   MENTAL_PENALTY,
@@ -72,7 +72,7 @@ describe('정신력', () => {
   })
 })
 
-describe('정신력 → 행동력 상한', () => {
+describe('정신력 → 하루 근무 시간', () => {
   it('정신력이 낮을수록 상한이 깎인다', () => {
     expect(mentalPenalty(INITIAL_GAME.mentalMax)).toBe(0)
     expect(mentalPenalty(0)).toBeGreaterThan(0)
@@ -82,22 +82,24 @@ describe('정신력 → 행동력 상한', () => {
     }
   })
 
-  it('`apMaxOf`가 상한의 유일한 출처다 — 회사레벨에서 깎는다', () => {
+  it('`dayMinsOf`가 상한의 유일한 출처다 — 회사레벨에서 깎는다', () => {
     const top = COMPANY_LEVELS[COMPANY_LEVELS.length - 1]!
-    expect(apMaxOf(top.minRevenue, 100)).toBe(top.apMax)
-    expect(apMaxOf(top.minRevenue, 0)).toBe(top.apMax - mentalPenalty(0))
+    expect(dayMinsOf(top.minRevenue, 100)).toBe(top.dayMins)
+    expect(dayMinsOf(top.minRevenue, 0)).toBe(top.dayMins - mentalPenalty(0))
   })
 
-  it('⚠️ 상한이 1 밑으로 안 내려간다 — 0이면 회복 불가능한 죽은 판이다', () => {
-    // 어떤 회사레벨·어떤 정신력에서도 1 밑은 없다(하한이 실제로 걸리는지 전부 훑는다).
+  it('⚠️ 상한이 MIN_DAY 밑으로 안 내려간다 — 0이면 회복 불가능한 죽은 판이다', () => {
+    // 어떤 회사레벨·어떤 정신력에서도 하한 밑은 없다(전부 훑는다).
     for (const l of COMPANY_LEVELS) {
-      for (let m = 0; m <= 100; m++) expect(apMaxOf(l.minRevenue, m)).toBeGreaterThanOrEqual(AP_MIN)
+      for (let m = 0; m <= 100; m++) expect(dayMinsOf(l.minRevenue, m)).toBeGreaterThanOrEqual(MIN_DAY)
     }
-    // 규칙을 뒤집어 확인한다: 하한이 없었다면 시작 레벨 + 최악 정신력이 여기서 0 이하가 된다.
-    const worst = Math.max(...MENTAL_PENALTY.map((p) => p.ap))
-    expect(apMaxOf(0, 0)).toBe(AP_MIN)
-    expect(AP_MIN).toBeGreaterThan(0)
-    expect(COMPANY_LEVELS[0].apMax - worst).toBeLessThanOrEqual(AP_MIN)
+    // ⚠️ 지금 수치에서는 **하한이 실제로는 안 걸린다**(시작 레벨 + 최악 정신력도 하한 위다).
+    //    그것이 의도다 — 하한은 표를 잘못 고쳤을 때를 받는 그물이지 평소에 닿는 바닥이 아니다.
+    //    그래서 여기서는 **최악의 경우가 하한보다 넉넉한지**를 지킨다: 이 값이 하한까지
+    //    내려오면 정신력이 하루를 통째로 지워 회복할 길이 막힌다는 뜻이다.
+    const worst = Math.max(...MENTAL_PENALTY.map((p) => p.mins))
+    expect(COMPANY_LEVELS[0].dayMins - worst).toBeGreaterThan(MIN_DAY)
+    expect(MIN_DAY).toBeGreaterThan(0)
   })
 })
 

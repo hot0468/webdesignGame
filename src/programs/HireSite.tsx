@@ -4,17 +4,17 @@ import {
   APPLICANTS_PER_POST,
   EMPLOYEE_LEVEL,
   findRole,
-  POST_AP,
+  POST_MINS,
   salaryOf,
 } from '../data/employees'
 import { companyGrade } from '../data/game'
-import { formatWeek } from '../systems/calendar'
+import { formatSpan, formatWeek } from '../systems/calendar'
 import { applicants } from '../systems/hire'
-import { useGame } from '../store'
+import { useClock, useGame } from '../store'
 
 /** 채용사이트(`인간인`). 브라우저 첫화면의 바로가기로 들어온다.
  *
- * 고리는 이렇다: **공고 업로드(행동력 `POST_AP`) → 지원자 발생 → 고용**.
+ * 고리는 이렇다: **공고 업로드(행동력 `POST_MINS`) → 지원자 발생 → 고용**.
  *
  * ⚠️ 지원자는 **저장되지 않는다** — 공고를 올린 주차 하나에서 파생한다
  *    (`systems/hire.ts`의 `applicants`, 시드를 받는 순수 함수). 그래서 창을 닫았다 열어도
@@ -25,7 +25,7 @@ import { useGame } from '../store'
  *    색이 아니라 **아이콘 + 글자**가 말한다. */
 export function HireSite() {
   const week = useGame((s) => s.week)
-  const ap = useGame((s) => s.ap)
+  const clock = useClock()
   const reputation = useGame((s) => s.reputation)
   const employees = useGame((s) => s.employees)
   const postWeek = useGame((s) => s.hirePostWeek)
@@ -76,10 +76,10 @@ export function HireSite() {
                   </>
                 )}
               </p>
-              {ap < POST_AP && (
+              {!clock.can(POST_MINS) && (
                 <p className="nv-site__fail">
                   <AppIcon name={BROWSER_ICONS.warn} size={16} />
-                  행동력이 모자랍니다. 다음 주에 다시 시도하세요.
+                  이번 주에 남은 시간으로는 올릴 수 없습니다.
                 </p>
               )}
             </div>
@@ -89,10 +89,10 @@ export function HireSite() {
             <button
               type="button"
               className="nv-site__go"
-              disabled={ap < POST_AP}
+              disabled={!clock.can(POST_MINS)}
               onClick={postHiring}
             >
-              공고 올리기 (행동력 {POST_AP})
+              공고 올리기 ({formatSpan(POST_MINS, clock.dayMins)})
             </button>
           </section>
 

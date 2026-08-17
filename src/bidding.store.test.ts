@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { BID_AP, BID_OPEN_WEEKS, findTier } from './data/bidding'
-import { INITIAL_GAME } from './data/game'
+import { BID_MINS, BID_OPEN_WEEKS, findTier } from './data/bidding'
+import { INITIAL_GAME, WORKDAY_COUNT
+} from './data/game'
 import type { Request } from './data/inbox'
 import { bidStats, useGame } from './store'
 import {
@@ -70,11 +71,23 @@ const canWin = (l: Listing) => {
   return fit && wins(l.id, winChance(tier, s.reputation, bidStats(s)))
 }
 
+/** ── 시간 축 도우미 ────────────────────────────────────────
+ *  옛 `ap` 비교를 그대로 옮기는 자리다. **이번 주에 쓴 분**이 그때의 "쓴 행동력"에 해당한다. */
+/** 시간이 넉넉한 월요일 아침. */
+const FRESH = { day: 0, spent: 0 }
+/** 이번 주를 다 쓴 자리 — 무엇도 시작할 수 없다(옛 `ap: 0`). */
+const NO_TIME = { day: WORKDAY_COUNT - 1, spent: INITIAL_GAME.dayMins }
+/** 이번 주에 쓴 분. */
+const usedMins = () => {
+  const s = useGame.getState()
+  return s.day * s.dayMins + s.spent
+}
+
 describe('입찰', () => {
   it('행동력을 문다 — 공짜면 조건이 맞는 공고에 전부 거는 것이 늘 정답이 된다', () => {
-    const before = useGame.getState().ap
+    const before = usedMins()
     useGame.getState().bidListing(listing())
-    expect(useGame.getState().ap).toBe(before - BID_AP)
+    expect(usedMins()).toBe(before + BID_MINS)
     expect(useGame.getState().bids.map((b) => b.listing.id)).toEqual(['wk:1:0'])
   })
 
@@ -87,9 +100,9 @@ describe('입찰', () => {
 
   it('참가 조건 미달이면 아무 일도 일어나지 않는다 — 행동력도 안 나간다', () => {
     // 대규모는 직원 3·시안 5·기획안 A를 요구한다. 지금 회사는 아무것도 없다.
-    const before = useGame.getState().ap
+    const before = usedMins()
     useGame.getState().bidListing(listing({ tier: 'large' }))
-    expect(useGame.getState().ap).toBe(before)
+    expect(usedMins()).toBe(before)
     expect(useGame.getState().bids).toEqual([])
   })
 
@@ -105,7 +118,7 @@ describe('입찰', () => {
   })
 
   it('행동력이 모자라면 아무 일도 일어나지 않는다', () => {
-    useGame.setState({ ap: 0 })
+    useGame.setState(NO_TIME)
     useGame.getState().bidListing(listing())
     expect(useGame.getState().bids).toEqual([])
   })
@@ -113,9 +126,9 @@ describe('입찰', () => {
   it('같은 공고에 두 번 걸 수 없다 — 행동력만 계속 태우는 길을 막는다', () => {
     const l = listing()
     useGame.getState().bidListing(l)
-    const ap = useGame.getState().ap
+    const ap = usedMins()
     useGame.getState().bidListing(l)
-    expect(useGame.getState().ap).toBe(ap)
+    expect(usedMins()).toBe(ap)
     expect(useGame.getState().bids).toHaveLength(1)
   })
 })
@@ -129,10 +142,10 @@ describe('입찰 기한', () => {
     expect(useGame.getState().bids).toHaveLength(1)
 
     // 하루(한 주) 더 가면 통째로 막힌다 — 행동력도 안 나간다.
-    useGame.setState({ bids: [], week: bidDeadline(l) + 1, ap: INITIAL_GAME.ap })
+    useGame.setState({ bids: [], week: bidDeadline(l) + 1, ...FRESH })
     useGame.getState().bidListing(l)
     expect(useGame.getState().bids).toEqual([])
-    expect(useGame.getState().ap).toBe(INITIAL_GAME.ap)
+    expect(usedMins()).toBe(0)
   })
 
   it('기한이 살아 있는 지난 주 공고도 화면에 선다 — 아니면 기한이 뜻을 잃는다', () => {

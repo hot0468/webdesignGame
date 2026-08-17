@@ -3,7 +3,7 @@ import {
   BASE_FEE,
   BREACH_REPUTATION_LOSS,
   CLAIM_REPUTATION_LOSS,
-  CS_REPLY_AP,
+  CS_REPLY_MINS,
   csRecover,
   findQuality,
   PUBLISH_QUALITY,
@@ -17,20 +17,22 @@ import {
   UNPAID_MONTHS_TO_BANKRUPT,
   COMPANY_LEVELS,
   companyLevel,
-  AP_MIN,
-  apMaxOf,
+  MIN_COST,
+  dayMinsOf,
   MENTAL_PENALTY,
   MENTAL_RECOVERY,
   mentalPenalty,
   WEEKEND_DUE_WEEKS,
   WEEKEND_MENTAL_COST,
-  apCost,
+  timeCost,
   QUALITY,
   SKILL_DISCOUNT,
   gainSkill,
   WINDOW_FIT,
   WINDOW_SPAWN,
+  WORKDAY_COUNT,
 } from './data/game'
+import { weekLeft } from './systems/clock'
 import { monthlyCost } from './systems/money'
 import { MESSAGES, inbox, unreadCount, type Request } from './data/inbox'
 import { SHORTCUTS } from './data/sites'
@@ -39,9 +41,9 @@ import { feedbackWorks, raiseGrade } from './systems/request'
 import { asStep, focusedWindowId, useGame } from './store'
 import { openStep, satisfaction, stepsOf } from './systems/pipeline'
 import { weekendEvent } from './systems/weekend'
-import { KEYWORDS, MEETING_AP, SITE_KEYWORDS } from './data/keywords'
+import { KEYWORDS, MEETING_MINS, SITE_KEYWORDS } from './data/keywords'
 import {
-  FEEDBACK_AP,
+  FEEDBACK_MINS,
   GRUDGE_PER_REFUSAL,
   GRUDGE_QUIT,
   LEAVE_WEEKS,
@@ -87,6 +89,8 @@ const emptyState = () =>
     chats: [],
     weekendWorked: [],
     bids: [],
+    // ⚠️ 일정표 기록도 되돌린다 — 안 지우면 앞 테스트가 쓴 시간이 이 판의 달력에 남는다.
+    log: [],
     crisisWeeks: 0,
     figmaSkill: INITIAL_GAME.figmaSkill,
     photoshopSkill: INITIAL_GAME.photoshopSkill,
@@ -115,13 +119,28 @@ const reply = (id: string) => {
   useGame.getState().replyJob(id)
 }
 
+/** ── 시간 축 도우미 ────────────────────────────────────────
+ *  옛 `ap` 비교를 그대로 옮기는 자리다. **이번 주에 쓴 분**이 그때의 "쓴 행동력"에 해당한다. */
+/** 시간이 넉넉한 월요일 아침. */
+const FRESH = { day: 0, spent: 0 }
+/** 이번 주를 다 쓴 자리 — 무엇도 시작할 수 없다(옛 `ap: 0`). */
+const NO_TIME = { day: WORKDAY_COUNT - 1, spent: INITIAL_GAME.dayMins }
+/** `NO_TIME`에서 쓴 분 — 이번 주를 통째로 썼다는 뜻이다. */
+const NO_TIME_USED = WORKDAY_COUNT * INITIAL_GAME.dayMins
+/** 이번 주에 쓴 분. */
+const usedMins = () => {
+  const s = useGame.getState()
+  return s.day * s.dayMins + s.spent
+}
+
 describe('초기 수치', () => {
   it('src/data/game.ts에서 온다 — 컴포넌트가 만든 두 번째 출처가 없어야 한다', () => {
     const s = useGame.getState()
     expect({
       week: s.week,
-      ap: s.ap,
-      apMax: s.apMax,
+      day: s.day,
+      spent: s.spent,
+      dayMins: s.dayMins,
       mental: s.mental,
       mentalMax: s.mentalMax,
       money: s.money,
@@ -323,13 +342,13 @@ describe('퍼블리싱 스탯', () => {
     const site = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'site')!
     g().acceptJob(site)
     // 앞의 두 공정은 **최고로** 만든다 — 그런데도 만족도가 퍼블리싱까지 내려가야 한다.
-    useGame.setState({ ap: 9 })
+    useGame.setState(FRESH)
     g().makeSlides(site.id, 'care')
     reply(site.id)
-    useGame.setState({ ap: 9 })
+    useGame.setState(FRESH)
     g().makeDraft(site.id, 'care')
     reply(site.id)
-    useGame.setState({ ap: 9 })
+    useGame.setState(FRESH)
     g().publishJob(site.id)
     reply(site.id)
     const worst = satisfaction([
@@ -342,7 +361,7 @@ describe('퍼블리싱 스탯', () => {
   })
 
   it('행동력이 모자라면 아무 일도 없다 — 등급도 안 남는다', () => {
-    useGame.setState({ ...emptyState(), ap: 0 })
+    useGame.setState({ ...emptyState(), ...NO_TIME })
     const g = () => useGame.getState()
     g().acceptJob(fixReq)
     g().publishJob(fixReq.id)
@@ -373,10 +392,10 @@ describe('공정과 회신', () => {
     expect(g().drafts).toEqual([])
 
     reply(site.id)
-    useGame.setState({ ap: 3 })
+    useGame.setState(FRESH)
     g().makeDraft(site.id, 'light')
     reply(site.id)
-    useGame.setState({ ap: 3 })
+    useGame.setState(FRESH)
     g().publishJob(site.id)
     expect(g().jobs[0]!.done).toBe(false) // ⚠️ 만든 것으로는 끝나지 않는다
     reply(site.id)
@@ -392,10 +411,10 @@ describe('공정과 회신', () => {
     expect(g().mails[0]!.jobId).toBe(site.id)
     expect(g().mails[0]!.channel).toBe(site.channel)
 
-    useGame.setState({ ap: 3 })
+    useGame.setState(FRESH)
     g().makeDraft(site.id, 'light')
     reply(site.id)
-    useGame.setState({ ap: 3 })
+    useGame.setState(FRESH)
     g().publishJob(site.id)
     reply(site.id)
     // 만족도는 산출물 등급 중 가장 낮은 것이다(약한 고리) — 여기서는 전부 '간단하게'다.
@@ -437,9 +456,9 @@ describe('공정과 회신', () => {
     const g = () => useGame.getState()
     g().acceptJob(fix)
     g().publishJob(fix.id)
-    const before = g().ap
+    const before = usedMins()
     reply(fix.id)
-    expect(g().ap).toBe(before)
+    expect(usedMins()).toBe(before)
     expect(g().jobs[0]!.done).toBe(true)
   })
 })
@@ -598,13 +617,13 @@ describe('대금·파기·정산', () => {
 
     const claim = g().mails.find((m) => m.claim)!
     const rep = g().reputation
-    const ap = g().ap
+    const ap = usedMins()
     g().apologize(claim.id)
 
     const gain = csRecover(INITIAL_GAME.cs)
     expect(gain).toBeLessThan(CLAIM_REPUTATION_LOSS)
     expect(g().reputation).toBe(rep + gain)
-    expect(g().ap).toBe(ap - CS_REPLY_AP)
+    expect(usedMins()).toBe(ap + CS_REPLY_MINS)
 
     // 두 번째는 아무 일도 없다 — 행동력으로 평판을 살 수 없다.
     g().apologize(claim.id)
@@ -671,37 +690,37 @@ describe('팝업 제작·등록', () => {
 
   // 제작이 비용을 진다. ⚠️ 이 값이 등록 쪽으로 옮겨 가면 한 팝업에 두 번 값을 물린다.
   it('제작은 행동력을 쓴다', () => {
-    const before = useGame.getState().ap
+    const before = usedMins()
     useGame.getState().makePopup(popupJob.id, 'light')
-    expect(useGame.getState().ap).toBe(before - findQuality('light').ap)
+    expect(usedMins()).toBe(before + findQuality('light').mins)
     expect(useGame.getState().files).toHaveLength(1)
   })
 
   // 퀄리티가 비용과 등급을 **함께** 정한다 — 한쪽만 따라가면 "비싼데 결과가 같다"가 된다.
   it('공들일수록 행동력을 더 쓰고 등급이 올라간다', () => {
-    useGame.setState({ ap: 3, files: [] })
+    useGame.setState({ ...FRESH, files: [] })
     useGame.getState().makePopup(popupJob.id, 'care')
     const [file] = useGame.getState().files
-    expect(useGame.getState().ap).toBe(3 - findQuality('care').ap)
+    expect(usedMins()).toBe(findQuality('care').mins)
     expect(findQuality('care').grades).toContain(file!.grade)
   })
 
   // 규칙을 뒤집어 본다: 행동력이 없으면 파일도 생기지 않아야 한다(음수 행동력 금지).
   it('행동력이 모자라면 만들어지지 않는다', () => {
-    useGame.setState({ ap: 0 })
+    useGame.setState(NO_TIME)
     useGame.getState().makePopup(popupJob.id, 'light')
     expect(useGame.getState().files).toEqual([])
-    expect(useGame.getState().ap).toBe(0)
+    expect(usedMins()).toBe(NO_TIME_USED)
   })
 
   // ⚠️ 등록은 **값을 물리지 않는다.** 여기에 비용이 되살아나면 제작과 합쳐 두 번 문다.
   it('등록은 행동력을 먹지 않는다 — 0이어도 등록된다', () => {
     useGame.getState().makePopup(popupJob.id, 'light')
     const fileId = useGame.getState().files[0]!.id
-    useGame.setState({ ap: 0 })
+    useGame.setState(NO_TIME)
     useGame.getState().uploadPopup('dalbit', fileId, 2, 3)
     const s = useGame.getState()
-    expect(s.ap).toBe(0)
+    expect(usedMins()).toBe(NO_TIME_USED)
     expect(s.popups).toHaveLength(1)
     expect(s.popups[0]).toMatchObject({ clientId: 'dalbit', fileId, from: 2, to: 3 })
   })
@@ -715,18 +734,80 @@ describe('팝업 제작·등록', () => {
   })
 })
 
+/** 시간 소비의 불변식. **이 축이 주차 진행과 돈을 만든다**(공정을 못 돌리면 대금도 없다) —
+ *  그래서 규칙을 뒤집어 확인한다. */
+describe('시간 쓰기', () => {
+  const popupJob = MESSAGES.find((m): m is Request => !m.ad && m.popup !== undefined)!
+
+  it('공정을 돌리면 시계가 그만큼 흐르고 일정표에 남는다', () => {
+    useGame.setState({ ...emptyState(), ...FRESH })
+    useGame.getState().acceptJob(popupJob)
+    const cost = timeCost(findQuality('light').mins, useGame.getState().photoshopSkill)
+    useGame.getState().makePopup(popupJob.id, 'light')
+
+    expect(usedMins()).toBe(cost)
+    // 기록의 합은 늘 실제로 쓴 시간과 같다 — 갈리면 달력이 거짓말을 한다.
+    expect(useGame.getState().log.reduce((n, b) => n + b.mins, 0)).toBe(cost)
+  })
+
+  it('하루를 넘는 작업은 날을 넘기고 블록이 쪼개진다', () => {
+    useGame.setState({ ...emptyState(), ...FRESH })
+    useGame.getState().acceptJob(popupJob)
+    // '매우 신경써서'는 하루(240분)보다 길다 — 그것이 이 축의 선택이다.
+    expect(findQuality('care').mins).toBeGreaterThan(INITIAL_GAME.dayMins)
+    useGame.getState().makePopup(popupJob.id, 'care')
+
+    const s = useGame.getState()
+    expect(s.day).toBeGreaterThan(0)
+    expect(s.log.length).toBeGreaterThan(1)
+    expect(s.files).toHaveLength(1)
+  })
+
+  // ⚠️ 이 규칙이 주차 진행을 사람 손에 남긴다 — 넘길 수 있게 되면 작업 도중에
+  //    `advanceWeek`가 돌아 마감 파기·정산이 내가 안 보는 사이에 터진다.
+  it('주를 넘기는 작업은 시작조차 못 한다 — 주차는 그대로다', () => {
+    useGame.setState({ ...emptyState(), ...FRESH })
+    useGame.getState().acceptJob(popupJob)
+    // 금요일 늦게 집으면 사흘짜리는 못 들어간다.
+    useGame.setState({ day: WORKDAY_COUNT - 1, spent: 0 })
+    const week = useGame.getState().week
+    useGame.getState().makePopup(popupJob.id, 'care')
+
+    const s = useGame.getState()
+    expect(s.files).toEqual([])
+    expect(s.week).toBe(week)
+    expect(s.day).toBe(WORKDAY_COUNT - 1)
+  })
+
+  it('퇴근하면 다음 날 아침이고, 금요일에는 주가 안 넘어간다', () => {
+    useGame.setState({ ...emptyState(), day: 0, spent: 100 })
+    useGame.getState().endDay()
+    expect(useGame.getState().day).toBe(1)
+    expect(useGame.getState().spent).toBe(0)
+
+    // ⚠️ 금요일 퇴근은 `advanceWeek`가 진다(묻는 창을 거친다) — `endDay`는 아무 일도 안 한다.
+    useGame.setState({ day: WORKDAY_COUNT - 1, spent: 100, week: 3 })
+    useGame.getState().endDay()
+    expect(useGame.getState().week).toBe(3)
+    expect(useGame.getState().day).toBe(WORKDAY_COUNT - 1)
+  })
+})
+
 describe('주차 진행', () => {
   const popupJob = MESSAGES.find((m): m is Request => !m.ad && m.popup !== undefined)!
 
-  it('행동력을 apMax로 회복시킨다 — 이월 없음', () => {
-    useGame.setState({ ap: 0, apMax: 3 })
+  it('새 주는 월요일 아침에서 시작한다 — 이월 없음', () => {
+    // 이번 주를 통째로 썼든
+    useGame.setState(NO_TIME)
     useGame.getState().advanceWeek()
-    expect(useGame.getState().ap).toBe(3)
+    expect(useGame.getState().day).toBe(0)
+    expect(useGame.getState().spent).toBe(0)
 
-    // 남은 행동력을 넘기면 모았다 한 주에 쏟는 것이 최적이 된다.
-    useGame.setState({ ap: 3, apMax: 3 })
+    // 한 시간도 안 썼든 같은 자리에서 시작한다.
+    // ⚠️ 남은 시간을 넘기면 아무것도 안 하고 모았다가 한 주에 쏟는 것이 최적이 된다.
+    useGame.setState(FRESH)
     useGame.getState().advanceWeek()
-    expect(useGame.getState().ap).toBe(3)
+    expect(usedMins()).toBe(0)
   })
 
   // 규칙을 뒤집어 확인한다: **맞게 걸어 두면 아무 일도 일어나지 않아야 한다.**
@@ -783,20 +864,20 @@ describe('클라이언트 미팅', () => {
 
   it('행동력 1을 물고 기획력만큼 알아낸다', () => {
     useGame.getState().acceptJob(site)
-    const ap = useGame.getState().ap
+    const ap = usedMins()
     useGame.getState().holdMeeting(site.id)
     const s = useGame.getState()
-    expect(s.ap).toBe(ap - MEETING_AP)
+    expect(usedMins()).toBe(ap + MEETING_MINS)
     expect(s.meetings[site.id]).toEqual(revealedKeywords(site.id, INITIAL_GAME.planning))
   })
 
   // 뒤집기: 막지 않으면 행동력이 음수로 넘어가 다음 주까지 빚이 이어진다.
   it('행동력이 0이면 미팅이 열리지 않는다', () => {
     useGame.getState().acceptJob(site)
-    useGame.setState({ ap: 0 })
+    useGame.setState(NO_TIME)
     useGame.getState().holdMeeting(site.id)
     const s = useGame.getState()
-    expect(s.ap).toBe(0)
+    expect(usedMins()).toBe(NO_TIME_USED)
     expect(s.meetings[site.id]).toBeUndefined()
   })
 
@@ -804,9 +885,9 @@ describe('클라이언트 미팅', () => {
   it('업무당 한 번뿐이다', () => {
     useGame.getState().acceptJob(site)
     useGame.getState().holdMeeting(site.id)
-    const ap = useGame.getState().ap
+    const ap = usedMins()
     useGame.getState().holdMeeting(site.id)
-    expect(useGame.getState().ap).toBe(ap)
+    expect(usedMins()).toBe(ap)
   })
 
   it('직원을 보내면 내 행동력은 안 들고 그 직원의 기획력이 개수를 정한다', () => {
@@ -824,10 +905,10 @@ describe('클라이언트 미팅', () => {
         },
       ],
     })
-    const ap = useGame.getState().ap
+    const ap = usedMins()
     useGame.getState().holdMeeting(site.id, 'e1')
     const s = useGame.getState()
-    expect(s.ap).toBe(ap)
+    expect(usedMins()).toBe(ap)
     expect(s.meetings[site.id]).toEqual(revealedKeywords(site.id, 90))
     // 대가는 그 직원의 한 주다 — 잡히지 않으면 직원만 있으면 미팅이 공짜가 된다.
     expect(s.trainings).toHaveLength(1)
@@ -893,7 +974,7 @@ describe('키워드가 시안 등급을 민다', () => {
     useGame.getState().acceptJob(site)
     useGame.getState().makeSlides(site.id, 'light')
     reply(site.id)
-    useGame.setState({ ap: INITIAL_GAME.apMax })
+    useGame.setState(FRESH)
   }
 
   it('다 맞히면 오르고, 다 틀리면 안 오른다', () => {
@@ -988,10 +1069,10 @@ describe('직원 요청사항', () => {
     // 가드가 **스토어에도** 있다 — 버튼 disabled만으로는 경로가 남는다.
     const job = MESSAGES.find((m): m is Request => !m.ad && m.kind === 'popup')!
     useGame.getState().acceptJob(job)
-    const ap = useGame.getState().ap
+    const ap = usedMins()
     useGame.getState().orderJob(worker.id, job.id)
     expect(useGame.getState().orders).toHaveLength(0)
-    expect(useGame.getState().ap).toBe(ap)
+    expect(usedMins()).toBe(ap)
   })
 
   it('휴가가 끝나도 **레벨은 오르지 않는다** — 쉬다 온 것이 교육이 되면 안 된다', () => {
@@ -1008,11 +1089,11 @@ describe('직원 요청사항', () => {
   it('피드백은 **행동력을 실제로 물고** 등급을 한 칸만 올린다', () => {
     const file = { id: 'f1', jobId: 'j1', name: '팝업.png', madeWeek: 1, grade: 'C' as const }
     const req = ask('feedback', { target: { fileId: 'f1', name: '팝업.png', grade: 'C' } })
-    seed({ requests: [req], files: [file], ap: 3 })
+    seed({ requests: [req], files: [file], ...FRESH })
     useGame.getState().acceptRequest(req.id)
 
     const s = useGame.getState()
-    expect(s.ap).toBe(3 - FEEDBACK_AP)
+    expect(usedMins()).toBe(FEEDBACK_MINS)
     // 성패는 요청 id가 씨앗이다 — 어느 쪽이든 **한 칸 이내**여야 한다.
     const moved = GRADE_LADDER.indexOf(s.files[0]!.grade) - GRADE_LADDER.indexOf('C')
     expect(moved === 0 || moved === 1).toBe(true)
@@ -1022,11 +1103,11 @@ describe('직원 요청사항', () => {
   it('행동력이 없으면 피드백은 **아무 일도 일어나지 않고 요청도 남는다**', () => {
     const file = { id: 'f1', jobId: 'j1', name: '팝업.png', madeWeek: 1, grade: 'C' as const }
     const req = ask('feedback', { target: { fileId: 'f1', name: '팝업.png', grade: 'C' } })
-    seed({ requests: [req], files: [file], ap: 0 })
+    seed({ requests: [req], files: [file], ...NO_TIME })
     useGame.getState().acceptRequest(req.id)
 
     const s = useGame.getState()
-    expect(s.ap).toBe(0)
+    expect(usedMins()).toBe(NO_TIME_USED)
     expect(s.files[0]!.grade).toBe('C')
     // ⚠️ 낼 것이 없다고 요청을 지우면 답할 기회가 사라진다(그건 무시가 아니라 사고다).
     expect(s.requests).toHaveLength(1)
@@ -1035,7 +1116,7 @@ describe('직원 요청사항', () => {
   it('피드백은 **사다리 밖(SSS 위)으로 나가지 않는다**', () => {
     const file = { id: 'f1', jobId: 'j1', name: '최고.png', madeWeek: 1, grade: 'SSS' as const }
     const req = ask('feedback', { target: { fileId: 'f1', name: '최고.png', grade: 'SSS' } })
-    seed({ requests: [req], files: [file], ap: 3 })
+    seed({ requests: [req], files: [file], ...FRESH })
     useGame.getState().acceptRequest(req.id)
     expect(useGame.getState().files[0]!.grade).toBe('SSS')
   })
@@ -1228,30 +1309,30 @@ describe('회사레벨', () => {
   const level2 = COMPANY_LEVELS[1]!
 
   it('누적 매출이 선을 넘으면 행동력 상한이 오른다', () => {
-    expect(companyLevel(0).apMax).toBe(INITIAL_GAME.apMax)
+    expect(companyLevel(0).dayMins).toBe(INITIAL_GAME.dayMins)
     expect(companyLevel(level2.minRevenue).level).toBe(level2.level)
-    expect(companyLevel(level2.minRevenue).apMax).toBeGreaterThan(INITIAL_GAME.apMax)
+    expect(companyLevel(level2.minRevenue).dayMins).toBeGreaterThan(INITIAL_GAME.dayMins)
   })
 
   // 뒤집기: 소지금으로 재면 월정액·급여를 내는 순간 레벨이 내려가고,
   //        돈을 안 쓰고 모으기만 하는 것이 최적이 된다.
   it('돈을 써도 누적 매출은 줄지 않는다', () => {
-    useGame.setState({ revenue: level2.minRevenue, money: 10, apMax: level2.apMax })
+    useGame.setState({ revenue: level2.minRevenue, money: 10, dayMins: level2.dayMins })
     // 월말 정산으로 잔고가 크게 줄어도 레벨은 그대로다.
     useGame.setState({ week: WEEKS_PER_MONTH - 1 })
     useGame.getState().advanceWeek()
     const s = useGame.getState()
     expect(s.revenue).toBe(level2.minRevenue)
-    expect(companyLevel(s.revenue).apMax).toBe(level2.apMax)
+    expect(companyLevel(s.revenue).dayMins).toBe(level2.dayMins)
   })
 
-  // 뒤집기: 레벨업이 그 자리에서 ap를 채우면 회신을 미뤘다가 몰아 쓰는 것이 최적이 된다.
-  it('레벨이 올라도 이번 주의 남은 행동력은 그대로다', () => {
-    useGame.setState({ revenue: 0, apMax: INITIAL_GAME.apMax, ap: 0 })
-    const before = useGame.getState().ap
+  // 뒤집기: 레벨업이 그 자리에서 하루를 늘리면 회신을 미뤘다가 몰아 쓰는 것이 최적이 된다.
+  it('레벨이 올라도 이번 주에 이미 쓴 시간은 그대로다', () => {
+    useGame.setState({ revenue: 0, dayMins: INITIAL_GAME.dayMins, ...FRESH })
+    const before = usedMins()
     // 대금이 들어오는 자리를 직접 흉내 낸다(완료 회신은 공정을 다 거쳐야 해서 길다).
-    useGame.setState({ revenue: level2.minRevenue, apMax: level2.apMax })
-    expect(useGame.getState().ap).toBe(before)
+    useGame.setState({ revenue: level2.minRevenue, dayMins: level2.dayMins })
+    expect(usedMins()).toBe(before)
   })
 })
 
@@ -1324,41 +1405,43 @@ describe('주말 근무와 정신력', () => {
     useGame.getState().advanceWeek()
     const s = useGame.getState()
     expect(mentalPenalty(s.mental)).toBeGreaterThan(0)
-    expect(s.apMax).toBe(apMaxOf(0, s.mental))
-    expect(s.apMax).toBeLessThan(COMPANY_LEVELS[0]!.apMax)
-    // 그 주에 실제로 쓸 수 있는 행동력도 깎인 상한만큼이다(칸만 줄고 값이 남으면 안 된다).
-    expect(s.ap).toBe(s.apMax)
+    expect(s.dayMins).toBe(dayMinsOf(0, s.mental))
+    expect(s.dayMins).toBeLessThan(COMPANY_LEVELS[0]!.dayMins)
+    // 그 주에 실제로 쓸 수 있는 시간도 깎인 상한을 따른다(표만 줄고 남은 시간이 그대로면 안 된다).
+    expect(weekLeft({ day: s.day, spent: s.spent }, s.dayMins)).toBe(s.dayMins * WORKDAY_COUNT)
   })
 
   it('⚠️ 행동력 상한이 1 밑으로 안 내려간다 — 0이면 죽은 판이다', () => {
     useGame.setState({ mental: 0, revenue: 0 })
     useGame.getState().advanceWeek()
-    expect(useGame.getState().apMax).toBeGreaterThanOrEqual(AP_MIN)
+    expect(useGame.getState().dayMins).toBeGreaterThanOrEqual(MIN_COST)
   })
 
   it('정신력이 회복되면 상한도 돌아온다 — 되돌아올 길이 있다', () => {
     useGame.setState({ mental: 0, revenue: 0 })
     useGame.getState().advanceWeek()
-    const hurt = useGame.getState().apMax
+    const hurt = useGame.getState().dayMins
     useGame.setState({ mental: INITIAL_GAME.mentalMax })
     useGame.getState().advanceWeek()
-    expect(useGame.getState().apMax).toBe(COMPANY_LEVELS[0].apMax)
-    expect(hurt).toBeLessThan(COMPANY_LEVELS[0].apMax)
+    expect(useGame.getState().dayMins).toBe(COMPANY_LEVELS[0].dayMins)
+    expect(hurt).toBeLessThan(COMPANY_LEVELS[0].dayMins)
   })
 })
 
-/** 숙련도. ⚠️ 여기서 지키는 것은 **비용이 실제로 깎인다**와 **하한 1을 안 뚫는다** 둘이다 —
- *  0이 되면 행동력을 안 쓰고 무한히 만들 수 있어 이 게임의 유일한 제약이 사라진다. */
+/** 숙련도. ⚠️ 여기서 지키는 것은 **비용이 실제로 깎인다**와 **하한(`MIN_COST`)을 안 뚫는다**
+ *  둘이다 — 0이 되면 시간을 안 쓰고 무한히 만들 수 있어 이 게임의 유일한 제약이 사라진다. */
 describe('숙련도', () => {
-  it('구간을 넘으면 비용이 깎이고 하한은 1이다', () => {
+  it('구간을 넘으면 비용이 비율로 깎이고 하한을 지킨다', () => {
     const d1 = SKILL_DISCOUNT[1]!
     const d2 = SKILL_DISCOUNT[2]!
-    expect(apCost(3, 0)).toBe(3)
-    expect(apCost(3, d1.minSkill)).toBe(3 - d1.ap)
-    expect(apCost(3, d2.minSkill)).toBe(3 - d2.ap)
-    // 뒤집기: 하한이 없으면 '간단하게'(1)가 0이 되어 공짜로 무한히 만들 수 있다.
-    expect(apCost(1, 100)).toBe(1)
-    expect(apCost(2, 100)).toBe(1)
+    expect(timeCost(600, 0)).toBe(600)
+    expect(timeCost(600, d1.minSkill)).toBe(600 * (1 - d1.cut))
+    expect(timeCost(600, d2.minSkill)).toBe(600 * (1 - d2.cut))
+    // ⚠️ 10분 단위로 떨어뜨린다 — 비율 감면이 그냥 두면 102분 같은 값을 낸다.
+    expect(timeCost(115, 0) % 10).toBe(0)
+    // 뒤집기: 하한이 없으면 짧은 공정이 0이 되어 공짜로 무한히 만들 수 있다.
+    expect(timeCost(MIN_COST, 100)).toBe(MIN_COST)
+    expect(timeCost(10, 100)).toBe(MIN_COST)
   })
 
   it('내 손으로 돌리면 그 프로그램의 숙련도가 오른다', () => {
@@ -1384,10 +1467,10 @@ describe('숙련도', () => {
     // 포토샵 숙련도가 PPT 공정의 비용을 깎는다(`skillFor`).
     useGame.setState({ photoshopSkill: SKILL_DISCOUNT[1]!.minSkill })
     g().acceptJob(ppt)
-    const before = g().ap
+    const before = usedMins()
     g().makeSlides(ppt.id, 'hard')
     const hard = QUALITY.find((q) => q.id === 'hard')!
-    expect(before - g().ap).toBe(apCost(hard.ap, SKILL_DISCOUNT[1]!.minSkill))
+    expect(usedMins() - before).toBe(timeCost(hard.mins, SKILL_DISCOUNT[1]!.minSkill))
   })
 })
 
@@ -1429,7 +1512,7 @@ describe('작업물 목록을 훑는 자리', () => {
           target: { fileId: made.id, name: made.name, grade: made.grade },
         },
       ],
-      ap: 3,
+      ...FRESH,
     })
     expect(feedbackWorks('r2')).toBe(true)
     g().acceptRequest('r2')
@@ -1450,7 +1533,7 @@ describe('사이트 해금 알림', () => {
    *  ⚠️ 같은 의뢰를 다시 쓰므로 **앞 판의 흔적을 지우고** 부른다(`acceptJob`은 같은
    *     id를 두 번 받지 않는다). */
   const earnOnce = () => {
-    useGame.setState({ jobs: [], publishes: [], readIds: [], ap: 9 })
+    useGame.setState({ jobs: [], publishes: [], readIds: [], ...FRESH })
     g().acceptJob(fixReq)
     g().publishJob(fixReq.id)
     reply(fixReq.id)

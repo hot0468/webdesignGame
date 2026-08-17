@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import type { Message } from '../data/inbox'
-import { CS_REPLY_AP, csRecover } from '../data/game'
-import { MEETING_AP } from '../data/keywords'
+import { CS_REPLY_MINS, csRecover } from '../data/game'
+import { MEETING_MINS } from '../data/keywords'
 import { PROGRAMS, type ProgramId } from '../data/programs'
 import { formatDate, formatPeriod } from '../systems/calendar'
 import { isBusy } from '../systems/employee'
 import { canReply, isFinalReply, openStep, repliedStep, stepsOf } from '../systems/pipeline'
 import { personalityOf } from '../systems/followup'
-import { asStep, useGame, type Job } from '../store'
+import { formatSpan } from '../systems/calendar'
+import { asStep, useClock, useGame, type Job } from '../store'
 import { Meeting } from './Meeting'
 
 /** 의뢰 하나에 대한 결정. 어느 쪽이든 수주하면 **같은 업무목록**에 쌓인다.
@@ -97,9 +98,9 @@ export function JobActions({ message }: { message: Message }) {
  *
  * ⚠️ 되돌아오는 양은 클레임이 깎은 것보다 **작다**(`CS_RECOVER`) — 같거나 크면 팝업을
  *    어긋나게 걸고 사과만 하는 것이 최적이 된다. 실수의 대가는 남아야 한다.
- * ⚠️ 한 글에 한 번뿐이다(스토어도 막는다). 여러 번 되면 행동력으로 평판을 사게 된다. */
+ * ⚠️ 한 글에 한 번뿐이다(스토어도 막는다). 여러 번 되면 시간으로 평판을 사게 된다. */
 function Apology({ mailId }: { mailId: string }) {
-  const ap = useGame((s) => s.ap)
+  const clock = useClock()
   const cs = useGame((s) => s.cs)
   const done = useGame((s) => s.apologized.includes(mailId))
   const apologize = useGame((s) => s.apologize)
@@ -111,14 +112,14 @@ function Apology({ mailId }: { mailId: string }) {
       <button
         type="button"
         className="jobact__btn jobact__btn--go"
-        disabled={ap < CS_REPLY_AP}
+        disabled={!clock.can(CS_REPLY_MINS)}
         onClick={() => apologize(mailId)}
       >
         사과하기
       </button>
       {/* ⚠️ **얼마나 돌아오는지 먼저 적는다** — 모르고 누르는 버튼은 선택이 아니다. */}
       <span className="jobact__due">
-        행동력 {CS_REPLY_AP} · 평판 +{csRecover(cs)} (CS {cs})
+        {formatSpan(CS_REPLY_MINS, clock.dayMins)} · 평판 +{csRecover(cs)} (CS {cs})
       </span>
     </div>
   )
@@ -126,14 +127,14 @@ function Apology({ mailId }: { mailId: string }) {
 
 /** 미팅 요청 글의 자리. **미팅은 여기서 시작한다**(피그마가 아니다 — 설계자 확정 2026-08-13).
  *
- * 누르면 그 자리에서 행동력을 물고(`holdMeeting`) **대화 창**이 뜬다. 창은 결과를 보여 줄
+ * 누르면 그 자리에서 시간을 물고(`holdMeeting`) **대화 창**이 뜬다. 창은 결과를 보여 줄
  * 뿐이므로(`components/Meeting.tsx`) 도중에 닫아도 알아낸 것은 남는다.
  *
- * ⚠️ 이미 미팅을 한 업무면 버튼을 그리지 않는다 — 두 번 열면 행동력으로 정답을 살 수 있다.
- * ⚠️ 직원 파견도 여기 있다: 내 행동력 대신 그 사람이 잡히고, 그때는 **대화 창이 뜨지 않는다**
+ * ⚠️ 이미 미팅을 한 업무면 버튼을 그리지 않는다 — 두 번 열면 시간으로 정답을 살 수 있다.
+ * ⚠️ 직원 파견도 여기 있다: 내 시간 대신 그 사람이 잡히고, 그때는 **대화 창이 뜨지 않는다**
  *    (내가 간 자리가 아니라서다. 결과는 피그마의 `확인됨` 표식으로 확인한다). */
 function MeetingAction({ job }: { job: Job }) {
-  const ap = useGame((s) => s.ap)
+  const clock = useClock()
   const known = useGame((s) => s.meetings[job.id])
   const holdMeeting = useGame((s) => s.holdMeeting)
   const employees = useGame((s) => s.employees)
@@ -210,7 +211,7 @@ function MeetingAction({ job }: { job: Job }) {
   }
 
   // ── ② 누가 가는가 ──────────────────────────────────────
-  // 내가 가면 **행동력**을, 직원을 보내면 **그 사람의 한 주**를 문다(`store.holdMeeting`).
+  // 내가 가면 **내 시간**을, 직원을 보내면 **그 사람의 한 주**를 문다(`store.holdMeeting`).
   // ⚠️ 알아내는 개수는 **가는 사람의 기획력**이 정한다 — 그래서 이름 옆에 그 값을 적는다
   //    (누구를 보낼지가 이 갈래의 유일한 선택인데, 값이 안 보이면 고를 근거가 없다).
   return (
@@ -218,7 +219,7 @@ function MeetingAction({ job }: { job: Job }) {
       <button
         type="button"
         className="jobact__btn jobact__btn--go"
-        disabled={ap < MEETING_AP}
+        disabled={!clock.can(MEETING_MINS)}
         onClick={() => {
           holdMeeting(job.id)
           setOpen(true)
@@ -226,7 +227,7 @@ function MeetingAction({ job }: { job: Job }) {
       >
         내가 간다
       </button>
-      <span className="jobact__due">행동력 {MEETING_AP}</span>
+      <span className="jobact__due">{formatSpan(MEETING_MINS, clock.dayMins)}</span>
       {free.map((e) => (
         <button
           key={e.id}
