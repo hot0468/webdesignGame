@@ -35,10 +35,11 @@ export function Talk() {
   const mails = useGame((s) => s.mails)
   // ⚠️ 아직 안 온 글은 목록에도 뱃지에도 없다 — 둘이 같은 주차를 봐야 숫자가 안 어긋난다.
   const week = useGame((s) => s.week)
+  const day = useGame((s) => s.day)
 
-  const items = inbox('chat', week, mails)
+  const items = inbox('chat', week, day, mails)
   const open = items.find((m) => m.id === openId) ?? null
-  const unread = unreadCount('chat', week, readIds, mails)
+  const unread = unreadCount('chat', week, day, readIds, mails)
 
   return (
     <div className="talk">

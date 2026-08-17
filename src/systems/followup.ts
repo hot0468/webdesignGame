@@ -13,7 +13,7 @@ import {
   type Personality,
 } from '../data/followup'
 import type { Message, Request } from '../data/inbox'
-import { formatWeek } from './calendar'
+import { formatDayDate, formatWeek } from './calendar'
 import type { JobKind, Step } from './pipeline'
 import { roller } from './seed'
 
@@ -90,7 +90,8 @@ export function revisionMail(
   job: FollowupJob & { channel: Message['channel'] },
   step: Step,
   personality: Personality,
-  week: number,
+  /** **도착 시점**이다 — 수정 요청도 회신의 답장이라 다음 날 온다. */
+  at: { week: number; day: number },
 ): Message {
   const nth = (job.revisions ?? 0) + 1
   return {
@@ -100,7 +101,9 @@ export function revisionMail(
     from: job.from,
     subject: `Re: ${job.title}`,
     body: `${roller(`revtxt:${job.id}:${nth}`).pick(personality.revise)}\n${step.label} 다시 부탁드립니다.`,
-    at: formatWeek(week),
+    week: at.week,
+    day: at.day,
+    at: formatDayDate(at.week, at.day),
     ad: true,
     jobId: job.id,
   }

@@ -48,12 +48,13 @@ export function Company() {
   const mails = useGame((s) => s.mails)
   // ⚠️ 아직 안 온 글은 뱃지에도 없다(고객게시판 목록과 같은 주차를 본다).
   const week = useGame((s) => s.week)
+  const day = useGame((s) => s.day)
 
   return (
     <div className="company">
       <nav className="company__menu">
         {MENU.map((m) => {
-          const unread = 'badge' in m ? unreadCount(m.badge, week, readIds, mails) : 0
+          const unread = 'badge' in m ? unreadCount(m.badge, week, day, readIds, mails) : 0
           return (
             <button
               key={m.id}

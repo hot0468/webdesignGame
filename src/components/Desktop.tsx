@@ -18,6 +18,7 @@ export function Desktop({ children }: { children: ReactNode }) {
   const mails = useGame((s) => s.mails)
   // ⚠️ 아직 안 온 글은 뱃지에도 없다 — 창을 열었을 때 목록과 숫자가 어긋나면 안 된다.
   const week = useGame((s) => s.week)
+  const day = useGame((s) => s.day)
 
   return (
     <div className="desktop">
@@ -27,7 +28,7 @@ export function Desktop({ children }: { children: ReactNode }) {
           //    아이콘이 하나 늘 때 핀라이트가 엉뚱한 곳을 비춘다.
           <div key={col} className="desktop__col" data-col={col}>
             {PROGRAMS.filter((p) => p.col === col).map((p) => {
-              const unread = 'badge' in p ? unreadCount(p.badge, week, readIds, mails) : 0
+              const unread = 'badge' in p ? unreadCount(p.badge, week, day, readIds, mails) : 0
               return (
                 <button
                   key={p.id}

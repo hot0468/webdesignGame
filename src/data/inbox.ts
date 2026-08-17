@@ -43,8 +43,15 @@ type Common = {
    *     무엇부터 해야 하는지가 안 보이고, 마감이 다 같은 주에 몰려 초반이 즉사가 된다.
    *  ⚠️ 마감(`dueWeeks`)은 **수주하는 주** 기준이라 여기와 무관하다. */
   week?: number
-  /** 목록에 뜨는 도착 시각. ⚠️ 게임에는 아직 시계가 없다(주 단위 턴뿐) — 분위기용
-   *  문자열이다. 주차 진행이 생기면 도착 주차에서 계산한다. */
+  /** 도착 **요일**(0=월). `week`와 짝이다 — 없으면 그 주 첫날부터 있던 글이다.
+   *
+   * ⚠️ **회신의 답장은 다음 날 온다**(설계자 확정 2026-08-17). 곧바로 오면 보고 있던
+   *    목록에 조용히 끼어들어 새 글인 줄도 모르고, 공정이 한 바퀴 돈다는 감각도 안 생긴다.
+   *    시점을 미루는 자리는 이 칸 하나이고 판정은 `inbox()`가 이미 한다 — 주차 넘김에
+   *    새 처리 자리를 만들지 않는다(버그 신고가 미래 주차를 다는 것과 같은 고리다). */
+  day?: number
+  /** 목록에 뜨는 도착 시각. 게임 중에 생긴 글은 `formatDayDate`가 실제 날짜를 적는다
+   *  (상수 의뢰의 '어제'·'오전 9:16' 같은 문자열은 분위기용으로 남는다). */
   at: string
 }
 
@@ -259,9 +266,13 @@ export const CHANNEL_LABEL: Record<Channel, string> = {
 /** ⚠️ **아직 안 온 글은 빼고 준다**(`week`). 처음 켠 판에 여덟 통이 쌓여 있으면
  *  무엇부터 해야 하는지가 안 보이고, 마감이 다 같은 주에 몰린다.
  *  생겨난 글(`extra`)에는 `week`가 없다 — 이미 도착한 것들이라 늘 선다. */
-export const inbox = (channel: Channel, week: number, extra: Message[] = []) =>
+export const inbox = (channel: Channel, week: number, day: number, extra: Message[] = []) =>
   [...extra, ...MESSAGES].filter(
-    (m) => m.channel === channel && (m.week === undefined || m.week <= week),
+    (m) =>
+      m.channel === channel &&
+      // ⚠️ **요일까지 본다** — 같은 주에 온 글이라도 도착 날이 지나야 선다(회신의 답장이
+      //    다음 날 오는 고리가 여기 하나에 걸려 있다). `day`가 없으면 그 주 첫날이다.
+      (m.week === undefined || m.week < week || (m.week === week && (m.day ?? 0) <= day)),
   )
 
 /** 안 읽은 수 — **뱃지 숫자의 단일 출처다**. 읽음의 정본은 스토어 `readIds` 하나이므로
@@ -269,6 +280,7 @@ export const inbox = (channel: Channel, week: number, extra: Message[] = []) =>
 export const unreadCount = (
   channel: Channel,
   week: number,
+  day: number,
   readIds: string[],
   extra: Message[] = [],
-) => inbox(channel, week, extra).filter((m) => !readIds.includes(m.id)).length
+) => inbox(channel, week, day, extra).filter((m) => !readIds.includes(m.id)).length

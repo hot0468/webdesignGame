@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { WORKDAY_COUNT } from '../data/game'
-import { canSpend, nextDay, spendTime, START_CLOCK, weekLeft } from './clock'
+import { canSpend, nextDay, spendTime, START_CLOCK, tomorrow, weekLeft } from './clock'
 
 const DAY = 240
 
@@ -67,6 +67,18 @@ describe('spendTime', () => {
   it('블록은 그날 쓴 자리에서 시작한다', () => {
     const { blocks } = spendTime({ day: 1, spent: 60 }, 30, DAY)
     expect(blocks).toEqual([{ day: 1, start: 60, mins: 30 }])
+  })
+})
+
+describe('tomorrow — 도착 시점을 미루는 자리', () => {
+  it('같은 주 안에서는 요일만 하루 뒤다', () => {
+    expect(tomorrow(3, 0)).toEqual({ week: 3, day: 1 })
+  })
+
+  // ⚠️ 부르는 쪽에서 `day + 1`을 직접 적으면 마지막 날에 없는 요일로 넘어가
+  //    그 글이 영영 안 뜬다(뱃지도 안 선다).
+  it('마지막 날이면 다음 주 첫날로 넘어간다', () => {
+    expect(tomorrow(3, WORKDAY_COUNT - 1)).toEqual({ week: 4, day: 0 })
   })
 })
 

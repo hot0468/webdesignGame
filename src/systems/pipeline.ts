@@ -1,7 +1,7 @@
 import type { Grade } from '../data/game'
 import type { Message } from '../data/inbox'
 import type { ProgramId } from '../data/programs'
-import { formatWeek } from './calendar'
+import { formatDayDate } from './calendar'
 
 /** 업무의 **공정의 줄**과 회신 규칙. 이 게임의 진행이 여기 한 곳에서 정해진다.
  *
@@ -128,7 +128,8 @@ export function replyMail(
   job: { id: string; from: string; title: string; channel: Message['channel'] },
   done: Step,
   next: Step,
-  week: number,
+  /** **도착 시점**이다(보낸 시점이 아니다) — 회신의 답장은 다음 날 온다(`tomorrow`). */
+  at: { week: number; day: number },
 ): Message {
   return {
     // ⚠️ 공정 번호가 id에 들어간다 — 다음 회신의 답장이 **다른 글**이어야 안 읽은 뱃지가 다시 선다.
@@ -137,7 +138,9 @@ export function replyMail(
     from: job.from,
     subject: `Re: ${job.title}`,
     body: `${done.label} 잘 받았습니다. 확인했고 이대로 진행해 주세요.\n다음은 ${next.label} 부탁드립니다.`,
-    at: formatWeek(week),
+    week: at.week,
+    day: at.day,
+    at: formatDayDate(at.week, at.day),
     ad: true,
     jobId: job.id,
   }
@@ -149,7 +152,8 @@ export function doneMail(
   job: { id: string; from: string; title: string; channel: Message['channel'] },
   grade: Grade | undefined,
   fee: number,
-  week: number,
+  /** **도착 시점**이다 — 완료 메일도 다음 날 온다(대금은 회신하는 순간 들어온다). */
+  at: { week: number; day: number },
 ): Message {
   return {
     id: `done:${job.id}`,
@@ -159,7 +163,9 @@ export function doneMail(
     body:
       (grade ? `${SATISFACTION_TEXT[grade]}\n(만족도 ${grade})\n` : '작업물 잘 받았습니다.\n') +
       `대금 ${fee.toLocaleString('ko-KR')}원 입금했습니다.`,
-    at: formatWeek(week),
+    week: at.week,
+    day: at.day,
+    at: formatDayDate(at.week, at.day),
     ad: true,
     jobId: job.id,
   }

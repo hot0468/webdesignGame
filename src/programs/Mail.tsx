@@ -36,9 +36,10 @@ export function Mail() {
   const mails = useGame((s) => s.mails)
   // ⚠️ **아직 안 온 글은 안 센다** — 받은편지함과 뱃지가 같은 주차를 봐야 숫자가 안 어긋난다.
   const week = useGame((s) => s.week)
+  const day = useGame((s) => s.day)
 
   // 보낸 편지함은 아직 쌓일 것이 없다 — 답장 기능이 생기면 여기가 채워진다.
-  const items = folder === 'inbox' ? inbox('mail', week, mails) : []
+  const items = folder === 'inbox' ? inbox('mail', week, day, mails) : []
   const shown = onlyUnread ? items.filter((m) => !readIds.includes(m.id)) : items
   const open = items.find((m) => m.id === openId) ?? null
 
@@ -46,7 +47,7 @@ export function Mail() {
     <div className="mail">
       <nav className="mail__rail" aria-label="메일 폴더">
         {FOLDERS.map((f) => {
-          const unread = f.id === 'inbox' ? unreadCount('mail', week, readIds, mails) : 0
+          const unread = f.id === 'inbox' ? unreadCount('mail', week, day, readIds, mails) : 0
           return (
             <button
               key={f.id}

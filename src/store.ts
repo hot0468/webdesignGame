@@ -26,7 +26,15 @@ import { gradeOf, type Draft } from './systems/craft'
 import { MEETING_MINS, MEETING_OCCUPY_WEEKS, type KeywordId } from './data/keywords'
 import { clientKeywords, hitCount, keywordShift, meetingMail, revealedKeywords } from './systems/keywords'
 import { CLIENTS, clientsOf, INITIAL_CLIENTS } from './data/company'
-import { type Block, canSpend, nextDay, spendTime, START_CLOCK, weekLeft } from './systems/clock'
+import {
+  type Block,
+  canSpend,
+  nextDay,
+  spendTime,
+  START_CLOCK,
+  tomorrow,
+  weekLeft,
+} from './systems/clock'
 import { SIZE_MISS_SHIFT, type PopupSize } from './data/spec'
 import { sizeShift, slideMins, slideShift, targetSlides } from './systems/spec'
 import { EMPLOYEE_LEVEL, FEEDBACK_MINS, ORDER_MINS, ORDER_FILE_EXT, ORDER_QUALITY, POST_MINS, TRAIN_COST } from './data/employees'
@@ -1096,7 +1104,7 @@ export const useGame = create<Store>()(
                 }
               : j,
           ),
-          mails: [revisionMail(job, done, p, s.week), ...s.mails],
+          mails: [revisionMail(job, done, p, tomorrow(s.week, s.day)), ...s.mails],
         }
       }
 
@@ -1113,7 +1121,10 @@ export const useGame = create<Store>()(
         .map((f) => f.grade)
       const next = stepsOf(job.kind)[job.replied + 1]
       if (!final) {
-        return { jobs, mails: [replyMail(job, done, next!, s.week), ...s.mails] }
+        // ⚠️ **다음 날 온다**(설계자 확정 2026-08-17) — 곧바로 오면 보고 있던 목록에
+        //    조용히 끼어들어 새 글인 줄도 모르고, 공정이 한 바퀴 돈다는 감각도 안 생긴다.
+        //    미루는 자리는 `Message.day` 하나이고 판정은 `inbox()`가 이미 한다.
+        return { jobs, mails: [replyMail(job, done, next!, tomorrow(s.week, s.day)), ...s.mails] }
       }
 
       // 완료 회신에서만 **대금과 평판이 움직인다**(`systems/money.ts`가 값을 낸다).
@@ -1144,7 +1155,7 @@ export const useGame = create<Store>()(
         dayMins: dayMinsOf(revenue, s.mental),
         reputation: clampReputation(s.reputation + reputation),
         mails: [
-          doneMail(job, grade, fee, s.week),
+          doneMail(job, grade, fee, tomorrow(s.week, s.day)),
           ...(bug ? [bug] : []),
           ...(opened.length > 0 ? [unlockMail(opened, s.week)] : []),
           ...s.mails,

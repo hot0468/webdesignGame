@@ -304,11 +304,11 @@ describe('카톡 의뢰', () => {
   })
 
   it('뱃지는 readIds에서 파생한다 — 읽으면 줄고 다른 채널은 안 건드린다', () => {
-    const ids = inbox('chat', 99).map((m) => m.id)
-    expect(unreadCount('chat', 99, [])).toBe(ids.length)
-    expect(unreadCount('chat', 99, ids.slice(0, 1))).toBe(ids.length - 1)
+    const ids = inbox('chat', 99, 0).map((m) => m.id)
+    expect(unreadCount('chat', 99, 0, [])).toBe(ids.length)
+    expect(unreadCount('chat', 99, 0, ids.slice(0, 1))).toBe(ids.length - 1)
     // 카톡 뱃지가 메일을 읽었다고 줄어들면 두 아이콘이 같은 수를 지게 된다.
-    expect(unreadCount('chat', 99, inbox('mail', 99).map((m) => m.id))).toBe(ids.length)
+    expect(unreadCount('chat', 99, 0, inbox('mail', 99, 0).map((m) => m.id))).toBe(ids.length)
   })
 })
 

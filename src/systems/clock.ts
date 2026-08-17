@@ -63,7 +63,14 @@ export function spendTime(
   return { end: { day, spent }, blocks }
 }
 
-/** 하루를 접는다(남은 시간은 버린다). 금요일이면 `null` — **주차를 넘기는 것은
+/** 그 (주차, 요일)의 **다음 날**. 주 끝을 넘으면 다음 주 첫날이다.
+ *
+ * ⚠️ 도착 시점을 미루는 자리가 여기 하나다(회신의 답장 등) — 부르는 쪽에서 `day + 1`을
+ *    직접 적으면 일요일에 회신했을 때 없는 요일로 넘어가 글이 영영 안 뜬다. */
+export const tomorrow = (week: number, day: number): { week: number; day: number } =>
+  day + 1 >= WORKDAY_COUNT ? { week: week + 1, day: 0 } : { week, day: day + 1 }
+
+/** 하루를 접는다(남은 시간은 버린다). 마지막 날이면 `null` — **주차를 넘기는 것은
  *  스토어의 `advanceWeek`이고, 이 순수 함수는 그것을 대신하지 않는다**. */
 export const nextDay = (c: Clock): Clock | null =>
   c.day + 1 >= WORKDAY_COUNT ? null : { day: c.day + 1, spent: 0 }

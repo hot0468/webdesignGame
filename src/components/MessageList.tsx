@@ -20,10 +20,11 @@ export function MessageList({ channel }: { channel: Channel }) {
   const mails = useGame((s) => s.mails)
   // ⚠️ 아직 안 온 글은 목록에도, 뱃지에도 없다 — 둘이 같은 주차를 봐야 숫자가 안 어긋난다.
   const week = useGame((s) => s.week)
+  const day = useGame((s) => s.day)
 
   return (
     <div className="msgs">
-      {inbox(channel, week, mails).map((m) => {
+      {inbox(channel, week, day, mails).map((m) => {
         const unread = !readIds.includes(m.id)
         const open = openId === m.id
         return (
