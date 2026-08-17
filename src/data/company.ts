@@ -22,10 +22,13 @@ export type Client = { id: string; name: string; ftp: readonly Field[]; admin: r
 
 /** 처음부터 계약되어 있는 업체. **판을 시작할 때 업체정보에 서 있는 유일한 곳이다** —
  *  나머지는 일을 받아야 열린다. */
-export const STARTER_CLIENT = 'dalbit'
-
 /** 사내시스템 **업체정보에 서는 업체**. `CLIENTS`는 게임이 아는 업체 전부의 목록이고,
  *  화면에 서는 것은 **관계가 생긴 곳뿐이다**.
+ *
+ * ⚠️ **관계는 두 갈래로 생긴다**: 소개로 트인 거래처(`clientIds` — 스토어 `clients`)와
+ *    **일을 준 곳**(`jobs`). 거래처만 보면 수주센터로 딴 업체가 빠져 낙찰받고도 퍼블리싱을
+ *    못 하고, 일을 준 곳만 보면 소개받은 업체가 첫 의뢰 전까지 안 보여 소개 메일이 가리키는
+ *    자리가 빈다. 둘 다 세는 것이 이 함수가 하는 일 전부다.
  *
  * ⚠️ **목록에서 지우지 않고 걸러 낸다.** `CLIENTS`는 `inbox.ts`의 초반 의뢰·`weekend.ts`의
  *    돌발 의뢰·`ftp.ts`·`url.ts`가 전부 정본으로 삼는 자리라, 항목을 지우면 아직 만나지도
@@ -37,9 +40,12 @@ export const STARTER_CLIENT = 'dalbit'
  *    없는 판이 된다.
  *
  * ⚠️ 수주한 것만 센다(`jobs`) — 의뢰가 도착한 것만으로는 아직 아무 사이도 아니다. */
-export function knownClients(jobs: readonly { from: string }[]): readonly Client[] {
+export function knownClients(
+  jobs: readonly { from: string }[],
+  clientIds: readonly string[],
+): readonly Client[] {
   return CLIENTS.filter(
-    (c) => c.id === STARTER_CLIENT || jobs.some((j) => j.from === c.name),
+    (c) => clientIds.includes(c.id) || jobs.some((j) => j.from === c.name),
   )
 }
 
@@ -85,8 +91,11 @@ export function derivedClient(name: string): Client {
  *    한 곳이라도 `CLIENTS`를 직접 보면 "업체정보에는 있는데 에디터에는 안 뜨는" 업체가
  *    생기고, 그 업무는 끝낼 길이 없어진다(그것이 이 함수가 생긴 이유다).
  * ⚠️ 순서는 **상수 업체가 먼저**다 — 새로 만난 곳이 끼어들면 탭 자리가 판마다 달라진다. */
-export function clientsOf(jobs: readonly { from: string }[]): readonly Client[] {
-  const known = knownClients(jobs)
+export function clientsOf(
+  jobs: readonly { from: string }[],
+  clientIds: readonly string[],
+): readonly Client[] {
+  const known = knownClients(jobs, clientIds)
   // ⚠️ `Set<string>`으로 넓힌다 — `CLIENTS`가 `as const`라 그냥 두면 상수 이름만 담는
   //    좁은 집합이 되어 새 업체 이름을 넣어 볼 수조차 없다.
   const names = new Set<string>(CLIENTS.map((c) => c.name))
@@ -165,4 +174,69 @@ export const CLIENTS = [
       { label: '비밀번호', value: 'pencil-2024' },
     ],
   },
+  // ── 소개로 열리는 업체 ────────────────────────────────────
+  // ⚠️ **처음부터 거래하는 곳이 아니다**(`INITIAL_CLIENTS`에 없다) — 평판이 오르면
+  //    기존 업체가 소개해 준다(`systems/referral.ts`). 목록 자체는 여기 상수로 두고
+  //    "지금 거래 중인가"만 스토어가 든다: 주소·계정을 스토어로 옮기면 세이브가
+  //    불어나고, `url.ts`·`ftp.ts`가 보는 정본이 둘로 갈린다.
+  {
+    id: 'onnuri',
+    name: '온누리떡집',
+    ftp: [
+      { label: '호스트', value: 'ftp.onnuri.example' },
+      { label: '포트', value: '21' },
+      { label: '계정', value: 'onnuri_web' },
+      { label: '비밀번호', value: 'rice-3355' },
+      { label: '기본 경로', value: '/public_html' },
+    ],
+    admin: [
+      { label: '주소', value: 'admin.onnuri.example' },
+      { label: '아이디', value: 'onnuri' },
+      { label: '비밀번호', value: 'tteok-1103' },
+    ],
+  },
+  {
+    id: 'saebom',
+    name: '새봄어린이집',
+    ftp: [
+      { label: '호스트', value: 'ftp.saebom.example' },
+      { label: '포트', value: '2121' },
+      { label: '계정', value: 'saebom_ftp' },
+      { label: '비밀번호', value: 'spring-0404' },
+      { label: '기본 경로', value: '/html' },
+    ],
+    admin: [
+      { label: '주소', value: 'saebom.example/manage' },
+      { label: '아이디', value: 'saebom_master' },
+      { label: '비밀번호', value: 'child-2580' },
+    ],
+  },
+  {
+    id: 'hanmadang',
+    name: '한마당체육관',
+    ftp: [
+      { label: '호스트', value: 'ftp.hanmadang.example' },
+      { label: '포트', value: '21' },
+      { label: '계정', value: 'hanmadang' },
+      { label: '비밀번호', value: 'gym-9911' },
+      { label: '기본 경로', value: '/www' },
+    ],
+    admin: [
+      { label: '주소', value: 'admin.hanmadang.example' },
+      { label: '아이디', value: 'hm_admin' },
+      { label: '비밀번호', value: 'muscle-7070' },
+    ],
+  },
 ] as const
+
+/** **처음부터 거래하는 업체.** 나머지는 소개로 열린다(`systems/referral.ts`).
+ *
+ * ⚠️ 목록 자체(`CLIENTS`)는 줄이지 않는다 — 주소·계정은 `url.ts`·`ftp.ts`가 보는
+ *    정본이라 스토어로 옮기면 두 벌이 된다. **"지금 거래 중인가"만** 스토어가 든다.
+ * ⚠️ 초기 의뢰(`data/inbox.ts`)가 이 넷에서 오므로 여기서 빼면 첫 판에 할 일이 사라진다. */
+export const INITIAL_CLIENTS = ['dalbit', 'hanbit', 'corner', 'byeolbit'] as const
+
+/** 소개로 열릴 수 있는 업체(처음엔 거래하지 않는 곳). */
+export const REFERRAL_CLIENTS = CLIENTS.filter(
+  (c) => !INITIAL_CLIENTS.includes(c.id as (typeof INITIAL_CLIENTS)[number]),
+).map((c) => c.id)

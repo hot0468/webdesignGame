@@ -1,0 +1,57 @@
+import { describe, expect, it } from 'vitest'
+import { COMPANY_LEVELS } from '../data/game'
+import { SHORTCUTS } from '../data/sites'
+import { newlyOpened, siteMinLevel, siteOpen } from './unlock'
+
+/** 레벨 n을 만드는 최소 누적 매출. */
+const revenueFor = (level: number) =>
+  COMPANY_LEVELS.find((l) => l.level === level)!.minRevenue
+
+describe('사이트 해금', () => {
+  it('쇼핑은 처음부터 열려 있다 — 스탯을 사는 입구까지 잠그면 성장이 막힌다', () => {
+    expect(siteOpen('shop', 0)).toBe(true)
+  })
+
+  // ⚠️ 뒤집기: 처음부터 다 열려 있으면 해금이라는 축 자체가 없는 것이다.
+  it('나머지 셋은 처음엔 잠겨 있다', () => {
+    expect(siteOpen('reference', 0)).toBe(false)
+    expect(siteOpen('hire', 0)).toBe(false)
+    expect(siteOpen('work', 0)).toBe(false)
+  })
+
+  it('정해진 레벨에 닿으면 열린다 — 그 직전까지는 잠겨 있다', () => {
+    for (const s of SHORTCUTS) {
+      const need = revenueFor(s.minLevel)
+      if (s.minLevel > 1) expect(siteOpen(s.id, need - 1)).toBe(false)
+      expect(siteOpen(s.id, need)).toBe(true)
+    }
+  })
+
+  // ⚠️ 누적 매출은 줄지 않으므로 닫히는 길이 없어야 한다. 만약 소지금으로 재면
+  //    돈을 쓰는 순간 사이트가 닫혀 "열렸다 잠겼다" 하는 판이 된다.
+  it('한 번 열리면 더 벌어도 계속 열려 있다', () => {
+    const need = revenueFor(4)
+    expect(siteOpen('work', need)).toBe(true)
+    expect(siteOpen('work', need * 10)).toBe(true)
+  })
+
+  it('새로 열린 것만 알린다 — 이미 열린 것을 매주 다시 알리지 않는다', () => {
+    // ⚠️ 이름을 적지 않는다 — 해금 순서를 바꿔도 이 규칙은 그대로여야 한다(표에서 파생).
+    const level3 = SHORTCUTS.filter((s) => s.minLevel === 3).map((s) => s.id)
+    expect(newlyOpened(revenueFor(2), revenueFor(3))).toEqual(level3)
+    // 같은 구간 안에서는 새로 열린 것이 없다.
+    expect(newlyOpened(revenueFor(3), revenueFor(3) + 1)).toEqual([])
+  })
+
+  // ⚠️ 문턱을 낮추자 **한 업무 대금이 여러 단계를 한 번에 넘는** 일이 흔해졌다
+  //    (사이트 A등급 195만이면 레벨 1→3). 그때 열린 것을 **전부** 내야 한 곳만 알리고
+  //    나머지가 조용히 열리는 판이 안 된다.
+  it('한 번에 여러 단계를 넘으면 그 사이의 것을 모두 낸다', () => {
+    const upTo3 = SHORTCUTS.filter((s) => s.minLevel === 2 || s.minLevel === 3).map((s) => s.id)
+    expect(newlyOpened(0, revenueFor(3))).toEqual(upTo3)
+  })
+
+  it('화면이 적는 조건이 판정과 같은 표에서 나온다', () => {
+    for (const s of SHORTCUTS) expect(siteMinLevel(s.id)).toBe(s.minLevel)
+  })
+})

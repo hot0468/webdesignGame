@@ -8,6 +8,7 @@ import {
   findQuality,
   INITIAL_GAME,
   PUBLISH_AP,
+  PUBLISH_QUALITY,
   REPUTATION_MAX,
   WINDOW_DRAG,
   WINDOW_FIT,
@@ -22,7 +23,7 @@ import {
 import { gradeOf, type Draft } from './systems/craft'
 import { MEETING_AP, MEETING_OCCUPY_WEEKS, type KeywordId } from './data/keywords'
 import { clientKeywords, hitCount, keywordShift, meetingMail, revealedKeywords } from './systems/keywords'
-import { CLIENTS, clientsOf } from './data/company'
+import { CLIENTS, clientsOf, INITIAL_CLIENTS } from './data/company'
 import { EMPLOYEE_LEVEL, FEEDBACK_AP, ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP, TRAIN_COST } from './data/employees'
 import type { Applicant } from './systems/hire'
 import {
@@ -89,7 +90,21 @@ import {
   reward,
   settleMail,
 } from './systems/money'
-import { recovered, weekendEvent, worked } from './systems/weekend'
+import { peakNotice, peakRequests } from './systems/holiday'
+import { investCost, referralMult, welfareGrudge, welfareMental } from './systems/invest'
+import {
+  AWARD_PRIZE,
+  AWARD_REPUTATION,
+  COPYRIGHT_FEE,
+  COPYRIGHT_REPUTATION,
+  awardMail,
+  awardWon,
+  copyrightHit,
+  copyrightMail,
+  referralMail,
+  referralOf,
+} from './systems/referral'
+import { mentalHit, recovered, weekendEvent, worked } from './systems/weekend'
 import type { ProgramId } from './data/programs'
 import {
   claimMail,
@@ -120,7 +135,9 @@ import {
   type Workable,
 } from './systems/request'
 import { normalizeUrl } from './systems/url'
+import { newlyOpened, unlockMail } from './systems/unlock'
 import { findItem, type ShopItemId } from './data/shop'
+import { type InvestId } from './data/invest'
 import { buyBlock } from './systems/shop'
 import { portfolioBonus } from './systems/portfolio'
 import { INSPIRE_SHIFT, REFERENCE_AP } from './data/reference'
@@ -152,6 +169,9 @@ export type Job = {
   replied: number
   due: number
   done: boolean
+  /** 단가 배율(없으면 1). **수주 시점에 굳는다** — 의뢰 글은 사라져도 대금은 남는다.
+   *  ⚠️ 화면이 "예정 단가"로 곱해 적는 값과 **같은 값**이어야 한다(`reward`가 받는다). */
+  feeMult?: number
   /** 마감을 넘겨 깨진 계약. ⚠️ `done`과 **함께** 선다 — 끝난 것은 맞고, 어떻게 끝났는지가
    *  이 칸이다(목록에서 지우면 무엇이 어떻게 끝났는지가 사라진다). */
   breached?: boolean
@@ -218,6 +238,10 @@ type Store = {
   /** 기획력 스탯(0~100). **미팅에서 알아내는 키워드 수를 정하는 축**이고, 올리는 길은
    *  아직 없다(design과 같다 — 성장이 붙으면 두 값이 같은 자리에서 는다). */
   planning: number
+  /** 퍼블리싱 스탯(0~100). **퍼블리싱 공정(에디터)의 결과 등급을 정하는 축**이고,
+   *  올리는 길은 아직 없다(design·planning과 같다).
+   *  ⚠️ 비용을 깎는 `codingSkill`과 **다른 축**이다 — 등급은 스탯이, 감면은 숙련도가 진다. */
+  publishing: number
   /** CS 스탯(0~100). **클레임 사과로 되돌아오는 평판을 정하는 축**이고, 올리는 길은
    *  아직 없다(design·planning과 같다). */
   cs: number
@@ -247,6 +271,12 @@ type Store = {
   /** PPT 창에서 만든 문서(발표자료·화면정의서). 시안·팝업과 **또 다른 목록**이다 —
    *  같은 모양이라도 섞이면 등록·시안 화면에 엉뚱한 파일이 뜬다. */
   slides: Draft[]
+  /** 에디터에서 올린 **퍼블리싱 결과**. 앞의 셋과 또 다른 목록인 이유는 같다 —
+   *  올린 사이트가 팝업 등록·시안 고르기 화면에 뜨면 안 된다.
+   *  ⚠️ **이 목록이 있어야 퍼블리싱 등급이 완료 만족도(`satisfaction`)에 들어간다** —
+   *     만족도는 그 업무에서 나온 산출물 등급을 훑어 가장 낮은 것을 고르므로(약한 고리),
+   *     퍼블리싱이 아무것도 남기지 않으면 아무리 대충 해도 결과가 같아진다. */
+  publishes: Draft[]
   /** 관리자 페이지에 실제로 걸린 팝업. ⚠️ 개수가 아니라 **무엇을 언제부터 언제까지**다 —
    *  세 갈래 판정이 전부 이 세 칸에서 나온다. */
   popups: Popup[]
@@ -338,6 +368,16 @@ type Store = {
    *  급여의 반대편이라 고정 수입이 있어야 사람을 뽑는 일이 도박이 아니라 계산이 된다.
    *  ⚠️ 맺는 조건(그 업체 완료 업무 수)은 `systems/money.ts`의 `canContract`가 정본이다. */
   contracts: string[]
+
+  /** **지금 거래하는 업체 id.** 처음엔 `INITIAL_CLIENTS` 넷이고, 평판이 높으면 소개로
+   *  늘어난다(`systems/referral.ts`).
+   *  ⚠️ 업체의 **주소·계정은 `CLIENTS` 상수가 정본이다** — 여기 옮기지 마라(세이브가
+   *     불어나고 `url.ts`·`ftp.ts`가 보는 값이 두 벌이 된다). 여기 있는 것은 "아는가"뿐이다. */
+  clients: string[]
+
+  /** **켜 둔 월 투자 id**(`data/invest.ts`). 매 정산에서 `investCost`만큼 빠진다.
+   *  ⚠️ 효과는 `systems/invest.ts`가 읽는다 — 곱하는 값을 여기 적지 마라. */
+  invests: string[]
 
   /** 쇼핑몰에서 **한 번만 살 수 있는 것**(장비) 중 이미 산 것의 id.
    *  ⚠️ 소모품(커피·의자)은 여기 안 쌓인다 — 반복해서 사는 것이라 "샀다"는 상태가 없다. */
@@ -479,6 +519,9 @@ type Store = {
    *  ⚠️ 못 사는 경우(돈 부족·이미 삼·상한)에는 **아무 일도 일어나지 않는다** —
    *  판정은 `systems/shop.ts`의 `buyBlock` 하나가 내고 화면도 같은 함수를 쓴다. */
   buyItem: (id: ShopItemId) => void
+  /** 월 투자를 켜고 끈다. ⚠️ **켜는 순간 돈이 나가지 않는다** — 월 지출이라 정산에서
+   *  빠지고, 못 내면 급여 밀림과 같은 길로 벌을 받는다(`unpaidMonths`). */
+  toggleInvest: (id: InvestId) => void
   /** 그 업체와 **유지보수 계약**을 맺는다(사내시스템 > 업체정보). 다음 정산부터 매달 들어온다.
    *  ⚠️ 조건(완료 업무 수)을 못 채웠거나 이미 맺었으면 **아무 일도 일어나지 않는다** —
    *  판정은 `canContract` 하나가 내고 화면도 같은 함수를 쓴다. */
@@ -505,10 +548,10 @@ export type Viewport = { w: number; h: number }
  *    포트폴리오이기 때문**이다(참가 조건 쪽이 시안 장수·기획안 랭크만 보는 것과 다르다 —
  *    저쪽은 문턱이고 이쪽은 점수다). */
 export const bidStats = (
-  s: Pick<Store, 'design' | 'planning' | 'files' | 'drafts' | 'slides'>,
+  s: Pick<Store, 'design' | 'planning' | 'files' | 'drafts' | 'slides' | 'publishes'>,
 ): number =>
   (s.design + s.planning) / 2 +
-  portfolioBonus([...s.files, ...s.drafts, ...s.slides].map((f) => f.grade))
+  portfolioBonus([...s.files, ...s.drafts, ...s.slides, ...s.publishes].map((f) => f.grade))
 
 /** 공정 판정에 넘기는 최소 모양. **순수 함수가 스토어의 `Job` 전체를 알지 않게 한다.** */
 export const asStep = (j: Job): StepJob => ({
@@ -577,6 +620,7 @@ const saveFields = (s: Store) => ({
   reputation: s.reputation,
   design: s.design,
   planning: s.planning,
+  publishing: s.publishing,
   cs: s.cs,
   readIds: s.readIds,
   meetings: s.meetings,
@@ -585,6 +629,7 @@ const saveFields = (s: Store) => ({
   files: s.files,
   drafts: s.drafts,
   slides: s.slides,
+  publishes: s.publishes,
   popups: s.popups,
   mails: s.mails,
   bookmarks: s.bookmarks,
@@ -607,6 +652,8 @@ const saveFields = (s: Store) => ({
   over: s.over,
   apologized: s.apologized,
   contracts: s.contracts,
+  clients: s.clients,
+  invests: s.invests,
   boughtIds: s.boughtIds,
   seenIntro: s.seenIntro,
   inspiredWeek: s.inspiredWeek,
@@ -624,6 +671,7 @@ const emptyGame = () => ({
   files: [],
   drafts: [],
   slides: [],
+  publishes: [],
   popups: [],
   mails: [],
   bookmarks: [],
@@ -643,6 +691,8 @@ const emptyGame = () => ({
   over: undefined,
   apologized: [],
   contracts: [],
+  clients: [...INITIAL_CLIENTS],
+  invests: [],
   boughtIds: [],
   inspiredWeek: undefined,
   // ⚠️ 새 판은 소개를 **다시** 본다 — 판이 처음부터라는 뜻이고, 창에 건너뛰기가 있다.
@@ -668,11 +718,26 @@ export const useGame = create<Store>()(
       const job = turnOf(s.jobs, id, 'editor')
       const cost = apCost(PUBLISH_AP, s[skillFor('editor')])
       if (!job || s.ap < cost) return {}
+      const seq = s.publishes.filter((f) => f.jobId === id).length + 1
       // ⚠️ **내 손으로 돌렸을 때만** 숙련도가 오른다(직원 지시는 안 올린다 — `data/game.ts`).
       return {
         ap: s.ap - cost,
         jobs: bumpStep(s.jobs, id),
         codingSkill: gainSkill(s.codingSkill),
+        // 퍼블리싱도 **등급을 남긴다**. 남기지 않으면 완료 만족도가 시안·문서만 보고
+        // 정해져(약한 고리) 퍼블리싱을 아무리 대충 해도 결과가 같아진다.
+        // ⚠️ 등급은 `gradeOf` 하나에서만 난다(등급의 단일 출처 — 새 사다리 금지).
+        //    밴드는 `PUBLISH_QUALITY` 고정이고 그 안의 칸을 `publishing` 스탯이 정한다.
+        publishes: [
+          ...s.publishes,
+          {
+            id: `pb:${id}:${seq}`,
+            jobId: id,
+            name: `${job.from}_index.html${seq > 1 ? ` (${seq})` : ''}`,
+            madeWeek: s.week,
+            grade: gradeOf(PUBLISH_QUALITY, s.publishing),
+          },
+        ],
       }
     }),
 
@@ -765,6 +830,9 @@ export const useGame = create<Store>()(
                 replied: 0,
                 due: s.week + m.dueWeeks,
                 done: false,
+                // ⚠️ **배율을 여기서 굳힌다** — 의뢰 글은 사라져도 대금은 남아야 한다.
+                //    없으면 아예 싣지 않는다(평범한 의뢰는 1이고 `reward`가 그렇게 읽는다).
+                ...(m.feeMult !== undefined && { feeMult: m.feeMult }),
                 // 요청 기간도 **받는 주에 굳는다**(마감과 같은 이유). 상대값으로 들고
                 // 있으면 주가 지나도 늘 같은 주를 가리켜 판정이 뜻을 잃는다.
                 ...(m.popup && {
@@ -968,7 +1036,9 @@ export const useGame = create<Store>()(
       )
 
       // 만족도는 **그 업무에서 나온 산출물 등급 중 가장 낮은 것**이다(약한 고리 규칙).
-      const grades = [...s.files, ...s.drafts, ...s.slides]
+      // ⚠️ 퍼블리싱(`publishes`)도 여기 들어간다 — 만족도는 **가장 낮은 등급**이 정하므로
+      //    한 목록만 빠져도 그 공정은 결과에 영향을 주지 않는 공정이 된다.
+      const grades = [...s.files, ...s.drafts, ...s.slides, ...s.publishes]
         .filter((f) => f.jobId === id)
         .map((f) => f.grade)
       const next = stepsOf(job.kind)[job.replied + 1]
@@ -980,7 +1050,7 @@ export const useGame = create<Store>()(
       // ⚠️ 평판 clamp는 여기서 한 번만 한다 — 순수 함수 쪽에서 또 자르면 두 곳이 서로
       //    다른 값을 믿게 된다(`advanceWeek`의 클레임 처리와 같은 규칙).
       const grade = satisfaction(grades)
-      const { fee, reputation } = reward(job.kind, grade)
+      const { fee, reputation } = reward(job.kind, grade, job.feeMult)
       // ⚠️ 누적 매출은 **여기 한 곳**에서만 는다(대금이 들어오는 유일한 자리다).
       //    행동력 상한은 그 값에서 파생한다 — 두 곳에 적으면 어긋난다.
       const revenue = s.revenue + fee
@@ -988,6 +1058,10 @@ export const useGame = create<Store>()(
       // `inbox()`가 `week`으로 아직 안 온 글을 이미 거르므로 `advanceWeek`에
       // 판정 자리를 새로 만들지 않는다(새 상태 축도 없다).
       const bug = bugReport(job, s.week, s.codingSkill)
+      // ⚠️ 해금은 **매출이 경계를 넘는 순간에만** 알린다(`newlyOpened`가 두 값을 받는
+      //    이유다) — "지금 열려 있는 것"을 알리면 같은 메일이 계속 온다.
+      //    해금 자체는 저장하지 않는다: 누적 매출에서 파생한다(`systems/unlock.ts`).
+      const opened = newlyOpened(s.revenue, revenue)
       return {
         jobs,
         money: s.money + fee,
@@ -997,7 +1071,12 @@ export const useGame = create<Store>()(
         // ⚠️ 정신력도 이 값에 걸린다 — `apMaxOf` 하나가 상한의 정본이다.
         apMax: apMaxOf(revenue, s.mental),
         reputation: clampReputation(s.reputation + reputation),
-        mails: [doneMail(job, grade, fee, s.week), ...(bug ? [bug] : []), ...s.mails],
+        mails: [
+          doneMail(job, grade, fee, s.week),
+          ...(bug ? [bug] : []),
+          ...(opened.length > 0 ? [unlockMail(opened, s.week)] : []),
+          ...s.mails,
+        ],
       }
     }),
 
@@ -1204,11 +1283,14 @@ export const useGame = create<Store>()(
           return {
             requests: rest,
             ap: s.ap - FEEDBACK_AP,
-            // 세 목록이 **같은 손짓을 받는다** — 대상이 어느 목록에 사는지는 스토어만
+            // **네 목록이 같은 손짓을 받는다** — 대상이 어느 목록에 사는지는 스토어만
             // 알고, 규칙(`raiseGrade`)은 그것을 모른다.
+            // ⚠️ 하나라도 빠뜨리면 그 목록의 작업물은 **영영 못 고친다**(퍼블리싱이
+            //    그런 채로 굴러갔다). 아래 `works`와 **같은 넷**이어야 한다.
             files: bump(s.files),
             drafts: bump(s.drafts),
             slides: bump(s.slides),
+            publishes: bump(s.publishes),
             chats: say(acceptedText(req, s.week, ok)),
           }
         }
@@ -1259,7 +1341,7 @@ export const useGame = create<Store>()(
   workWeekend: () =>
     set((s) => {
       if (s.over || s.weekendWorked.includes(s.week)) return {}
-      const event = weekendEvent(s.week)
+      const event = weekendEvent(s.week, s.clients)
       // 돌발 의뢰가 없는 주말에는 태울 것이 없다(화면도 버튼을 그리지 않는다).
       if (!event || s.jobs.some((j) => j.id === event.id)) return {}
       get().acceptJob(event)
@@ -1449,9 +1531,11 @@ export const useGame = create<Store>()(
           grudged(employees.find((e) => e.id === q.employeeId)?.grudge),
         ]),
       )
-      const withGrudge = employees.map((e) =>
-        ignoredGrudge.has(e.id) ? { ...e, grudge: ignoredGrudge.get(e.id)! } : e,
-      )
+      const withGrudge = employees
+        .map((e) => (ignoredGrudge.has(e.id) ? { ...e, grudge: ignoredGrudge.get(e.id)! } : e))
+        // ⚠️ 복지를 켜 두면 불만이 매주 조금 풀린다(쌓인 것이 있을 때만) — 거절 하나가
+        //    쌓는 양보다 작아서 요청을 다 거절하는 길이 공짜가 되지는 않는다.
+        .map((e) => ({ ...e, grudge: welfareGrudge(s.invests, e.grudge ?? 0) }))
       const ignoredChats = ignored.map((q) => ({
         employeeId: q.employeeId,
         week: next,
@@ -1461,12 +1545,14 @@ export const useGame = create<Store>()(
       // 새 요청은 **시드에서** 온다(`systems/request.ts` — `Math.random` 없음).
       // ⚠️ 답을 기다리는 요청이 이미 있는 사람은 건너뛴다(한 사람이 두 건을 쌓아 두면
       //    어느 것에 답한 것인지가 흐려지고, 거절 한 번에 불만이 두 번 쌓인다).
-      // ⚠️ **피드백이 가리킬 작업물은 세 목록을 합쳐서 넘긴다** — 대상이 하나도 없으면
+      // ⚠️ **피드백이 가리킬 작업물은 네 목록을 합쳐서 넘긴다** — 대상이 하나도 없으면
       //    그 갈래는 후보에서 빠진다(고칠 것이 없는데 고쳐 달라는 요청은 뜻이 없다).
+      // ⚠️ 위 `acceptRequest`의 `bump`와 **같은 넷**이어야 한다 — 여기서만 후보로 뽑고
+      //    저기서 못 올리면 요청을 받아도 아무 일이 안 일어난다.
       const pending = s.requests.filter(
         (q) => !ignored.includes(q) && !gone.has(q.employeeId),
       )
-      const works: Workable[] = [...s.files, ...s.drafts, ...s.slides]
+      const works: Workable[] = [...s.files, ...s.drafts, ...s.slides, ...s.publishes]
       const born = withGrudge
         .filter((e) => !pending.some((q) => q.employeeId === e.id))
         .map((e) =>
@@ -1489,10 +1575,25 @@ export const useGame = create<Store>()(
       const settling = isSettleWeek(next)
       // ⚠️ 유지보수 수입은 **지출보다 먼저** 더한다 — 급여를 줬는지 판정(`unpaidMonths`)이
       //    이 잔액을 보므로, 계약이 있는데도 밀린 것으로 세면 파산이 앞당겨진다.
-      const known = clientsOf(s.jobs)
+      // ⚠️ 계약한 업체 이름은 `clientsOf`에서 찾는다 — 수주센터로 딴 업체는 `CLIENTS`에
+      //    없어서 상수만 보면 정산 메일에 이름 대신 id가 선다.
+      const known = clientsOf(s.jobs, s.clients)
       const contractNames = s.contracts.map((id) => known.find((c) => c.id === id)?.name ?? id)
+      // ── 특수 이벤트 셋 ──────────────────────────────────────
+      // **좋은 일 둘(소개·수상)과 나쁜 일 하나(저작권)**. 판정은 전부 순수 함수가 지고
+      // (`systems/referral.ts`) 여기서는 결과를 적용만 한다.
+      // ⚠️ 돈 계산 **앞**에 둔다 — 상금·합의금이 그 주 잔액에 함께 반영돼야 정산 메일과
+      //    계기판이 같은 값을 말한다.
+      const referred = referralOf(next, rep, s.clients, referralMult(s.invests))
+      const won = awardWon(next, [...s.files, ...s.drafts, ...s.slides, ...s.publishes].map((f) => f.grade))
+      // 납품한 것에서 나오는 사건이라 **완료한 업무 수**를 본다(깨진 계약은 빼고 센다).
+      const sued = copyrightHit(next, s.jobs.filter((j) => j.done && !j.breached).length)
+
       const money =
-        s.money + (settling ? monthlyIncome(s.contracts) - monthlyCost(withGrudge) : 0)
+        s.money +
+        (settling ? monthlyIncome(s.contracts) - monthlyCost(withGrudge) - investCost(s.invests) : 0) +
+        (won ? AWARD_PRIZE : 0) -
+        (sued ? COPYRIGHT_FEE : 0)
 
       // ── 급여를 줬는가 ────────────────────────────────────────
       // ⚠️ **잔액이 음수인 것과 다르다.** 월정액까지 낸 뒤 남은 돈이 급여를 덮지 못한
@@ -1511,7 +1612,19 @@ export const useGame = create<Store>()(
       //    카운트다운이 된다). 회복량은 주말 한 번의 소모보다 작아서 주말 근무가 대가를 진다.
       // ⚠️ 새 상한은 **회복한 뒤의** 정신력으로 잰다 — 다음 주에 실제로 쓸 값이라야
       //    계기판의 막대와 칸 수가 같은 순간을 말한다.
-      const mental = recovered(s.mental, s.mentalMax)
+      // ⚠️ **나쁜 일도 정신력을 깎는다**(`MENTAL_HIT`) — 주말 근무만으로는 주말에 안
+      //    일하면 100에서 안 움직이는 죽은 자원이었다. 세는 것은 **평판을 깎는 것과 같은
+      //    넷**이다(사건을 새로 만들지 않는다): 클레임·계약 파기·퇴사 두 갈래.
+      // ⚠️ 회복시킨 **뒤에** 뺀다(`recovered`의 셋째 인자) — 순서를 뒤집으면 바닥에서
+      //    회복분만큼 되살아나 벌이 사라진다.
+      const hit = mentalHit({
+        claims: claims.length,
+        breaches: broken.length,
+        quits: leavers.length,
+      })
+      // ⚠️ 복지는 **회복 쪽에 더한다**(벌을 깎지 않는다) — 나쁜 일의 무게는 그대로 두고
+      //    평소 회복을 늘리는 것이 이 투자의 뜻이다.
+      const mental = recovered(s.mental, s.mentalMax, hit, welfareMental(s.invests))
       // **행동력 상한의 정본은 이 함수 하나다**(회사레벨이 상한, 정신력이 그 상한에서
       // 깎는다). ⚠️ `s.apMax`를 그대로 쓰지 마라 — 정신력이 움직여도 칸이 안 변한다.
       const apMax = apMaxOf(s.revenue, mental)
@@ -1543,7 +1656,13 @@ export const useGame = create<Store>()(
         files: [...s.files, ...intoFiles],
         // ⚠️ 업체당 한 번만 깎는다(같은 주에 세 갈래가 어긋나도 `claims`는 한 건이다).
         //    ⚠️ clamp는 **여기 한 곳**에서만 한다(완료 회신도 같은 함수를 쓴다).
-        reputation: rep,
+        // ⚠️ 수상·저작권도 여기서 함께 반영한다 — clamp를 두 곳에서 하면 서로 다른
+        //    값을 믿게 된다(평판을 자르는 자리는 이 파일에서 `clampReputation` 하나다).
+        reputation: clampReputation(
+          rep + (won ? AWARD_REPUTATION : 0) - (sued ? COPYRIGHT_REPUTATION : 0),
+        ),
+        // 소개받은 곳이 거래처가 된다(주소·계정은 `CLIENTS` 상수가 이미 들고 있다).
+        clients: referred ? [...s.clients, referred] : s.clients,
         // 깨진 계약은 목록에서 지우지 않고 **끝난 것으로 표시**한다 — 지우면 무엇이
         // 어떻게 끝났는지가 사라지고, 같은 의뢰가 다시 새 글로 보인다.
         jobs: byOrder.jobs.map((j) => (isBreached(j, next) ? { ...j, done: true, breached: true } : j)),
@@ -1556,6 +1675,16 @@ export const useGame = create<Store>()(
           ...breachMails,
           ...claimMails,
           ...bidMails,
+          // ⚠️ 공휴일 **직전 주**에 팝업 의뢰가 몰린다(`systems/holiday.ts`). 새 업무 축이
+          //    아니라 평범한 팝업 `Request`라 수주·공정·클레임 규칙을 그대로 탄다.
+          //    예고는 그 **한 주 전**에 온다 — 당일에 알면 그 주 행동력을 이미 쓴 뒤다.
+          // ⚠️ **통보(정산·파기·클레임·퇴사) 아래**에 둔다 — 저쪽은 이미 벌어진 일이라
+          //    먼저 읽어야 하고, 이쪽은 앞으로 고를 일이다.
+          ...(referred ? [referralMail(referred, next)] : []),
+          ...(won ? [awardMail(next)] : []),
+          ...(sued ? [copyrightMail(next)] : []),
+          ...peakRequests(next, s.clients),
+          ...(peakNotice(next) ? [peakNotice(next)!] : []),
           ...s.mails,
         ],
       }
@@ -1623,13 +1752,20 @@ export const useGame = create<Store>()(
     set((s) => {
       // ⚠️ 상수 목록이 아니라 **지금 판이 아는 업체**에서 찾는다 — 수주로 생겨난
       //    업체와도 유지보수 계약을 맺을 수 있어야 한다(화면이 그 탭을 세운다).
-      const name = clientsOf(s.jobs).find((c) => c.id === clientId)?.name
+      const name = clientsOf(s.jobs, s.clients).find((c) => c.id === clientId)?.name
       if (!name) return {}
       // 깨진 계약은 세지 않는다 — 잘해 준 사이라는 뜻이 이 조건의 전부다.
       const done = s.jobs.filter((j) => j.from === name && j.done && !j.breached).length
       if (!canContract(done, s.contracts.includes(clientId))) return {}
       return { contracts: [...s.contracts, clientId] }
     }),
+
+  toggleInvest: (id) =>
+    set((s) => ({
+      invests: s.invests.includes(id)
+        ? s.invests.filter((x) => x !== id)
+        : [...s.invests, id],
+    })),
 
   buyItem: (id) =>
     set((s) => {

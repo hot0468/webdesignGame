@@ -7,6 +7,7 @@ import { gradeOf } from '../systems/craft'
 import { isTurnOf, showsIn } from '../systems/pipeline'
 import { asStep, useGame } from '../store'
 import { useWorking } from '../components/Working'
+import { CHANNEL_LABEL } from '../data/inbox'
 import './ppt.css'
 
 /** 그 업무가 주문한 문서의 이름. 목록과 작업 창이 **같은 말**을 쓰게 한 곳에서 낸다. */
@@ -171,7 +172,7 @@ export function Ppt() {
         </span>
         {picked && (
           <span>
-            <b>{picked.channel === 'board' ? '고객게시판' : '메일'}</b>의 그 글에서 회신해야 다음으로
+            <b>{CHANNEL_LABEL[picked.channel]}</b>의 그 글에서 회신해야 다음으로
             넘어간다.
           </span>
         )}

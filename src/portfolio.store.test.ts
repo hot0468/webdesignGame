@@ -33,6 +33,7 @@ beforeEach(() => {
     files: [],
     drafts: [],
     slides: [],
+    publishes: [],
     popups: [],
     mails: [],
     employees: [],

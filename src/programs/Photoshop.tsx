@@ -8,6 +8,7 @@ import { isTurnOf, showsIn } from '../systems/pipeline'
 import { asStep, useGame } from '../store'
 import { useWorking } from '../components/Working'
 import './photoshop.css'
+import { CHANNEL_LABEL } from '../data/inbox'
 
 /** `포토샵` 창. 팝업 업무의 **제작 공정**이 여기서 돈다(그다음이 브라우저에서의 등록).
  *
@@ -111,7 +112,7 @@ export function Photoshop() {
             다음에 할 일을 적는다. */}
         {open && !isTurnOf(asStep(open), 'photoshop') && (
           <p className="ps__short">
-            만들었다. {open.channel === 'board' ? '고객게시판' : '메일'}의 그 글에서 회신해야 등록
+            만들었다. {CHANNEL_LABEL[open.channel]}의 그 글에서 회신해야 등록
             공정이 열린다.
           </p>
         )}

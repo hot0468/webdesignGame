@@ -1,29 +1,39 @@
 import { describe, expect, it } from 'vitest'
-import { CLIENTS, clientsOf, derivedClient, knownClients, STARTER_CLIENT } from './company'
+import { CLIENTS, clientsOf, derivedClient, INITIAL_CLIENTS, knownClients } from './company'
+
+// ⚠️ `string[]`으로 넓힌다 — `INITIAL_CLIENTS`가 `as const`라 그냥 두면 넷의 좁은 타입이
+//    되어 다른 업체 id를 넣어 볼 수조차 없다(`clientsOf`의 `Set<string>`과 같은 함정).
+const START: string[] = [...INITIAL_CLIENTS]
 
 /** 업체정보에 서는 목록. **이 판정이 틀리면 업무가 끝나지 않는다** — 업체가 안 열리면
  *  FTP 정보도 관리자 계정도 볼 수 없어 퍼블리싱·팝업 등록이 통째로 막힌다. */
 describe('knownClients', () => {
-  it('처음에는 계약된 한 곳만 선다', () => {
-    expect(knownClients([]).map((c) => c.id)).toEqual([STARTER_CLIENT])
+  it('처음에는 거래처만 선다', () => {
+    expect(knownClients([], START).map((c) => c.id)).toEqual(START)
+  })
+
+  // 소개 이벤트가 거래처를 늘리면 첫 의뢰 전에도 서야 한다 — 소개 메일이 가리키는 자리다.
+  it('일을 받지 않아도 거래처면 선다', () => {
+    const other = CLIENTS.find((c) => !START.includes(c.id))!
+    expect(knownClients([], [...START, other.id]).map((c) => c.id)).toContain(other.id)
   })
 
   // ⚠️ **종류를 가리지 않는다.** 사이트 업무만 열어 주면 팝업을 수주하고도 그 업체의
   //    관리자 계정을 볼 수 없어 등록 공정이 막힌다(수주해 놓고 못 끝내는 업무가 생긴다).
   it('일을 받은 업체가 들어온다 — 업무 종류를 가리지 않는다', () => {
     for (const c of CLIENTS) {
-      expect(knownClients([{ from: c.name }]).map((x) => x.id)).toContain(c.id)
+      expect(knownClients([{ from: c.name }], START).map((x) => x.id)).toContain(c.id)
     }
   })
 
-  it('의뢰가 와도 수주하지 않으면 열리지 않는다', () => {
-    const other = CLIENTS.find((c) => c.id !== STARTER_CLIENT)!
+  it('거래처도 아니고 일도 안 준 곳은 열리지 않는다', () => {
+    const other = CLIENTS.find((c) => !START.includes(c.id))!
     // 수주한 업무 목록에 없는 업체는 아직 아무 사이도 아니다.
-    expect(knownClients([]).map((c) => c.id)).not.toContain(other.id)
+    expect(knownClients([], START).map((c) => c.id)).not.toContain(other.id)
   })
 
   it('CLIENTS의 순서를 지킨다 — 탭이 판마다 뒤바뀌면 안 된다', () => {
-    const all = knownClients(CLIENTS.map((c) => ({ from: c.name })))
+    const all = knownClients(CLIENTS.map((c) => ({ from: c.name })), START)
     expect(all.map((c) => c.id)).toEqual(CLIENTS.map((c) => c.id))
   })
 })
@@ -32,7 +42,7 @@ describe('knownClients', () => {
  *  에디터가 세우는 목록이 곧 이 함수의 답이기 때문이다. */
 describe('clientsOf', () => {
   it('상수 목록에 없는 업체도 일을 받으면 생겨난다', () => {
-    const list = clientsOf([{ from: '새봄공단' }])
+    const list = clientsOf([{ from: '새봄공단' }], START)
     expect(list.map((c) => c.name)).toContain('새봄공단')
     // 퍼블리싱에 필요한 네 칸이 다 있어야 에디터에서 연결할 수 있다.
     const fresh = list.find((c) => c.name === '새봄공단')!
@@ -48,7 +58,7 @@ describe('clientsOf', () => {
   })
 
   it('한 업체의 업무가 여럿이어도 한 번만 선다', () => {
-    const list = clientsOf([{ from: '새봄공단' }, { from: '새봄공단' }])
+    const list = clientsOf([{ from: '새봄공단' }, { from: '새봄공단' }], START)
     expect(list.filter((c) => c.name === '새봄공단')).toHaveLength(1)
   })
 

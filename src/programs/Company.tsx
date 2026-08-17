@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { MessageList } from '../components/MessageList'
 import { PROGRAM_ICONS } from '../data/icons'
-import { CLIENTS, clientsOf, STARTER_CLIENT } from '../data/company'
+import { CLIENTS, clientsOf, INITIAL_CLIENTS } from '../data/company'
+import { INVESTS } from '../data/invest'
+import { investCost } from '../systems/invest'
 import { unreadCount } from '../data/inbox'
 import {
+  COPY_FLASH_MS,
   CRISIS_WEEKS_TO_SHUTDOWN,
   MAINTENANCE_FEE,
   MAINTENANCE_MIN_DONE,
@@ -89,8 +92,11 @@ function Status() {
   const employees = useGame((s) => s.employees)
   const crisisWeeks = useGame((s) => s.crisisWeeks)
   const revenue = useGame((s) => s.revenue)
+  const invests = useGame((s) => s.invests)
+  const toggleInvest = useGame((s) => s.toggleInvest)
   const design = useGame((s) => s.design)
   const planning = useGame((s) => s.planning)
+  const publishing = useGame((s) => s.publishing)
   const figmaSkill = useGame((s) => s.figmaSkill)
   const photoshopSkill = useGame((s) => s.photoshopSkill)
   const codingSkill = useGame((s) => s.codingSkill)
@@ -119,7 +125,37 @@ function Status() {
           이 화면이 진다(`Hud`와 겹치는 숫자를 다시 늘어놓지 않는다는 규칙). */}
       <p className="company__note">
         월 급여 합계 {payroll(employees).toLocaleString('ko-KR')}원
+        {invests.length > 0 && ` · 투자 ${investCost(invests).toLocaleString('ko-KR')}원`}
       </p>
+
+      {/* ── 월 투자 ─────────────────────────────────────────
+          ⚠️ **상점과 다른 축이다** — 저쪽은 한 번 사고 끝, 이쪽은 켜 두면 매달 나간다.
+             그래서 여기(매달의 돈을 말하는 자리)에 서고 버튼도 "구입"이 아니라 켬/끔이다.
+          ⚠️ 끄는 길을 반드시 남긴다 — 벌이가 줄면 접는 것이 이 축의 선택 전부다. */}
+      <div className="company__head">
+        <span className="company__label">월 투자</span>
+      </div>
+      <ul className="company__invests">
+        {INVESTS.map((i) => {
+          const on = invests.includes(i.id)
+          return (
+            <li key={i.id} className="company__invest">
+              <button
+                type="button"
+                className={`company__sign${on ? ' company__sign--on' : ''}`}
+                aria-pressed={on}
+                onClick={() => toggleInvest(i.id)}
+              >
+                {on ? '켜짐' : '켜기'}
+              </button>
+              <span className="company__invest-body">
+                <b>{i.name}</b> · 월 {i.cost.toLocaleString('ko-KR')}원 · {i.effect}
+                <span className="company__invest-desc">{i.desc}</span>
+              </span>
+            </li>
+          )
+        })}
+      </ul>
 
       {/* 회사레벨. ⚠️ 등급과 **붙여 두되 다른 줄**이다 — 둘 다 "회사가 얼마나 큰가"를
           말하지만 오르는 조건이 다르다(평판 vs 누적 매출). 한 줄에 섞으면 무엇을 올려야
@@ -140,7 +176,7 @@ function Status() {
         <span className="company__label">내 스탯</span>
       </div>
       <p className="company__note">
-        결과물 등급 — 디자인 {design} · 기획 {planning}
+        결과물 등급 — 디자인 {design} · 퍼블리싱 {publishing} · 기획 {planning}
       </p>
       <p className="company__note">
         행동력 감면 — 피그마 {figmaSkill} · 포토샵 {photoshopSkill} · 코딩 {codingSkill}
@@ -186,17 +222,18 @@ function Status() {
 
 /** 업체 목록 + 고른 업체의 접속 정보. 업로드 공정이 생기면 플레이어가 여기를 보고 입력한다. */
 function Info() {
-  const [id, setId] = useState<string>(STARTER_CLIENT)
+  const [id, setId] = useState<string>(INITIAL_CLIENTS[0])
 
   // ⚠️ 셀렉터 안에서 filter를 돌리지 마라(새 배열 = 무한 렌더). 목록을 통째로 받아 거른다.
   const jobs = useGame((s) => s.jobs)
+  const clientIds = useGame((s) => s.clients)
 
   // ⚠️ **관계가 생긴 업체만 선다**(`clientsOf`) — 만나 본 적도 없는 곳의 FTP 계정이
   //    처음부터 보이면 이 화면이 "찾아서 옮겨 적는 자리"가 아니라 그냥 정답표가 된다.
-  //    일을 받으면 그 업체가 여기 들어오고, 그때부터 퍼블리싱·팝업 등록이 열린다.
+  //    아직 소개받지 않은 업체가 미리 보이면 소개 이벤트도 뜻을 잃는다(실제로 그랬다).
   // ⚠️ 수주센터로 딴 곳처럼 **상수 목록에 없는 업체도 여기 생겨난다**(접속 정보는 이름에서
   //    파생한다) — 에디터가 보는 것과 같은 함수라 "업체정보엔 있는데 에디터엔 없는" 일이 없다.
-  const list = clientsOf(jobs)
+  const list = clientsOf(jobs, clientIds)
   // 고른 업체가 아직 안 열린 곳일 수 있다(불러온 판·새 게임) — 그때는 첫 칸으로 떨어진다.
   const client = list.find((c) => c.id === id) ?? list[0]!
   // ⚠️ 관리자 계정이 **없는 업체가 있다** — 수주로 생겨난 곳은 팝업 의뢰를 내지 않아
@@ -270,12 +307,56 @@ function Info() {
             {g.rows.map((row) => (
               <div key={row.label} className="company__row">
                 <dt>{row.label}</dt>
-                <dd>{row.value}</dd>
+                <dd>
+                  {row.value}
+                  <CopyButton label={row.label} value={row.value} />
+                </dd>
               </div>
             ))}
           </dl>
         </section>
       ))}
     </div>
+  )
+}
+
+/** 접속 정보 한 칸을 클립보드로. **여기 있는 값은 전부 다른 창에 옮겨 적으려고 있다** —
+ *  브라우저 주소창·로그인·에디터 FTP가 그 목적지다(그 왕복이 이 게임의 의도된 동선이라
+ *  자동 입력으로 질러가지 않는다). 손으로 옮겨 적는 수고만 던다.
+ *
+ * ⚠️ **누른 뒤 표식이 바뀌어야 한다.** 클립보드는 눈에 안 보이므로 아이콘이 잠깐
+ *    체크로 바뀌는 것이 "됐다"는 유일한 신호다(색만으로 말하지 않는 규칙과 같은 이유).
+ *
+ * ⚠️ `navigator.clipboard`는 **없을 수 있다**(비보안 컨텍스트·구형 브라우저). 없으면
+ *    조용히 실패시키지 말고 **버튼을 아예 그리지 않는다** — 눌러도 아무 일 없는 버튼을
+ *    만들지 않는 것이 이 리포의 규칙이다. */
+function CopyButton({ label, value }: { label: string; value: string }) {
+  const [done, setDone] = useState(false)
+  /** 클립보드가 거절했다. ⚠️ 이때는 버튼을 지우고 **값을 직접 고를 수 있게** 둔다. */
+  const [failed, setFailed] = useState(false)
+  if (typeof navigator === 'undefined' || !navigator.clipboard || failed) return null
+
+  return (
+    <button
+      type="button"
+      className="company__copy"
+      // 아이콘만 있는 버튼이라 읽는 이름을 준다(무엇을 복사하는지까지).
+      aria-label={`${label} 복사`}
+      onClick={() => {
+        // ⚠️ **거절될 수 있다**(권한 없음·비보안 컨텍스트). 조용히 삼키면 눌렀는데
+        //    아무 일도 안 일어난 것처럼 보이므로, 그때는 값을 선택해 두어 손으로
+        //    복사할 길을 남긴다(눌러도 소용없는 버튼을 만들지 않는다).
+        navigator.clipboard.writeText(value).then(
+          () => {
+            setDone(true)
+            // 잠깐 뒤 되돌린다 — 표식이 남아 있으면 다음에 눌렀을 때 바뀐 것이 안 보인다.
+            setTimeout(() => setDone(false), COPY_FLASH_MS)
+          },
+          () => setFailed(true),
+        )
+      }}
+    >
+      <AppIcon name={done ? PROGRAM_ICONS.copied : PROGRAM_ICONS.copy} size={14} />
+    </button>
   )
 }

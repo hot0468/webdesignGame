@@ -35,6 +35,7 @@ beforeEach(() => {
     files: [],
     drafts: [],
     slides: [],
+    publishes: [],
     popups: [],
     mails: [],
     bookmarks: [],

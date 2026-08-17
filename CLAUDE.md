@@ -27,15 +27,15 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-17 | **하네스 토큰 정비** — 시스템 규칙 전문을 `references/systems.md`로 내리고 project-context 코어를 색인(44KB→9KB)으로 줄였다. 상한도 줄 수가 아니라 바이트다 | .claude/skills/project-context/SKILL.md·references/systems.md(신규)·shell.md, .claude/skills/game-pipeline/SKILL.md, .claude/agents/game-qa.md |
 | 2026-08-14 | **PPT 창을 파워포인트로** — 리본이 제작 버튼 셋(무는 행동력·나올 등급을 달고), 축소판 레일이 업무 목록, 흰 종이가 그 문서다. 팔레트는 `ppt.css`에 가두고 셸에서 `.ppt`를 걷었다 | src/programs/Ppt.tsx·ppt.css(신규), src/index.css, src/data/programs.ts(size app)·icons.ts, project-context(shell.md) |
-| 2026-08-14 | **수주가 업체를 만든다** — 업체정보에는 일을 받은 곳만 서고, 상수 목록에 없는 낙찰처는 접속 정보를 **이름에서 파생**해 생겨난다(저장 없음). 목록의 정본은 `clientsOf` 하나 — 수주센터로 딴 사이트를 퍼블리싱 못 하던 구멍이 막혔다 | src/data/company.ts(+test), src/programs/Company.tsx·Editor.tsx, src/systems/ftp.ts(+test)·followup.ts(+test), src/store.ts, src/components/JobActions.tsx |
+| 2026-08-14 | **수주가 업체를 만든다** — 업체정보에는 **거래처거나 일을 받은 곳**만 서고, 상수 목록에 없는 낙찰처는 접속 정보를 **이름에서 파생**해 생겨난다(저장 없음). 목록의 정본은 `clientsOf(jobs, clients)` 하나 — 수주센터로 딴 사이트를 퍼블리싱 못 하던 구멍이 막혔다 | src/data/company.ts(+test), src/programs/Company.tsx·Editor.tsx, src/systems/ftp.ts(+test)·followup.ts(+test), src/store.ts, src/components/JobActions.tsx |
 | 2026-08-14 | **미팅을 두 단계로** — 메일에서 할지 말지 먼저 고르고, 하기로 하면 내가 갈지 직원이 갈지 정한다(직원 버튼에 기획력 표기). 안 하는 쪽도 버튼이라 "미팅 없이도 된다"가 화면에 보인다 | src/components/JobActions.tsx |
-| 2026-08-14 | **모바일 반응형(720px)** — 창은 전체화면, 작업 표시줄이 앱 전환기. 계기판은 시간만 남기고 스탯·업무목록은 **독의 네이티브 팝오버**로(전체화면 창 위에서도 행동력이 읽힌다). 좁은 화면에서 창이 화면 밖에 태어나던 버그도 함께 고쳤다 | src/index.css, src/programs/mail·messenger·editor·figma·photoshop·browser.css, src/components/Taskbar.tsx·Hud.tsx·Desktop.tsx, src/data/game.ts(WINDOW_FIT), src/store.ts(+test), project-context(shell.md) |
-| 2026-08-14 | **어워더즈** — 일 미루고 남의 수상작을 구경하는 자리. 행동력 1을 태우면 그 주 시안이 한 등급 좋아진다(남는 상태는 주차 한 칸이고 주가 넘으면 식는다) | src/programs/RefSite.tsx·systems/reference.ts(+test)(신규), src/data/reference.ts(신규), src/store.ts, src/data/sites.ts·icons.ts, src/programs/Browser.tsx·browser.css |
-| 2026-08-14 | **작업물 창** — 만든 것(팝업·시안·문서)을 등급과 함께 모아 본다. A 이상이 몇 개인지가 곧 낙찰 확률 보정이고 화면·스토어가 같은 함수를 쓴다 | src/programs/Folder.tsx·folder.css·systems/portfolio.ts(신규), src/portfolio.store.test.ts(신규), src/data/bidding.ts·programs.ts, src/store.ts, src/programs/WorkSite.tsx, src/App.tsx |
-| 2026-08-14 | **후속 요청 축** — 회신했는데 "다시 해 오세요"(`step`을 도로 내린다·대금 안 나감) · 업체 성격 4종(이름에서 파생) · 납품 2주 뒤 크로스브라우징 버그 신고(미래 주차를 단 메일) | src/data/followup.ts·systems/followup.ts(+test)(신규), src/store.ts(+test), src/components/JobActions.tsx |
-| 2026-08-13 | CS 스탯을 살렸다 — 클레임 글의 `사과하기`가 행동력 1로 평판을 되돌린다(깎인 것보다 적게, 글마다 한 번) | src/data/game.ts·inbox.ts, src/systems/popup.ts, src/store.ts(+test), src/components/JobActions.tsx |
-| 2026-08-13 | 유지보수 계약 — 그 업체 일을 2건 끝내면 맺을 수 있고 매달 정산에 수입이 선다(급여의 반대편) | src/data/game.ts, src/systems/money.ts, src/store.ts(+test), src/programs/Company.tsx, src/index.css |
-| 2026-08-13 | **웹디몰** — 소지금이 사람 손으로 나가는 유일한 자리. 장비는 숙련도(한 번만), 소모품은 정신력. 상한이면 못 산다 | src/data/shop.ts·systems/shop.ts·programs/ShopSite.tsx(신규), src/store.ts, src/data/sites.ts·icons.ts, src/programs/Browser.tsx·browser.css |
+| 2026-08-14 | **월 투자**(광고·복지) — 후반에 돈만 쌓이던 것을 매달 나가는 지출로 풀었다. 효과는 이미 있는 축(소개 확률·정신력·불만)에 붙는다 | src/data/invest.ts·systems/invest.ts(+test)(신규), src/store.ts, src/programs/Company.tsx, src/index.css |
+| 2026-08-14 | **특수 이벤트 셋** — 소개(평판 50+, 거래처가 4→7곳으로 늘어난다)·수상(A급 작업물)·저작권 위반(법무사무실 합의금) | src/data/events.ts·systems/referral.ts(+test)(신규), src/data/company.ts, src/store.ts, src/programs/Company.tsx |
+| 2026-08-14 | **공휴일 피크타임** — 공휴일 직전 주에 팝업 의뢰 3건이 몰린다(단가 1.4배·마감 짧음). 한 주 앞서 예고가 온다 | src/data/holiday.ts·systems/holiday.ts(+test)(신규), src/store.ts |
+| 2026-08-14 | 정신력이 **나쁜 일에도 깎인다**(클레임6·파기10·퇴사8) — 주말에 안 일하면 100에 붙어 있던 죽은 자원이었다. 회복 뒤에 뺀다 | src/data/game.ts(MENTAL_HIT), src/systems/weekend.ts(+test), src/store.ts |
+| 2026-08-14 | 해금 문턱을 실제 수입 속도에 맞춰 내림(300만→60만 등) — 첫 해금 10주→**4주**, 수주센터 36주→**12주**. 실제로 20주 굴려 실측 | src/data/game.ts(COMPANY_LEVELS), src/systems/unlock.test.ts |
+| 2026-08-14 | 쇼핑 아이템 4종 추가 — 숙련도 **둘째 장비 단**(+8, 첫 단을 산 뒤에도 살 것이 남게)과 큰 정신력 소모품. `shop.test.ts` 신규(합계가 상한을 안 넘는지) | src/data/shop.ts, src/systems/shop.test.ts(신규) |
 
 

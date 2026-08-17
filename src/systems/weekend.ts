@@ -1,8 +1,10 @@
 import { CLIENTS } from '../data/company'
 import {
+  MENTAL_HIT,
   MENTAL_RECOVERY,
   WEEKEND_DUE_WEEKS,
   WEEKEND_EVENT_CHANCE,
+  WEEKEND_FEE_MULT,
   WEEKEND_MENTAL_COST,
 } from '../data/game'
 import type { Request } from '../data/inbox'
@@ -60,11 +62,15 @@ const TEXT: Record<(typeof WEEKEND_KINDS)[number], { subject: string; body: stri
  *
  * ⚠️ id에 주차가 들어간다(`we:<주차>`) — 한 주에 한 건이라는 사실이 id에 있고,
  *    `readIds`·`rejectedIds`·`jobs`가 전부 이 id 하나로 그 주말을 가리킨다. */
-export function weekendEvent(week: number): Request | undefined {
+export function weekendEvent(week: number, clients?: readonly string[]): Request | undefined {
   const roll = roller(`weekend:${week}`)
   if (!roll.chance(WEEKEND_EVENT_CHANCE)) return undefined
   const kind = roll.pick(WEEKEND_KINDS)
-  const client = roll.pick(CLIENTS)
+  // ⚠️ 거래하는 곳에서만 온다(소개 전 업체는 연락처를 모른다). 목록을 안 주면 전부에서
+  //    고른다 — 옛 호출부와 테스트를 그대로 살리기 위한 기본값이다.
+  const pool = clients ? CLIENTS.filter((c) => clients.includes(c.id)) : CLIENTS
+  if (pool.length === 0) return undefined
+  const client = roll.pick(pool)
   const text = TEXT[kind]
   return {
     id: `we:${week}`,
@@ -76,6 +82,9 @@ export function weekendEvent(week: number): Request | undefined {
     body: text.body,
     at: `${formatWeek(week)} 주말`,
     dueWeeks: WEEKEND_DUE_WEEKS,
+    // ⚠️ **마감이 짧은 값이다** — 이 배율이 없으면 주말 근무는 정신력만 물고 얻는 것이
+    //    없는 순손해가 된다(그런 채로 굴러갔다).
+    feeMult: WEEKEND_FEE_MULT,
     kind,
   }
 }
@@ -84,6 +93,23 @@ export function weekendEvent(week: number): Request | undefined {
  *  페널티 표(`MENTAL_PENALTY`)만 흐려진다. 자를 자리는 이 함수와 `recovered` 둘뿐이다. */
 export const worked = (mental: number) => Math.max(0, mental - WEEKEND_MENTAL_COST)
 
-/** 주차를 넘길 때 도는 정신력. ⚠️ **`mentalMax` 위로 올라가지 않는다.** */
-export const recovered = (mental: number, mentalMax: number) =>
-  Math.min(mentalMax, mental + MENTAL_RECOVERY)
+/** 그 주에 일어난 나쁜 일이 깎는 정신력의 **합**.
+ *
+ * ⚠️ 사건을 새로 만들지 않는다 — 이미 평판을 깎는 넷(클레임·계약 파기·퇴사)에 값을
+ *    하나 더 붙일 뿐이다. 세는 방식도 그쪽과 같다(클레임은 업체·주 단위로 한 번).
+ *
+ * ⚠️ **회복보다 먼저 세지 마라.** 호출 쪽은 `recovered`로 회복시킨 뒤 이 값을 뺀다 —
+ *    순서를 뒤집으면 바닥에서 회복분만큼 되살아나 벌이 사라진다. */
+export const mentalHit = (counts: {
+  claims: number
+  breaches: number
+  quits: number
+}): number =>
+  counts.claims * MENTAL_HIT.claim +
+  counts.breaches * MENTAL_HIT.breach +
+  counts.quits * MENTAL_HIT.quit
+
+/** 주차를 넘길 때 도는 정신력. **회복시킨 뒤 그 주의 나쁜 일을 뺀다.**
+ *  ⚠️ **`mentalMax` 위로도 0 밑으로도 나가지 않는다**(자르는 자리는 여기와 `worked` 둘뿐). */
+export const recovered = (mental: number, mentalMax: number, hit = 0, bonus = 0) =>
+  Math.max(0, Math.min(mentalMax, mental + MENTAL_RECOVERY + bonus) - hit)

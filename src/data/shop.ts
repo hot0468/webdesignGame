@@ -46,6 +46,37 @@ export const SHOP_ITEMS = [
     skill: 'codingSkill',
     gain: 15,
   },
+  // ── 둘째 장비 단 ─────────────────────────────────────────
+  // ⚠️ 첫 장비(+15)를 산 뒤에도 **살 것이 남아 있어야** 상점이 초반 한 번 들르고 끝나는
+  //    곳이 안 된다. 값은 첫 단의 두 배 남짓이고 오르는 폭은 절반이다(+8) — 같은 축을
+  //    두 번째로 밀 때는 덜 오르는 것이 자연스럽고, 그래야 100 상한에 바로 닿지 않는다.
+  {
+    id: 'monitor',
+    name: '색 보정 모니터',
+    desc: '색이 화면마다 달라 보이지 않습니다. 피그마 숙련도가 조금 더 오릅니다.',
+    price: 1_800_000,
+    once: true,
+    skill: 'figmaSkill',
+    gain: 8,
+  },
+  {
+    id: 'plugin-pack',
+    name: '리터칭 플러그인 묶음',
+    desc: '반복 작업이 한 번에 끝납니다. 포토샵 숙련도가 조금 더 오릅니다.',
+    price: 1_400_000,
+    once: true,
+    skill: 'photoshopSkill',
+    gain: 8,
+  },
+  {
+    id: 'ide-license',
+    name: '유료 코드 편집기',
+    desc: '자동 완성이 손보다 빠릅니다. 코딩 숙련도가 조금 더 오릅니다.',
+    price: 1_200_000,
+    once: true,
+    skill: 'codingSkill',
+    gain: 8,
+  },
   {
     id: 'coffee',
     name: '캡슐 커피 한 박스',
@@ -59,6 +90,15 @@ export const SHOP_ITEMS = [
     desc: '앉아 있는 시간이 덜 괴롭습니다. 정신력이 크게 회복됩니다.',
     price: 400_000,
     mental: 45,
+  },
+  // ⚠️ 소모품은 **`once`가 없다** — 반복해서 산다. 정신력 회복은 상한(100)에서 잘리므로
+  //    큰 것 하나보다 필요할 때 맞춰 사는 쪽이 낫도록 폭을 갈라 둔다.
+  {
+    id: 'day-off',
+    name: '하루 연차',
+    desc: '하루 통째로 쉽니다. 정신력이 가장 크게 회복됩니다.',
+    price: 900_000,
+    mental: 70,
   },
 ] as const satisfies readonly ShopItem[]
 

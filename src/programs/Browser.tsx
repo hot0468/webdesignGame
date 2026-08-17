@@ -3,6 +3,7 @@ import { AppIcon } from '../icons/AppIcon'
 import { BROWSER_ICONS, PROGRAM_ICONS, SITE_ICONS } from '../data/icons'
 import { SHORTCUTS, SEARCH_HOME } from '../data/sites'
 import { normalizeUrl, resolveUrl, siteTitle, type Destination } from '../systems/url'
+import { siteMinLevel, siteOpen } from '../systems/unlock'
 import { useGame } from '../store'
 import { AdminSite } from './AdminSite'
 import { HireSite } from './HireSite'
@@ -44,6 +45,8 @@ export function Browser() {
   /** 못 찾은 주소를 그대로 되뇌어 준다(오타를 눈으로 잡게). */
   const badUrl = at.kind === 'unknown' ? atUrl.trim() : ''
 
+  // 해금은 **누적 매출에서 파생한다**(따로 저장하지 않는다 — `systems/unlock.ts`).
+  const revenue = useGame((s) => s.revenue)
   const bookmarks = useGame((s) => s.bookmarks)
   const toggleBookmark = useGame((s) => s.toggleBookmark)
   const starred = bookmarks.includes(normalizeUrl(atUrl))
@@ -93,12 +96,15 @@ export function Browser() {
         >
           <AppIcon name={BROWSER_ICONS.forward} size={18} />
         </button>
-        {/* 새로고침은 실제로 동작한다 — 지금 주소를 다시 푼다. */}
+        {/* ⚠️ 새로고침은 `go`를 부르면 **아무 일도 안 한다** — 같은 주소면 기록을 쌓지
+            않으려고 `go`가 곧바로 돌아가고, 평상시 `typed`는 지금 주소와 같기 때문이다
+            (그런 채로 굴러갔다). 그래서 주소창의 글자를 **지금 주소로 되돌리는** 일을
+            시킨다: 치다 만 글자가 지워지고 화면은 지금 주소에서 다시 파생한다. */}
         <button
           type="button"
           className="nv__nav"
           aria-label="새로고침"
-          onClick={() => go(typed)}
+          onClick={() => setTyped(atUrl)}
         >
           <AppIcon name={BROWSER_ICONS.reload} size={18} />
         </button>
@@ -154,8 +160,20 @@ export function Browser() {
       {at.kind === 'admin' ? (
         // key로 업체를 갈라 준다 — 다른 업체로 옮기면 로그인이 따라가지 않는다.
         <AdminSite key={at.clientId} clientId={at.clientId} />
+      ) : at.kind === 'site' && !siteOpen(at.siteId, revenue) ? (
+        // ⚠️ **주소를 직접 쳐도 막는다.** 첫화면 목록만 잠그면 우회로가 남는다 —
+        //    "잠겼다고 적혀 있는데 주소를 치면 들어가진다"는 규칙이 없는 것과 같다.
+        //    판정은 목록과 **같은 함수**(`siteOpen`)가 낸다.
+        <div className="nv__lost">
+          <AppIcon name={PROGRAM_ICONS.noSite} size={40} />
+          <p className="nv__lost-title">아직 열 수 없는 사이트</p>
+          <p className="nv__said">
+            <b>회사레벨 {siteMinLevel(at.siteId)}</b>부터 들어갈 수 있다. 회사레벨은 지금까지
+            벌어들인 대금이 쌓이면 오른다 — 사내시스템의 회사현황에서 얼마나 남았는지 본다.
+          </p>
+        </div>
       ) : at.kind === 'site' ? (
-        // 주소가 붙은 바로가기 셋. ⚠️ `SHORTCUTS`에 주소가 없는 칸은 애초에 여기 닿지
+        // 주소가 붙은 바로가기 넷. ⚠️ `SHORTCUTS`에 주소가 없는 칸은 애초에 여기 닿지
         // 않는다(첫화면에 "준비 중" 글자로 남는다).
         at.siteId === 'work' ? (
           <WorkSite />
@@ -212,19 +230,31 @@ export function Browser() {
             </p>
           )}
 
-          {/* ⚠️ 지금은 **세 칸 모두 주소가 있다**(수주센터·인간인·웹디몰). 주소 없는 칸을
-              다시 만들면 `s.url`에서 타입 검사가 멈춘다 — 그때 "준비 중" 갈래를 되살린다
-              (눌러도 아무 일 없는 버튼을 그리지 않는 것이 이 리포의 규칙이다). */}
+          {/* ⚠️ 잠긴 칸도 **지운다는 뜻이 아니라 보여 준다** — 카이로소프트식 해금의 핵심은
+              "다음에 뭐가 열리는지 보이는 것"이다. 목록에서 빼면 존재를 모르니 목표가 안 된다.
+              ⚠️ 대신 **누를 수는 없다**(button이 아니라 읽는 글자) — 눌러도 아무 일 없는
+              버튼을 그리지 않는 규칙 그대로다. 조건은 흐린 색이 아니라 **글자가** 말한다. */}
           <ul className="nv__shortcuts">
-            {SHORTCUTS.map((s) => (
-              <li key={s.id} className="nv__shortcut">
-                <button type="button" className="nv__shortcut-go" onClick={() => goTo(s.url)}>
-                  {/* 다색 아이콘이다 — CSS color를 입히지 않는다. */}
-                  <AppIcon name={SITE_ICONS[s.icon]} size={32} />
-                  <span className="nv__shortcut-name">{s.name}</span>
-                </button>
-              </li>
-            ))}
+            {SHORTCUTS.map((s) => {
+              const open = siteOpen(s.id, revenue)
+              return (
+                <li key={s.id} className="nv__shortcut">
+                  {open ? (
+                    <button type="button" className="nv__shortcut-go" onClick={() => goTo(s.url)}>
+                      {/* 다색 아이콘이다 — CSS color를 입히지 않는다. */}
+                      <AppIcon name={SITE_ICONS[s.icon]} size={32} />
+                      <span className="nv__shortcut-name">{s.name}</span>
+                    </button>
+                  ) : (
+                    <div className="nv__shortcut-go nv__shortcut-go--locked">
+                      <AppIcon name={SITE_ICONS[s.icon]} size={32} />
+                      <span className="nv__shortcut-name">{s.name}</span>
+                      <span className="nv__soon">회사레벨 {s.minLevel}</span>
+                    </div>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}

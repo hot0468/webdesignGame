@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { AppIcon } from '../icons/AppIcon'
 import { START_ICONS } from '../data/icons'
 import { formatDate } from '../systems/calendar'
-import { formatSavedAt, parseSlot, SLOT_COUNT, slotKey, type SaveSlot } from '../systems/save'
+import { formatSavedAt, readSlots, type SaveSlot } from '../systems/save'
 import { useGame } from '../store'
 
 /** 시작 메뉴 — **세이브를 다루는 유일한 화면**이다.
@@ -50,7 +50,9 @@ function Panel({ onClose }: { onClose: () => void }) {
 
   // 저장소에서 직접 읽는다. ⚠️ `revision`이 의존성인 것이 핵심이다 — 저장·삭제 뒤에
   // 목록이 그대로면 방금 한 일이 화면에 안 보인다.
-  const slots = readSlots(revision)
+  // `revision`이 바뀔 때마다 저장소를 다시 읽는다(정본은 localStorage 쪽이다).
+  void revision
+  const slots = readSlots()
 
   // 바깥을 눌러도 Escape로도 닫힌다. ⚠️ 묻는 중에는 **메뉴를 닫지 않는다** — 닫아 버리면
   // 질문이 사라지면서 사람은 자기가 무엇을 취소한 것인지 모른다(묻는 창이 먼저 답을 받는다).
@@ -224,7 +226,4 @@ const ASK_TEXT = (ask: Ask) => {
 /** 저장소의 슬롯 셋을 읽는다. ⚠️ `revision`은 **쓰지 않지만 받는다** — 이 값이 인자로
  *  들어와야 저장·삭제 뒤 렌더에서 다시 읽힌다는 것이 코드에 보인다.
  *  ⚠️ localStorage가 없는 환경(테스트·SSR)에서도 터지지 않게 전부 빈 칸으로 떨어진다. */
-function readSlots(_revision: number): (SaveSlot | null)[] {
-  if (typeof localStorage === 'undefined') return Array.from({ length: SLOT_COUNT }, () => null)
-  return Array.from({ length: SLOT_COUNT }, (_, i) => parseSlot(localStorage.getItem(slotKey(i + 1))))
-}
+

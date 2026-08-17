@@ -48,6 +48,7 @@ export function WorkSite() {
   const slides = useGame((s) => s.slides)
   // 포트폴리오 보정에만 쓴다(참가 조건은 시안·기획안만 본다 — 문턱과 점수는 다른 축이다).
   const files = useGame((s) => s.files)
+  const publishes = useGame((s) => s.publishes)
   const bids = useGame((s) => s.bids)
   const bidListing = useGame((s) => s.bidListing)
 
@@ -63,8 +64,8 @@ export function WorkSite() {
     slideGrades: slides.map((d) => d.grade),
   }
   // ⚠️ 스토어가 굴릴 때와 **같은 함수·같은 인자**여야 한다 — 쌓인 작업물이 확률에
-  //    얹히므로(`portfolioBonus`) 세 목록을 다 넘긴다.
-  const stats = bidStats({ design, planning, files, drafts, slides })
+  //    얹히므로(`portfolioBonus`) 만든 목록을 다 넘긴다.
+  const stats = bidStats({ design, planning, files, drafts, slides, publishes })
   // 회사등급 문. ⚠️ 공고별 조건과 달리 **회사 하나에 한 번** 걸린다(`systems/bidding.ts`).
   const grade = companyGrade(reputation)
   const allowed = canBid(reputation)

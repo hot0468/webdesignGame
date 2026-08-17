@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
 import { clientsOf } from '../data/company'
-import { apCost, PUBLISH_AP, skillFor } from '../data/game'
+import { apCost, PUBLISH_AP, PUBLISH_QUALITY, skillFor } from '../data/game'
+import { CHANNEL_LABEL } from '../data/inbox'
 import { EDITOR_ICONS } from '../data/icons'
 import { formatDate } from '../systems/calendar'
+import { gradeOf } from '../systems/craft'
 import { checkFtp } from '../systems/ftp'
 import { isTurnOf, showsIn } from '../systems/pipeline'
 import { asStep, useGame } from '../store'
@@ -43,7 +45,12 @@ export function Editor() {
   const jobs = useGame((s) => s.jobs)
   const ap = useGame((s) => s.ap)
   const cost = apCost(PUBLISH_AP, useGame((s) => s[skillFor('editor')]))
+  // ⚠️ **누르기 전에 나올 등급을 적는다** — 제작 창들(포토샵·피그마·PPT)이 "행동력 N ·
+  //    등급 X"를 적는 것과 같은 규칙이다. 모르고 누르는 버튼은 선택이 아니다.
+  //    등급은 `gradeOf` 하나에서 나온다(밴드는 고정, 칸은 퍼블리싱 스탯).
+  const grade = gradeOf(PUBLISH_QUALITY, useGame((s) => s.publishing))
   const ftpClients = useGame((s) => s.ftpClients)
+  const clientIds = useGame((s) => s.clients)
   const connectFtp = useGame((s) => s.connectFtp)
   const publishJob = useGame((s) => s.publishJob)
 
@@ -56,7 +63,7 @@ export function Editor() {
 
   // ⚠️ 업체 목록의 정본은 `clientsOf(jobs)` 하나다 — 상수 `CLIENTS`를 직접 보면 수주센터로
   //    딴 업체가 여기 안 떠서 그 사이트 업무를 영영 끝낼 수 없다(겪은 구멍이다).
-  const clients = clientsOf(jobs)
+  const clients = clientsOf(jobs, clientIds)
   const connected = clients.filter((c) => ftpClients.includes(c.id))
   const open = connected.find((c) => c.id === openId) ?? null
   // **퍼블리싱 차례인 업무만** 선다(`systems/pipeline.ts`) — 시안이 안 끝난 사이트 업무도,
@@ -206,8 +213,9 @@ export function Editor() {
                       disabled={!isTurnOf(asStep(j), 'editor') || ap < cost}
                       onClick={() => {
                         publishJob(j.id)
-                        // 퍼블리싱은 **퀄리티가 없어 등급도 없다** — 완성 문구만 뜬다.
-                        work.show({ title: '퍼블리싱' })
+                        // 퀄리티 선택은 없지만 **등급은 난다**(퍼블리싱 스탯이 정한다) —
+                        // 결과를 안 보여 주면 스탯을 올릴 이유가 화면에서 사라진다.
+                        work.show({ title: '퍼블리싱', grade })
                       }}
                     >
                       <AppIcon name={EDITOR_ICONS.publish} size={16} />
@@ -215,8 +223,8 @@ export function Editor() {
                       <span className="ed__job-meta">마감 {formatDate(j.due)}</span>
                       <span className="ed__job-cost">
                         {isTurnOf(asStep(j), 'editor')
-                          ? `퍼블리싱 · 행동력 ${cost}`
-                          : '올렸다 · 회신해야 끝난다'}
+                          ? `행동력 ${cost} · 등급 ${grade}`
+                          : `올렸다 · ${CHANNEL_LABEL[j.channel]}에서 회신해야 끝난다`}
                       </span>
                     </button>
                   </li>
@@ -230,10 +238,12 @@ export function Editor() {
         ) : (
           <div className="ed__welcome-pane">
             <p className="ed__welcome">webdi</p>
-            {/* ⚠️ 없는 규칙을 화면이 말하지 않는다 — 숙련도 감면은 그 축이 생길 때 적는다. */}
+            {/* 값은 `apCost`가 낸다(코딩 숙련도 감면이 이미 걸린 값이다) — 화면이
+                따로 계산하지 않는다. */}
             <p className="ed__note">
               업체 폴더를 열면 그 업체의 남은 업무가 여기 뜬다. 올리면 행동력 {cost}를
-              쓰고, 그 결과를 의뢰 글에 회신해야 업무가 끝난다.
+              쓰고 등급 {grade}짜리 결과가 나온다 — 그 결과를 **그 일이 온 곳**(메일·고객게시판·
+              톡톡)에서 회신해야 업무가 끝난다.
             </p>
           </div>
         )}

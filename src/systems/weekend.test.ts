@@ -8,10 +8,13 @@ import {
   MENTAL_RECOVERY,
   mentalPenalty,
   WEEKEND_DUE_WEEKS,
+  MENTAL_HIT,
+  WEEKEND_FEE_MULT,
   WEEKEND_MENTAL_COST,
 } from '../data/game'
+import { reward } from './money'
 import { PIPELINE } from './pipeline'
-import { recovered, weekendEvent, worked } from './weekend'
+import { mentalHit, recovered, weekendEvent, worked } from './weekend'
 
 /** 이 파일이 지키는 것: **주말 이벤트의 재현성**과 **정신력 → 행동력 규칙**이다.
  *  둘 다 주차 진행과 돈을 만드는 불변식이라 규칙을 뒤집어 실패를 확인한다. */
@@ -95,5 +98,48 @@ describe('정신력 → 행동력 상한', () => {
     expect(apMaxOf(0, 0)).toBe(AP_MIN)
     expect(AP_MIN).toBeGreaterThan(0)
     expect(COMPANY_LEVELS[0].apMax - worst).toBeLessThanOrEqual(AP_MIN)
+  })
+})
+
+// ⚠️ 뒤집기: 배율이 안 실리면 주말 근무는 정신력만 물고 얻는 것이 없는 **순손해**가 된다
+//    (실제로 그런 채로 굴러갔다 — 상수는 있는데 아무도 안 썼다).
+describe('돌발 의뢰의 단가', () => {
+  it('배율을 달고 나온다 — 마감이 짧은 값이다', () => {
+    const ev = weekendEvent(eventWeek)!
+    expect(ev.feeMult).toBe(WEEKEND_FEE_MULT)
+    expect(WEEKEND_FEE_MULT).toBeGreaterThan(1)
+  })
+
+  it('대금이 실제로 그만큼 는다', () => {
+    const plain = reward('fix', 'C')
+    const rush = reward('fix', 'C', WEEKEND_FEE_MULT)
+    expect(rush.fee).toBeGreaterThan(plain.fee)
+    expect(rush.fee).toBe(Math.round(plain.fee * WEEKEND_FEE_MULT))
+  })
+})
+
+/** 나쁜 일이 깎는 정신력. ⚠️ 이 축이 없으면 주말에 안 일하는 판에서 정신력이
+ *  100에 붙어 죽은 자원이 된다(그런 채로 굴러갔다). */
+describe('나쁜 일과 정신력', () => {
+  it('사건마다 정해진 만큼 깎고 여러 건이면 합쳐진다', () => {
+    expect(mentalHit({ claims: 0, breaches: 0, quits: 0 })).toBe(0)
+    expect(mentalHit({ claims: 1, breaches: 0, quits: 0 })).toBe(MENTAL_HIT.claim)
+    expect(mentalHit({ claims: 2, breaches: 1, quits: 1 })).toBe(
+      MENTAL_HIT.claim * 2 + MENTAL_HIT.breach + MENTAL_HIT.quit,
+    )
+  })
+
+  // ⚠️ 뒤집기: 회복보다 **먼저** 빼면 바닥에서 회복분만큼 되살아나 벌이 사라진다.
+  it('회복시킨 뒤에 뺀다 — 순서가 뒤집히면 벌이 사라진다', () => {
+    const max = 100
+    // 회복(+12) 뒤 클레임 하나(-6)를 맞으면 순증은 6이다.
+    expect(recovered(50, max, MENTAL_HIT.claim)).toBe(50 + MENTAL_RECOVERY - MENTAL_HIT.claim)
+    // 상한에 붙어 있어도 벌은 그대로 받는다(먼저 뺐다면 100이 됐을 것이다).
+    expect(recovered(max, max, MENTAL_HIT.claim)).toBe(max - MENTAL_HIT.claim)
+  })
+
+  it('0 밑으로도 상한 위로도 안 나간다', () => {
+    expect(recovered(0, 100, 999)).toBe(0)
+    expect(recovered(100, 100, 0)).toBe(100)
   })
 })

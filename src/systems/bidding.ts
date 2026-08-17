@@ -195,6 +195,9 @@ export function asRequest(listing: Listing, week: number): Request {
     body: listing.body,
     at: `${formatWeek(week)} 낙찰`,
     dueWeeks: LISTING_DUE_WEEKS,
+    // ⚠️ 규모가 큰 공고는 **원래 비싸다**. 화면(`WorkSite`)이 "예정 단가"로 같은 배율을
+    //    곱해 적으므로 여기서 빠뜨리면 적힌 값과 들어오는 값이 갈린다.
+    feeMult: findTier(listing.tier).feeMult,
     kind: listing.kind,
   }
 }
@@ -256,6 +259,9 @@ export function winMail(listing: Listing, week: number): Request {
 ${listing.body}`,
     at: `${formatWeek(week)} 낙찰`,
     dueWeeks: LISTING_DUE_WEEKS,
+    // ⚠️ 규모가 큰 공고는 **원래 비싸다**. 화면(`WorkSite`)이 "예정 단가"로 같은 배율을
+    //    곱해 적으므로 여기서 빠뜨리면 적힌 값과 들어오는 값이 갈린다.
+    feeMult: findTier(listing.tier).feeMult,
     kind: listing.kind,
     bid: true,
   }

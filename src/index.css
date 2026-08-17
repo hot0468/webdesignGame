@@ -1012,7 +1012,39 @@ body {
 }
 
 .company__row dd {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
   font-variant-numeric: tabular-nums;
+}
+
+/* 접속 정보 복사. ⚠️ **값 옆에 붙어 있어야** 무엇을 복사하는지가 자명하다 — 행 끝으로
+   밀면 어느 줄의 버튼인지 눈이 다시 찾아야 한다.
+   ⚠️ 색을 주지 않는다(값이 주인공이고 이건 거드는 손이다). 평상시엔 흐리고 행에
+   마우스가 올라오면 또렷해진다. */
+.company__copy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--sp-1);
+  background: none;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity var(--dur-fast) ease, background-color var(--dur-fast) ease;
+}
+
+.company__row:hover .company__copy,
+.company__copy:focus-visible {
+  opacity: 1;
+}
+
+.company__copy:hover {
+  background: var(--color-muted);
 }
 
 .company__head {
@@ -1671,6 +1703,43 @@ body {
   opacity: 0.9;
 }
 
+.over__slots {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 되돌아갈 칸. ⚠️ 새 게임(채운 면)과 **다른 얼굴**이다 — 지금 판을 버리는 일과
+   남겨 둔 판으로 가는 일은 다른 선택이고, 눈이 먼저 가야 할 곳은 이쪽이다. */
+.over__slot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--sp-2);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  transition: background-color 200ms ease-out;
+}
+
+.over__slot:hover {
+  background: var(--color-muted);
+}
+
+.over__slot-when {
+  flex: none;
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+}
+
 .over__note {
   color: var(--color-muted-foreground);
   font-size: var(--fs-xs);
@@ -1849,4 +1918,41 @@ body {
     background: transparent;
     overscroll-behavior: contain;
   }
+}
+
+/* ── 월 투자 ───────────────────────────────────────────────
+   ⚠️ 상점(한 번 사고 끝)과 **다른 축**이라 사내시스템의 "매달의 돈" 자리에 선다.
+      버튼도 구입이 아니라 켬/끔이다 — 끄는 길이 이 축의 선택 전부이기 때문이다. */
+.company__invests {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.company__invest {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+
+.company__invest-body {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-sm);
+}
+
+/* 판(--color-card) 안이라 muted-foreground를 쓸 수 있다(4.76:1). */
+.company__invest-desc {
+  color: var(--color-muted-foreground);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+}
+
+/* 꺼진 상태. ⚠️ 채운 면은 **켜진 것**이 진다 — 꺼진 것이 더 눈에 띄면 무엇이 도는
+   중인지가 흐려진다. 그래서 꺼짐이 테두리만 남는 쪽이다. */
+.company__sign:not(.company__sign--on) {
+  background: none;
+  color: var(--color-primary);
 }

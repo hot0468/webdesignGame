@@ -20,6 +20,7 @@ import { Messenger } from './programs/Messenger'
 import { Photoshop } from './programs/Photoshop'
 import { Ppt } from './programs/Ppt'
 import { Schedule } from './programs/Schedule'
+import { Talk } from './programs/Talk'
 import { useGame } from './store'
 
 /** 프로그램 id → 창 내용. PROGRAMS(데이터)에 항목을 더하면 여기 컴포넌트도 짝지어야 한다.
@@ -29,6 +30,8 @@ const VIEWS: Record<ProgramId, () => React.JSX.Element> = {
   photoshop: Photoshop,
   ppt: Ppt,
   messenger: Messenger,
+  // ⚠️ `messenger`(직원)와 **다른 창이다** — 상대가 다르다(클라이언트).
+  talk: Talk,
   editor: Editor,
   mail: Mail,
   schedule: Schedule,
