@@ -98,7 +98,10 @@ export function Stats() {
         label="시간"
         value={`${formatDayDate(g.week, g.day)} ${formatClock(g.spent)}`}
         bar={<Bar value={g.dayMins - g.spent} max={g.dayMins} tone="accent" />}
-        warn={`오늘 ${formatHours(g.dayMins - g.spent)} · 이번 주 ${formatSpan(weekLeft({ day: g.day, spent: g.spent }, g.dayMins), g.dayMins)} 남음${isWeekendDay(g.day) ? ' · 주말이다' : ''}`}
+        // ⚠️ **퇴근 시각을 적는다.** 값 줄의 벽시계(12:40)만 보면 현실 감각으로 "아직
+        //    반나절 남았다"로 읽히는데, 하루가 네 시간이면 그때 남은 것은 20분뿐이다
+        //    (실제로 그렇게 오해했다). 시계가 몇 시에 멈추는지가 함께 있어야 읽힌다.
+        warn={`${formatClock(g.dayMins)} 퇴근 · 오늘 ${formatHours(g.dayMins - g.spent)} · 이번 주 ${formatSpan(weekLeft({ day: g.day, spent: g.spent }, g.dayMins), g.dayMins)} 남음${isWeekendDay(g.day) ? ' · 주말이다' : ''}`}
       />
       {/* ⚠️ 정신력이 깎는 것은 **다음 주 하루 근무 시간**이라, 그 몫을 적지 않으면 다음
           주에 칸이 왜 줄었는지 알 자리가 없다(깎일 때가 아니라 깎이기 전에 읽힌다).

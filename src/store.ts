@@ -1914,7 +1914,13 @@ export function useClock() {
     left: weekLeft({ day, spent }, dayMins),
     /** 그만큼 쓸 수 있는가. 주를 넘기는 작업은 시작하지 못한다. */
     can: (mins: number) => canSpend({ day, spent }, mins, dayMins),
-    /** 그 작업이 오늘 안에 끝나는가 — 버튼이 "이틀 걸린다"고 적을지 정한다. */
+    /** 그 작업이 오늘 안에 끝나는가. */
     fitsToday: (mins: number) => mins <= dayMins - spent,
+    /** 오늘 안에 안 끝나면 붙는 꼬리표(끝나면 빈 문자열).
+     *
+     * ⚠️ **문안이 여기 하나다** — 창마다 다르게 적으면 같은 사실이 창마다 다르게 읽힌다.
+     * ⚠️ 이 표식이 없으면 "12:40인데 한 시간짜리를 눌렀더니 다음 날이 됐다"가 된다
+     *    (겪었다): 벽시계는 반나절 남은 것처럼 보이는데 하루는 네 시간이라 20분만 남는다. */
+    spill: (mins: number) => (mins <= dayMins - spent ? '' : ' · 내일 이어서'),
   }
 }

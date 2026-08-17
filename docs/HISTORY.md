@@ -4,6 +4,7 @@
 코드에 앉힐 자리가 없는 결정(전역 방향 전환, 기각된 대안 전체)만 여기서 정본이 된다.
 
 <!-- 밀려난 줄은 이 아래에 -->
+| 2026-08-14 | **월 투자**(광고·복지) — 후반에 돈만 쌓이던 것을 매달 나가는 지출로 풀었다. 효과는 이미 있는 축(소개 확률·정신력·불만)에 붙는다 | src/data/invest.ts·systems/invest.ts(+test)(신규), src/store.ts, src/programs/Company.tsx, src/index.css |
 | 2026-08-14 | **특수 이벤트 셋** — 소개(평판 50+, 거래처가 4→7곳으로 늘어난다)·수상(A급 작업물)·저작권 위반(법무사무실 합의금) | src/data/events.ts·systems/referral.ts(+test)(신규), src/data/company.ts, src/store.ts, src/programs/Company.tsx |
 | 2026-08-14 | **공휴일 피크타임** — 공휴일 직전 주에 팝업 의뢰 3건이 몰린다(단가 1.4배·마감 짧음). 한 주 앞서 예고가 온다 | src/data/holiday.ts·systems/holiday.ts(+test)(신규), src/store.ts |
 | 2026-08-14 | 정신력이 **나쁜 일에도 깎인다**(클레임6·파기10·퇴사8) — 주말에 안 일하면 100에 붙어 있던 죽은 자원이었다. 회복 뒤에 뺀다 | src/data/game.ts(MENTAL_HIT), src/systems/weekend.ts(+test), src/store.ts |

@@ -138,6 +138,7 @@ export function Ppt() {
                   <span className="ppt__cost">
                     {formatSpan(timeCost(q.mins + slideMins(count), skill), clock.dayMins)} ·{' '}
                     {gradeOf(q.id, design, slideShift(count, targetSlides(picked.id)))}
+                    {clock.spill(timeCost(q.mins + slideMins(count), skill))}
                   </span>
                 </button>
               ))

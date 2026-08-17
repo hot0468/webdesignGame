@@ -232,7 +232,7 @@ export function Editor() {
                       <span className="ed__job-meta">마감 {formatDate(j.due)}</span>
                       <span className="ed__job-cost">
                         {isTurnOf(asStep(j), 'editor')
-                          ? `${formatSpan(cost, clock.dayMins)} · 등급 ${grade}`
+                          ? `${formatSpan(cost, clock.dayMins)} · 등급 ${grade}${clock.spill(cost)}`
                           : `올렸다 · ${CHANNEL_LABEL[j.channel]}에서 회신해야 끝난다`}
                       </span>
                     </button>

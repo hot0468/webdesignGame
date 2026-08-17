@@ -254,7 +254,10 @@ function MeetingAction({ job }: { job: Job }) {
       >
         내가 간다
       </button>
-      <span className="jobact__due">{formatSpan(MEETING_MINS, clock.dayMins)}</span>
+      <span className="jobact__due">
+        {formatSpan(MEETING_MINS, clock.dayMins)}
+        {clock.spill(MEETING_MINS)}
+      </span>
       {free.map((e) => (
         <button
           key={e.id}

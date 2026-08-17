@@ -236,6 +236,7 @@ export function Figma() {
                       {q.label}
                       <span className="fig__cost">
                         {formatSpan(timeCost(q.mins, skill), clock.dayMins)} · {gradeOf(q.id, design)}
+                    {clock.spill(timeCost(q.mins, skill))}
                       </span>
                     </button>
                   ))}

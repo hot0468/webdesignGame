@@ -174,6 +174,7 @@ export function Photoshop() {
                 {q.label}
                 <span className="ps__cost">
                   {formatSpan(timeCost(q.mins, skill), clock.dayMins)} · {gradeOf(q.id, design)}
+                    {clock.spill(timeCost(q.mins, skill))}
                 </span>
               </button>
             ))}
