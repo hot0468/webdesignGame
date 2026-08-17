@@ -115,58 +115,67 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
   것이 자리다
 
 ## 파일 맵
+> 사유·함정의 정본은 **그 파일의 주석**이다 — 여기 다시 적지 않는다. 게임 규칙은 `systems.md`.
+
 | 파일 | 역할 |
 |---|---|
 | `src/index.css` | 토큰 단일 출처 + 셸 스타일 전부 |
-| `src/data/game.ts` | 시작 수치 · 달력 단위 · 창 생성/드래그 상수 |
-| `src/data/programs.ts` | `PROGRAMS`(바탕화면 아이콘의 단일 출처) · `ProgramId` · `badge`(그 아이콘이 지는 받은 글 채널) |
-| `src/data/inbox.ts` | 받은 의뢰 글(메일·고객게시판 공용) + `inbox()`·`unreadCount()`. 뱃지 숫자의 단일 출처 |
-| `src/components/MessageList.tsx` | 받은 글 목록(고객게시판이 쓴다 — 셸 언어). 메일은 자기 세 칸 화면을 따로 가진다 |
-| `src/programs/mail.css` | `메일` 창 전용 Fluent 팔레트. **이 파일 밖으로 새지 않는다** |
-| `src/programs/browser.css` | `브라우저` 창 전용 검색 포털 팔레트. **이 파일 밖으로 새지 않는다** |
-| `src/programs/messenger.css` | `메신저` 창 전용 카카오톡 팔레트. **요청 판(`.msgr__ask`)은 지시·교육 판보다 위에 서고 회색 대화 칸 위에 뜬다**(흰 판 둘과 갈리려면 인디고 테두리가 필요했다). 목록의 `답변 대기`는 색이 아니라 **글자**다. **이 파일 밖으로 새지 않는다**. ⚠️ 지시 칸(`.msgr__order`)의 높이 상한은 **px(`--msgr-order-max`)이다** — `grid-template-rows`의 `auto` 칸에서 `max-height: %`는 부모 높이가 정해지기 전에 재어져 버튼이 반쯤 잘린다(겪었다) |
-| `src/data/employees.ts` | 직원 수치·이름 풀의 단일 출처 — 종류→공정(`EMPLOYEE_ROLES[].programs`·`canHandle`) · 레벨→주차(`LEVEL_SPEEDUP`·`orderWeeks`, 하한 1) · 급여(`salaryOf`) · `ORDER_AP`/`ORDER_QUALITY`/`POST_AP` · 지원자 이름 재료 |
-| `src/systems/seed.ts` | **이 게임 무작위의 유일한 출처**(FNV-1a → mulberry32). `roller(씨앗문자열)`이 `unit`/`int`/`pick`/`chance`를 준다 — ⚠️ 모듈 밖에 롤러를 하나 만들어 돌려 쓰지 말 것(부르는 순서가 답을 바꾼다). `hire.ts`·`request.ts`가 함께 쓴다 |
-| `src/systems/request.ts` | 직원 요청 규칙의 정본 — 발생(`makeRequest`) · 확률 판정(`feedbackWorks`/`trainRequestWorks`) · 등급 한 칸(`raiseGrade`) · 불만(`grudged`/`fedUp`) · 기한(`expiredRequests`) + 요청·수락·거절·무시 문안과 `grudgeQuitMail`. ⚠️ `Math.random` 없음 |
-| `src/systems/hire.ts` | 지원자 생성(`applicants`) — **씨앗은 공고를 올린 주차**다(FNV-1a → mulberry32, `keywords.ts`와 같은 방식). ⚠️ `Math.random` 없음 |
-| `src/systems/employee.ts` | 직원 규칙의 정본 — 지시 가능(`canOrder`) · 점유(`isBusy`/`busyUntil`, **정본은 `orders`**) · 완료(`finishedOrders`) · 급여 합계(`payroll`) · 위기 퇴사 순서(`quitter`) + 메신저·퇴사 문안 |
-| `src/programs/HireSite.tsx` | 채용사이트(`인간인`). 구인 포털 얼개다: 메뉴 줄(⚠️ **표시다** — button 아님) + 눕는 공고 판 + **지원자 카드 격자**(880px). 카드에서 큰 값은 **월급 하나**다. ⚠️ `--nv-*` 안에서 끝낸다(빨강이 없어 정원 초과는 아이콘 + 글자가 말한다). ⚠️ 지원자를 셀렉터 안에서 만들지 말 것 — 새 배열이 나와 무한 렌더가 된다 |
-| `src/programs/editor.css` | `에디터` 창 전용 VS Code Dark+ 팔레트. ⚠️ **어두운 창**이라 대비 방향이 반대다 — 값을 다른 창과 주고받지 말 것 |
-| `src/programs/photoshop.css` | `포토샵` 창 전용 Photoshop CC Dark 팔레트. ⚠️ 어두운 창(에디터와 둘뿐). 보조 글자는 실제 포토샵의 #9A9A9A가 아니라 **#A0A0A0**이다 — 그 값이라야 패널 위에서 AA를 넘는다 |
-| `src/programs/figma.css` | `피그마` 창 전용 캔버스 뉴트럴 팔레트(액센트 없음 — 선택은 면으로 말한다). **이 파일 밖으로 새지 않는다** |
-| `src/data/bidding.ts` | 수주센터 공고의 수치(규모 3단·조건·확률 계수·응모 비용) |
-| `src/systems/bidding.ts` | 공고 생성·자격·확률·추첨. **순수 함수**(시드는 주차와 공고 id) |
-| `src/programs/WorkSite.tsx` | 수주센터 화면. `--nv-*`를 쓰고 `HireSite`의 클래스를 재사용한다 |
-| `src/data/sites.ts` | 가짜 포털 이름 + 첫화면 바로가기 목록. 사이트가 생기면 여는 대상이 여기 붙는다 |
-| `src/systems/url.ts` | 주소창 글자 → 갈 곳(`resolveUrl`) + 관리자 로그인 대조(`checkLogin`). **주소·계정의 정본은 `CLIENTS`다** — 여기 다시 적지 않는다 |
-| `src/programs/AdminSite.tsx` | 업체별 관리자 페이지(로그인 + 팝업 목록 + 등록 폼). 로그인은 `useState`(창 닫으면 풀림), 걸린 팝업은 스토어 `popups`. ⚠️ 셀렉터 안에서 `filter`를 돌리지 말 것 — 새 배열이 나와 zustand가 무한 렌더로 화면을 하얗게 만든다(겪었다) |
-| `src/programs/Photoshop.tsx` | 팝업 이미지 제작(도구 막대 · 문서 탭 · 캔버스 · 레이어 패널). 팝업 제작이 행동력을 문다(고른 퀄리티 — 퍼블리싱은 에디터가 진다). 실제로 동작하는 것은 **탭과 제작 버튼 셋뿐**이고 도구 막대는 표시다 |
-| `src/data/keywords.ts` | 분위기 키워드 목록 · `SITE_KEYWORDS`(5) · `MEETING_AP` · `MEETING_REVEAL`(기획력→개수) · `KEYWORD_SHIFT`(적중→등급 칸) |
-| `src/systems/keywords.ts` | 키워드 규칙의 정본 — 씨앗(업무 id)에서 정답을 뽑는 `clientKeywords` · `revealedKeywords` · `hitCount`/`keywordShift` · `shiftGrade`/`GRADE_LADDER`(⚠️ `pipeline.ts`의 `GRADE_ORDER`와 같은 줄이어야 한다) · 미팅 알림 문안 |
-| `src/systems/craft.ts` | 제작 결과의 등급(`gradeOf` — 셋째 인자가 키워드 보정이고 **밴드 밖으로 나간다**) + 시안 파일 타입. **퀄리티가 밴드, 스탯이 칸**이고 무작위는 없다 |
-| `src/programs/Editor.tsx` | 퍼블리싱 공정(FTP 연결 → 업체 폴더 → 남은 업무 → 줄 클릭 = 실행). **행동력을 무는 둘째 자리다**(`PUBLISH_AP`) |
-| `src/components/Intro.tsx` | 첫 판의 소개(5장, 포털). **핀라이트**로 말하는 자리만 뚫는다 — 어둠은 오버레이가 아니라 **구멍 하나의 `box-shadow: 0 0 0 9999px`**다(마스크·SVG 금지, 둥근 모서리는 `border-radius`가 준다). 조준은 `data/intro.ts`의 `target`이고 **`data-*`로 집는다**(`nth-child`는 아이콘이 늘면 엉뚱한 곳을 비춘다). 못 찾으면 그 장은 가운데 카드로 떨어진다. 봤는지는 `seenIntro`(세이브에 들어간다 — 새로고침마다 뜨면 고장으로 읽힌다), 새 게임이면 다시 켜지고 **건너뛰기는 늘 있다** |
-| `src/components/Working.tsx` | 공정 실행 때 뜨는 진행 막대 창 + `useWorking()` 훅(공정을 돌리는 창 넷이 같은 연출을 쓴다). ⚠️ 결과는 열기 전에 이미 굳어 있다 — 창은 보여 줄 뿐이고 `prefers-reduced-motion`에서는 바로 끝난다. 막대 시간의 정본은 `WORK_ANIM_MS`(인라인 전환 시간으로 내려간다) |
-| `src/components/Meeting.tsx` | 클라이언트 미팅 채팅 창(포털 — 묻는 창과 같은 층·같은 판 `.confirm__panel`). 대사는 `data/keywords.ts`, 조립은 `systems/keywords.ts`의 `meetingScript`. ⚠️ `prefers-reduced-motion`에서는 한 번에 다 뜬다 |
-| `src/data/followup.ts` · `src/systems/followup.ts` | 납품 뒤 클라이언트가 **다시 말을 거는 축** — 성격 4종(`personalityOf`, 씨앗은 **업체 이름**) · 수정 요청 판정(`needsRevision`, 씨앗에 **주차가 안 들어간다**) · 버그 신고(`bugReport`, **`CLIENTS` 업체에만** — 신규 고객은 에디터에 못 떠서 못 고친다). ⚠️ 수정 요청은 새 축이 아니라 스토어가 **`step`을 1 내리는 것**이다 |
-| `src/systems/portfolio.ts` | 쌓인 작업물 → 낙찰 확률 보정(`showpieces`/`portfolioBonus`). **A 이상만 센다**(찍어 내는 것이 최적이 되지 않게). 화면(`Folder`)과 스토어(`bidStats`)가 같은 함수를 쓴다 |
-| `src/programs/Folder.tsx` · `folder.css` | `작업물` 창 — **읽기 전용**(버튼이 없다). 골격은 `사내시스템`의 `.company*`를 그대로 쓴다(둘 다 셸 언어의 `app` 창이고 그 클래스는 `index.css`에 산다) — `folder.css`에는 목록 줄만 있다 |
-| `src/data/reference.ts` · `src/systems/reference.ts` | 레퍼런스 사이트의 수치·문안 + 수상작 파생(`awardWorks`, **씨앗은 주차 하나**). ⚠️ 정신력을 회복시키지 않는다(쇼핑몰 소모품이 이미 그 축이다) |
-| `src/programs/RefSite.tsx` | 어워더즈(`awwwdi.kr`) — 수상작 카드 격자(880px). **썸네일은 CSS로 그린다**(외부 이미지 금지) 그리고 그 그라디언트 값만 `--nv-*` 밖이다(그림이라서 — 글자·테두리·버튼에는 안 쓴다). 구경 버튼은 **아직 안 본 주에만** 선다 |
-| `src/programs/ShopSite.tsx` | 쇼핑몰(`webdimall.kr`) — 상품 격자. 상품·값은 `data/shop.ts`, 살 수 있는지는 `systems/shop.ts`의 `buyBlock`(화면·스토어 공용) |
-| `src/systems/money.ts` | 대금·평판 변화(`reward`) · 파기(`breach`) · 월말 정산(`isSettleWeek`·`monthlyCost`) + 파기·정산 메일 문안. ⚠️ 수치는 전부 `data/game.ts`에서 온다 |
-| `src/systems/pipeline.ts` | **공정의 줄과 회신 규칙의 정본**(`PIPELINE`·`openStep`·`canReply`·`satisfaction` + 답장/완료 메일 문안). 창들은 `isTurnOf(job, 자기 프로그램)` 한 줄로 목록을 가른다 — 종류별 조건을 컴포넌트에 다시 적지 말 것 |
-| `src/programs/Ppt.tsx` · `ppt.css` | 화면정의서(사이트 첫 공정)와 발표자료(PPT 업무)를 **같은 손으로** 만든다(`makeSlides`). 실제 파워포인트의 얼개(제목 줄·리본·축소판 레일·캔버스·상태 표시줄)를 쓰는 `app` 창이고 팔레트는 `ppt.css`에 갇힌다 |
-| `src/systems/ftp.ts` | FTP 접속 정보 대조(`checkFtp`). **정본은 `CLIENTS[].ftp`** — 여기 값을 다시 적지 않는다. `ftp://`만 여기서 벗긴다(`normalizeUrl`은 http(s)만 안다) |
-| `src/programs/Figma.tsx` | 피그마 파일 브라우저(사이드바 + 파일 그리드 + 속성 패널). 속성 패널이 **미팅 참석 + 분위기 키워드 고르기**를 진다(고른 키워드는 `useState` — 세이브에 넣지 않는다). ⚠️ 미팅 전에는 **"아직 무엇을 원하는지 모른다"고 말한다** — 정답을 흐리게라도 보여 주면 미팅이 값을 잃는다. 키워드 `SITE_KEYWORDS`개를 다 골라야 제작 버튼이 열리고, 버튼에 적히는 등급은 **보정 전**이다(맞췄는지는 만들기 전에 알 수 없다). 카드를 고르면 오른쪽에서 **시안을 만든다**(행동력을 무는 셋째 자리). 만든 시안은 스토어 `drafts` — 팝업 `files`와 **다른 목록**이다(등록 화면에 .fig가 뜨면 안 된다) |
-| `src/systems/popup.ts` | 팝업 판정의 순수 함수(`judgePopups`) + 파일 id 규약(`popupFileId`/`isFileOf`) + 클레임 메일 문안 |
-| `src/components/JobActions.tsx` | 견적보내기/거절하기. ⚠️ **색이 없다** — 감싸는 창이 `--jobact-*`를 준다(그래서 메일과 사내시스템에서 각자 팔레트로 선다) |
+| `src/data/game.ts` | 시작 수치 · 달력 단위 · 창 상수 · `apCost`/`apMaxOf`/`QUALITY` |
+| `src/data/programs.ts` | `PROGRAMS`(바탕화면 아이콘 단일 출처) · `ProgramId` · `badge` |
+| `src/data/inbox.ts` | 받은 의뢰 글(메일·고객게시판 공용) + `inbox()`·`unreadCount()` |
+| `src/data/sites.ts` | 가짜 포털 이름 + 첫화면 바로가기(`SHORTCUTS`) |
 | `src/data/icons.ts` | 아이콘 이름 단일 출처 |
-| `src/icons/AppIcon.tsx` | 유일한 아이콘 창구(`@iconify/react/offline`). 다른 곳에서 `@iconify/react`를 import하지 않는다 |
-| `src/systems/` | 순수 함수(React·Math.random 금지). 지금은 `calendar.ts` — 주차 → 몇 년 몇 월 몇째 주 |
-| `src/store.ts` | zustand — 게임 5축 + 창 목록(x·y·z) |
-| `src/components/` | `Window` · `Desktop` · `Taskbar`(시작 버튼 + 창 목록) · `Hud`(오른쪽 위 주차·스탯·업무목록 판) |
-| `src/components/StartMenu.tsx` | 시작 버튼 + 이름 있는 슬롯 3칸(저장·불러오기·삭제·새 게임). 되돌릴 수 없는 것은 전부 `.confirm`으로 묻는다(`Hud.tsx`와 **같은 클래스** — 같은 성격의 질문이 창마다 다르게 생기지 않는다) |
-| `src/systems/save.ts` | 슬롯 키(`webdi.slot.<n>`) · 요약 만들기 · **못 믿을 세이브 판정**(`parseSlot`). 순수 함수이고 저장소는 `store.ts`만 만진다 |
+| `src/data/employees.ts` | 직원 수치·이름 풀 단일 출처(`EMPLOYEE_ROLES`·`salaryOf`·`ORDER_AP` 등) |
+| `src/data/keywords.ts` | 키워드·미팅 수치(`SITE_KEYWORDS`·`MEETING_REVEAL` 등) |
+| `src/data/bidding.ts` | 수주센터 수치(규모·조건·확률 계수) |
+| `src/data/shop.ts` | 쇼핑몰 상품·값 |
+| `src/data/reference.ts` | 어워더즈 수치·문안 |
+| `src/data/followup.ts` | 후속 요청 수치·성격 4종·문안 |
+| `src/data/intro.ts` | 소개 5장 문안 + 조준 `target` |
+| `src/store.ts` | zustand — 게임 상태 + 창 목록. 세이브 대상은 `saveFields`/`partialize` |
+| `src/systems/seed.ts` | 무작위 유일 출처(FNV-1a→mulberry32, `roller`) |
+| `src/systems/calendar.ts` | 주차 → 날짜 표기(`formatDate`/`formatPeriod`/`formatWeek`) |
+| `src/systems/pipeline.ts` | 공정·회신 규칙 정본(`PIPELINE`·`openStep`·`canReply`·`isTurnOf`) |
+| `src/systems/craft.ts` | 제작 등급(`gradeOf`) — 퀄리티가 밴드, 스탯이 칸, 무작위 없음 |
+| `src/systems/keywords.ts` | 키워드 규칙 정본(`clientKeywords`·`keywordShift`·`meetingScript`) |
+| `src/systems/money.ts` | 대금·파기·월말 정산(`reward`·`breach`·`isSettleWeek`·`monthlyCost`) |
+| `src/systems/popup.ts` | 팝업 판정(`judgePopups`) + 파일 id 규약 + 클레임 문안 |
+| `src/systems/ftp.ts` | FTP 접속 대조(`checkFtp`) — 정본은 `CLIENTS[].ftp` |
+| `src/systems/url.ts` | 주소 해석(`resolveUrl`) + 관리자 로그인 대조 — 정본은 `CLIENTS` |
+| `src/systems/employee.ts` | 직원 규칙 정본(`canOrder`·`isBusy`·`payroll`·`quitter`) |
+| `src/systems/hire.ts` | 지원자 생성(`applicants`, 씨앗=공고 주차) |
+| `src/systems/request.ts` | 직원 요청 규칙 정본(발생·성패·불만·문안) |
+| `src/systems/bidding.ts` | 공고 생성·자격·확률·추첨(순수, 씨앗=주차·공고 id) |
+| `src/systems/portfolio.ts` | 작업물 → 낙찰 보정(`showpieces`·`portfolioBonus`, A 이상만) |
+| `src/systems/followup.ts` | 수정 요청·버그 신고 판정(`needsRevision`·`bugReport`) |
+| `src/systems/reference.ts` | 수상작 파생(`awardWorks`, 씨앗=주차) |
+| `src/systems/shop.ts` | 구매 가능 판정(`buyBlock` — 화면·스토어 공용) |
+| `src/systems/save.ts` | 슬롯 키·요약·`parseSlot`(못 믿을 세이브 판정) |
+| `src/components/` | `Window` · `Desktop` · `Taskbar`(시작 버튼+창 목록+모바일 독) · `Hud`(주차·스탯·업무목록 판) |
+| `src/components/StartMenu.tsx` | 시작 메뉴 + 세이브 슬롯 3칸(묻는 창은 `.confirm` 공용) |
+| `src/components/MessageList.tsx` | 받은 글 목록(고객게시판용 — 셸 언어) |
+| `src/components/JobActions.tsx` | 견적/거절/사업 시작 버튼 — 색은 감싸는 창이 `--jobact-*`로 준다 |
+| `src/components/Intro.tsx` | 첫 판 핀라이트 소개(5장, 포털, `box-shadow` 구멍) |
+| `src/components/Working.tsx` | 공정 진행 막대 + `useWorking()`(결과는 열기 전에 굳는다) |
+| `src/components/Meeting.tsx` | 미팅 채팅 창(포털, `.confirm__panel` 공용) |
 | `src/programs/` | 창 내용. `ProgramId` → 컴포넌트 짝은 `App.tsx`의 `VIEWS` |
-| `scripts/build-icon-subset.mjs` | `src/`를 훑어 `src/icons/generated.ts` 생성(`npm run icons`) |
+| `src/programs/Figma.tsx` | 시안 제작 + 키워드 고르기(고른 키워드는 `useState`) — `drafts`는 `files`와 다른 목록 |
+| `src/programs/Photoshop.tsx` | 팝업 제작(동작하는 것은 탭+제작 버튼뿐, 도구 막대는 표시) |
+| `src/programs/Ppt.tsx` | 화면정의서·발표자료 제작(`makeSlides`) |
+| `src/programs/Editor.tsx` | 퍼블리싱 공정(FTP 연결→업체 폴더→실행) |
+| `src/programs/AdminSite.tsx` | 업체 관리자 페이지(로그인은 `useState`, 걸린 팝업은 스토어 `popups`) |
+| `src/programs/HireSite.tsx` | 채용사이트(인간인) — 지원자 카드 격자 |
+| `src/programs/WorkSite.tsx` | 수주센터(HireSite 클래스 재사용) |
+| `src/programs/ShopSite.tsx` | 쇼핑몰 |
+| `src/programs/RefSite.tsx` | 어워더즈 — 썸네일은 CSS 그라디언트(그 값만 `--nv-*` 밖) |
+| `src/programs/Folder.tsx` | 작업물 창 — 읽기 전용, `.company*` 골격 재사용 |
+| `src/programs/mail.css` | 메일 창 전용 Fluent 팔레트 — 밖으로 새지 않는다 |
+| `src/programs/browser.css` | 브라우저 창 전용 팔레트 — 밖으로 새지 않는다 |
+| `src/programs/messenger.css` | 메신저 창 전용 카카오톡 팔레트 — 밖으로 새지 않는다 |
+| `src/programs/editor.css` | 에디터 창 전용 VS Code Dark+ — 어두운 창이라 대비 방향이 반대 |
+| `src/programs/photoshop.css` | 포토샵 창 전용 CC Dark — 어두운 창 |
+| `src/programs/figma.css` | 피그마 창 전용 캔버스 뉴트럴(액센트 없음) |
+| `src/programs/ppt.css` | PPT 창 전용 Office 밝은 테마 |
+| `src/programs/folder.css` | 작업물 창 목록 줄만 |
+| `src/icons/AppIcon.tsx` | 유일한 아이콘 창구(`@iconify/react/offline`) |
+| `scripts/build-icon-subset.mjs` | 아이콘 번들 생성(`npm run icons`) |
