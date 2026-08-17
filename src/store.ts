@@ -1249,7 +1249,7 @@ export const useGame = create<Store>()(
         program: step.program,
         label: step.label,
         from: s.week,
-        doneWeek: orderDoneWeek(s.week, emp.level),
+        doneWeek: orderDoneWeek(s.week, emp.level, statOf(emp, step.program)),
         grade: gradeOf(ORDER_QUALITY, statOf(emp, step.program)),
       }
       return {

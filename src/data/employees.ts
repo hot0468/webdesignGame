@@ -83,8 +83,29 @@ export const LEVEL_SPEEDUP = [
   { minLevel: 5, weeks: 2 },
 ] as const
 
-/** 지시 한 건이 기본으로 걸리는 주차. 레벨 보정이 여기서 빠진다. */
-export const EMPLOYEE_BASE_WEEKS = 3
+/** 그 공정의 스탯 → 걸리는 주차를 몇 주 줄이는가. **레벨과 다른 축이다**(설계자 확정
+ *  2026-08-17): 레벨은 "얼마나 오래 굴렀나", 스탯은 "그 일을 얼마나 잘하나"다. 잘하는
+ *  사람이 빨리 끝내는 것이 자연스럽고, 같은 레벨에서도 사람마다 갈려야 **누구에게
+ *  맡기느냐**가 선택이 된다(지원자 스탯은 레벨 주위로 ±20 흔들린다 — `systems/hire.ts`).
+ *
+ * ⚠️ 보는 스탯은 **그 공정의 스탯 하나다**(`statFor` — 등급을 정하는 그 값과 같다).
+ *    퍼블리싱 업무는 `publishing`, 나머지는 `design`이다.
+ * ⚠️ 칸이 하나뿐인 이유: 둘째 칸을 더해도 레벨 보정과 겹쳐 **하한에 먼저 닿아** 아무 일도
+ *    일어나지 않는다(`EMPLOYEE_BASE_WEEKS`를 더 늘리기 전에는 표만 길어진다).
+ * ⚠️ 문턱 70은 레벨 4~5의 사정권이고 레벨 2 이하는 닿지 못한다(중심이 `레벨×20`이라
+ *    레벨 2의 최대가 60이다) — 낮은 레벨을 뽑는 값이 사라지지 않게 하는 선이다. */
+export const STAT_SPEEDUP = [
+  { minStat: 0, weeks: 0 },
+  { minStat: 70, weeks: 1 },
+] as const
+
+/** 지시 한 건이 기본으로 걸리는 주차. 레벨·스탯 보정이 여기서 빠진다.
+ *
+ * ⚠️ **3이 아니라 4다.** 3이면 레벨 보정(최대 2)만으로 이미 하한 1에 닿아 스탯 보정이
+ *    아무 일도 못 한다 — 스탯 축을 넣으면서 함께 늘린 값이다(둘이 짝이라 한쪽만 되돌리면
+ *    그 순간 스탯이 죽는다). 낮은 레벨이 한 주 느려진 것은 의도다: 싼 사람과 좋은 사람의
+ *    거리가 벌어져야 "누구에게 맡기느냐"가 저울질이 된다. */
+export const EMPLOYEE_BASE_WEEKS = 4
 
 /** 지시 결과의 **퀄리티 밴드**. ⚠️ 플레이어가 고르는 값이 아니다 — 지시는 늘 이 밴드이고
  *  그 안의 칸은 **그 직원의 스탯**이 정한다(`systems/craft.ts`의 `gradeOf`).
@@ -101,13 +122,20 @@ export const ORDER_MINS = 20
 /** 직원 레벨의 범위. 지원자는 이 안에서 나온다. */
 export const EMPLOYEE_LEVEL = { min: 1, max: 5 } as const
 
-/** 지시받은 일이 몇 주 걸리는가. **하한 1**(0주 = 즉시가 되면 축이 무너진다). */
-export const orderWeeks = (level: number): number => {
-  const cut = LEVEL_SPEEDUP.reduce<number>(
+/** 지시받은 일이 몇 주 걸리는가. **하한 1**(0주 = 즉시가 되면 축이 무너진다).
+ *
+ * ⚠️ **두 축이 함께 깎는다**: 레벨(얼마나 오래 굴렀나) + 그 공정의 스탯(얼마나 잘하나).
+ *    둘 다 "조건을 만족하는 마지막 칸"을 읽는 같은 관용구다. */
+export const orderWeeks = (level: number, stat: number): number => {
+  const byLevel = LEVEL_SPEEDUP.reduce<number>(
     (best, r) => (level >= r.minLevel ? r.weeks : best),
     LEVEL_SPEEDUP[0].weeks,
   )
-  return Math.max(1, EMPLOYEE_BASE_WEEKS - cut)
+  const byStat = STAT_SPEEDUP.reduce<number>(
+    (best, r) => (stat >= r.minStat ? r.weeks : best),
+    STAT_SPEEDUP[0].weeks,
+  )
+  return Math.max(1, EMPLOYEE_BASE_WEEKS - byLevel - byStat)
 }
 
 /** 이 종류가 그 공정을 맡을 수 있는가. **공정 제한의 유일한 판정이다.** */

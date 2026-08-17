@@ -8,6 +8,7 @@ import {
   LEVEL_SPEEDUP,
   ORDER_QUALITY,
   orderWeeks,
+  STAT_SPEEDUP,
   salaryOf,
   statFor,
   TRAIN_STAT_GAIN,
@@ -41,18 +42,33 @@ const emp = (over: Partial<Employee> = {}): Employee => ({
 
 describe('지시가 걸리는 주차', () => {
   it('레벨이 높을수록 짧아진다', () => {
-    expect(orderWeeks(1)).toBe(EMPLOYEE_BASE_WEEKS)
-    expect(orderWeeks(EMPLOYEE_LEVEL.max)).toBeLessThan(EMPLOYEE_BASE_WEEKS)
+    expect(orderWeeks(1, 0)).toBe(EMPLOYEE_BASE_WEEKS)
+    expect(orderWeeks(EMPLOYEE_LEVEL.max, 0)).toBeLessThan(EMPLOYEE_BASE_WEEKS)
+  })
+
+  /** ⚠️ 레벨과 **다른 축이다** — 같은 레벨에서도 잘하는 사람이 빨리 끝내야
+   *  "누구에게 맡기느냐"가 선택이 된다(지원자 스탯이 레벨 주위로 흔들리는 이유). */
+  it('같은 레벨이면 스탯이 높은 쪽이 빠르다', () => {
+    const low = STAT_SPEEDUP[0]!.minStat
+    const high = STAT_SPEEDUP[STAT_SPEEDUP.length - 1]!.minStat
+    expect(orderWeeks(3, high)).toBeLessThan(orderWeeks(3, low))
+  })
+
+  // 뒤집기: 기본 주차가 레벨 보정만으로 하한에 닿으면 스탯이 아무 일도 못 한다.
+  it('스탯이 실제로 들어갈 자리가 있다 — 기본 주차가 레벨 보정보다 넉넉하다', () => {
+    const byLevel = LEVEL_SPEEDUP[LEVEL_SPEEDUP.length - 1]!.weeks
+    expect(EMPLOYEE_BASE_WEEKS - byLevel).toBeGreaterThan(1)
   })
 
   // ⚠️ 규칙을 뒤집어 확인한다: 하한이 없으면 지시가 "행동력 1로 즉시 완성"이 되어
   //    내가 직접 하는 길이 통째로 죽는다.
   it('하한이 1주다 — 레벨이 아무리 높아도 0주가 되지 않는다', () => {
-    for (let lv = 1; lv <= 100; lv++) expect(orderWeeks(lv)).toBeGreaterThanOrEqual(1)
+    for (let lv = 1; lv <= 100; lv++)
+      for (const st of [0, 70, 100]) expect(orderWeeks(lv, st)).toBeGreaterThanOrEqual(1)
     // 표가 기본 주차보다 크게 깎아도 1로 막힌다.
     const biggest = LEVEL_SPEEDUP[LEVEL_SPEEDUP.length - 1]!.weeks
     expect(EMPLOYEE_BASE_WEEKS - biggest).toBeLessThanOrEqual(EMPLOYEE_BASE_WEEKS)
-    expect(orderDoneWeek(5, 100)).toBeGreaterThanOrEqual(6)
+    expect(orderDoneWeek(5, 100, 100)).toBeGreaterThanOrEqual(6)
   })
 })
 

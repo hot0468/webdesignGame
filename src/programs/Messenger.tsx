@@ -205,8 +205,8 @@ function Chat({ employee }: { employee: Employee }) {
         ) : (
           <>
             <p className="msgr__note">
-              맡기면 <b>{formatSpan(ORDER_MINS, clock.dayMins)}</b>을 쓰고 결과는 몇 주 뒤에 나온다. 등급은 이 사람의
-              실력이 정한다.
+              맡기면 <b>{formatSpan(ORDER_MINS, clock.dayMins)}</b>을 쓰고 결과는 몇 주 뒤에 나온다.
+              등급도 걸리는 기간도 <b>이 사람의 실력</b>이 정한다 — 레벨과 그 일의 스탯이 함께 당긴다.
             </p>
             <ul className="msgr__offers">
               {offers.map(({ job, step }) => (
@@ -223,7 +223,8 @@ function Chat({ employee }: { employee: Employee }) {
                     {/* 언제 끝나고 무슨 등급이 나오는지를 **누르기 전에** 적는다 —
                         이것이 "누구에게 맡기느냐"를 선택으로 만드는 유일한 정보다. */}
                     <span className="msgr__give-when">
-                      {formatDate(orderDoneWeek(week, employee.level))} 완성 · 예상 등급{' '}
+                      {formatDate(orderDoneWeek(week, employee.level, statOf(employee, step!.program)))} 완성 ·{' '}
+                      예상 등급{' '}
                       {gradeOf(ORDER_QUALITY, statOf(employee, step!.program))}
                     </span>
                   </button>

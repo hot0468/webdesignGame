@@ -152,8 +152,11 @@ export const canOrder = (
   trainings: readonly Training[] = [],
 ): boolean => canHandle(employee.role, program) && !isBusy(employee.id, orders, trainings)
 
-/** 지시가 끝나는 주차. 레벨이 높을수록 빠르되 **하한 1주**다(`data/employees.ts`). */
-export const orderDoneWeek = (week: number, level: number): number => week + orderWeeks(level)
+/** 지시가 끝나는 주차. **레벨과 그 공정의 스탯이 함께** 당기되 **하한 1주**다
+ *  (`data/employees.ts`의 `orderWeeks`). ⚠️ 스탯은 `statOf(employee, program)`로 낸다 —
+ *  등급을 정하는 그 값과 같은 것을 본다(잘하는 사람이 잘 만들고 빨리 끝낸다). */
+export const orderDoneWeek = (week: number, level: number, stat: number): number =>
+  week + orderWeeks(level, stat)
 
 /** 그 공정의 등급을 정하는 직원 스탯 값. **퍼블리싱 공정만 `publishing`이다**(`statFor`). */
 export const statOf = (employee: Employee, program: ProgramId): number =>

@@ -27,6 +27,7 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-17 | **잘하면 빨라진다** — 직원 지시 기간을 레벨만이 아니라 **그 공정의 스탯**도 당긴다(`orderWeeks(level, stat)`). 기본 주차 3→4는 그 짝이다: 3이면 레벨만으로 하한에 닿아 스탯이 죽는다. 내 숙련도 감면은 이미 있던 것 | src/data/employees.ts, src/systems/employee.ts(+test)·hire.ts, src/store.ts(+test), src/programs/Messenger.tsx, project-context(systems) |
 | 2026-08-17 | **시간을 분으로** — 행동력이 사라지고 주차 아래에 요일·시계가 생겼다. 퀄리티가 오를수록 작업이 하루를 넘어 며칠짜리가 되고(120/360/720분) 일정표에 블록으로 깔린다. ⚠️ 작업은 주를 못 넘는다(주차 넘김은 사람 손에 남는다) | src/systems/clock.ts(+test)(신규), src/data/game.ts, src/store.ts(+test), src/components/Hud.tsx·Taskbar.tsx·JobActions.tsx, src/programs/*(제작 창 전부), src/systems/calendar.ts, src/index.css, project-context(systems·shell) |
 | 2026-08-17 | **하네스 토큰 정비** — 시스템 규칙 전문을 `references/systems.md`로 내리고 project-context 코어를 색인(44KB→9KB)으로 줄였다. 상한도 줄 수가 아니라 바이트다 | .claude/skills/project-context/SKILL.md·references/systems.md(신규)·shell.md, .claude/skills/game-pipeline/SKILL.md, .claude/agents/game-qa.md |
 | 2026-08-14 | **PPT 창을 파워포인트로** — 리본이 제작 버튼 셋(무는 행동력·나올 등급을 달고), 축소판 레일이 업무 목록, 흰 종이가 그 문서다. 팔레트는 `ppt.css`에 가두고 셸에서 `.ppt`를 걷었다 | src/programs/Ppt.tsx·ppt.css(신규), src/index.css, src/data/programs.ts(size app)·icons.ts, project-context(shell.md) |
@@ -36,6 +37,5 @@
 | 2026-08-14 | **특수 이벤트 셋** — 소개(평판 50+, 거래처가 4→7곳으로 늘어난다)·수상(A급 작업물)·저작권 위반(법무사무실 합의금) | src/data/events.ts·systems/referral.ts(+test)(신규), src/data/company.ts, src/store.ts, src/programs/Company.tsx |
 | 2026-08-14 | **공휴일 피크타임** — 공휴일 직전 주에 팝업 의뢰 3건이 몰린다(단가 1.4배·마감 짧음). 한 주 앞서 예고가 온다 | src/data/holiday.ts·systems/holiday.ts(+test)(신규), src/store.ts |
 | 2026-08-14 | 정신력이 **나쁜 일에도 깎인다**(클레임6·파기10·퇴사8) — 주말에 안 일하면 100에 붙어 있던 죽은 자원이었다. 회복 뒤에 뺀다 | src/data/game.ts(MENTAL_HIT), src/systems/weekend.ts(+test), src/store.ts |
-| 2026-08-14 | 해금 문턱을 실제 수입 속도에 맞춰 내림(300만→60만 등) — 첫 해금 10주→**4주**, 수주센터 36주→**12주**. 실제로 20주 굴려 실측 | src/data/game.ts(COMPANY_LEVELS), src/systems/unlock.test.ts |
 
 

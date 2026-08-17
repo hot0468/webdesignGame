@@ -152,7 +152,7 @@ describe('지시', () => {
     const s = useGame.getState()
     expect(usedMins()).toBe(ORDER_MINS)
     expect(s.orders).toHaveLength(1)
-    expect(s.orders[0]!.doneWeek).toBe(2 + orderWeeks(1))
+    expect(s.orders[0]!.doneWeek).toBe(2 + orderWeeks(1, 90))
     // 등급의 단일 출처는 `gradeOf`다 — 새 사다리를 만들지 않았다.
     expect(s.orders[0]!.grade).toBe(gradeOf(ORDER_QUALITY, 90))
     // 받았다는 대답이 메신저에 남는다.
@@ -351,7 +351,7 @@ describe('지시와 숙련도', () => {
     useGame.getState().acceptJob(ppt)
     const before = useGame.getState().photoshopSkill
     useGame.getState().orderJob('e1', ppt.id)
-    for (let i = 0; i < orderWeeks(5) + 1; i++) useGame.getState().advanceWeek()
+    for (let i = 0; i < orderWeeks(5, 50) + 1; i++) useGame.getState().advanceWeek()
     expect(useGame.getState().photoshopSkill).toBe(before)
   })
 })
