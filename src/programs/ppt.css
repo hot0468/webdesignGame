@@ -1,0 +1,466 @@
+/* `PPT` 창의 시각 언어. **셸(게임) 팔레트와 섞지 않는다** — 프로그램 창은 자기 팔레트를
+ * 자기 CSS 안에 가둔다(`mail.css`가 이 예외의 첫 사례다).
+ *
+ * 출처: **Microsoft Office(PowerPoint) Fluent 밝은 테마의 확정값**을 그대로 옮겨 적는다
+ * (`mail.css`가 Fluent를, `editor.css`가 VS Code Dark+를, `photoshop.css`가 Photoshop CC
+ * Dark를 옮겨 적은 것과 같은 방식이다 — hex를 지어내지 않는다). ui-ux-pro-max colors.csv에는
+ * **밝은 크롬 + 오피스 주황빨강** 조합이 없다(가장 가까운 행이 어두운 면 위의 #EA580C다) —
+ * 그래서 이 창만은 DB 행이 아니라 제품 원본값이 정본이다.
+ *   브랜드(PowerPoint) #B7472A · 크롬 #F3F2F1 · 면 #FFFFFF · 슬라이드 바깥 #D2D0CE
+ *   경계 #E1DFDD / #C8C6C4 · 호버 #EDEBE9 · 글자 #323130 · 보조 #605E5C
+ *
+ * ⚠️ **밝은 창이다**(메일·피그마·브라우저와 같은 쪽) — 어두운 창(에디터·포토샵)과 값을
+ *    주고받지 말 것. 실측값:
+ *      #FFFFFF on #B7472A = 5.3:1 · #323130 on #FFFFFF = 12.6:1
+ *      #605E5C on #FFFFFF = 6.3:1 · #605E5C on #F3F2F1 = 5.8:1 · #605E5C on #EDEBE9 = 5.4:1
+ * ⚠️ 슬라이드 바깥 회색(#D2D0CE)에는 **글자를 얹지 않는다** — 종이(흰 면)와 크롬만이
+ *    글자를 진다. 회색은 종이를 띄우는 바닥이다.
+ *
+ * 간격·모서리·글자 크기는 셸의 --sp-·--fs-·--dur- 토큰을 그대로 쓴다(값 중복 금지).
+ * 글꼴은 시스템 스택이다 — 셸의 Jua가 상속되면 그 순간 게임 UI로 보인다. */
+
+.ppt {
+  --ppt-brand: #b7472a;
+  --ppt-chrome: #f3f2f1;
+  --ppt-surface: #ffffff;
+  --ppt-stage: #d2d0ce;
+  --ppt-stroke: #e1dfdd;
+  --ppt-stroke-2: #c8c6c4;
+  --ppt-hover: #edebe9;
+  --ppt-text: #323130;
+  --ppt-text-2: #605e5c;
+
+  display: grid;
+  grid-template-columns: 176px minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'title  title'
+    'tabs   tabs'
+    'ribbon ribbon'
+    'rail   stage'
+    'status status';
+  height: 100%;
+  min-height: 0;
+  background: var(--ppt-chrome);
+  color: var(--ppt-text);
+  font-family: 'Segoe UI', system-ui, -apple-system, 'Malgun Gothic', sans-serif;
+  font-size: var(--fs-sm);
+}
+
+/* ── 제목 표시줄 ──────────────────────────────────────
+   실제 PowerPoint의 "색상형" 테마가 그렇듯 **제목 줄과 탭 줄이 브랜드색 한 덩이**다.
+   여기 적히는 파일 이름이 곧 지금 만드는 문서다(무엇을 만드는지가 창 맨 위에서 읽힌다). */
+.ppt__titlebar {
+  grid-area: title;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--ppt-brand);
+  color: #ffffff;
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
+/* ── 리본 탭 줄 ───────────────────────────────────────
+   ⚠️ **버튼이 아니다 — 표시다**(`photoshop.css`의 도구 막대, `editor.css`의 활동 표시줄과
+   같은 판단). 이 창에서 실제로 도는 것은 홈 탭 하나뿐이라 나머지는 갈 곳이 없다.
+   고른 탭은 리본 본문과 **같은 면**이라 둘이 한 장으로 이어진다(실제 오피스가 그렇다). */
+.ppt__tabs {
+  grid-area: tabs;
+  display: flex;
+  gap: 2px;
+  padding: 0 var(--sp-2);
+  background: var(--ppt-brand);
+  /* ⚠️ 글자색은 **줄에** 건다(칸에만 걸면 줄 자신이 본문색을 물고 있어 브랜드 면 위에서
+     2.4:1이 된다 — 실측 하네스가 그것을 미달로 잡는다). */
+  color: #ffffff;
+  overflow-x: auto;
+}
+
+.ppt__tab {
+  flex: 0 0 auto;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--sp-1) var(--sp-1) 0 0;
+  color: #ffffff;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.ppt__tab--on {
+  background: var(--ppt-chrome);
+  color: var(--ppt-brand);
+  font-weight: 600;
+}
+
+/* ── 리본 본문 ────────────────────────────────────────
+   리본은 원래 **"무엇을 하는가"의 자리**라 제작 버튼 셋이 여기 선다.
+   ⚠️ 이 창에서 값(행동력)을 무는 것은 이 셋뿐이다. */
+.ppt__ribbon {
+  grid-area: ribbon;
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--ppt-stroke-2);
+  background: var(--ppt-chrome);
+  overflow-x: auto;
+}
+
+/* 리본 그룹 — 큰 버튼들 + 아래에 그룹 이름. 이름은 **지금 만드는 문서의 이름**이다. */
+.ppt__group {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  justify-items: center;
+  gap: var(--sp-1);
+  padding-right: var(--sp-3);
+  border-right: 1px solid var(--ppt-stroke-2);
+}
+
+/* ⚠️ 높이를 붙들어 둔다 — 만들고 나면 버튼이 걷히고 글 한 줄만 남는데, 그때 리본이
+   접히면 캔버스가 통째로 위로 뛴다(실제 오피스의 리본은 늘 같은 높이다). */
+.ppt__buttons {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-1);
+  min-height: 64px;
+}
+
+.ppt__group-label {
+  color: var(--ppt-text-2);
+  font-size: var(--fs-xs);
+}
+
+/* 제작 버튼 셋. 오피스 리본의 큰 버튼 그대로다 — 면은 비어 있고 **글리프만 브랜드색**이다
+   (실제 오피스 리본 아이콘이 그 색을 쓴다. 면까지 칠하면 밝은 크롬이 무너진다).
+   ⚠️ 무는 행동력과 나올 등급을 버튼 안에 적는다 — 누르기 전에 알아야 고를 수 있다. */
+.ppt__make {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: var(--sp-1);
+  width: 108px;
+  padding: var(--sp-2) var(--sp-1);
+  border: 1px solid transparent;
+  border-radius: var(--sp-1);
+  background: none;
+  color: var(--ppt-text);
+  font: inherit;
+  font-size: var(--fs-xs);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) ease,
+    border-color var(--dur-fast) ease;
+}
+
+.ppt__make:hover:not(:disabled) {
+  border-color: var(--ppt-stroke-2);
+  background: var(--ppt-hover);
+}
+
+.ppt__make-icon {
+  color: var(--ppt-brand);
+}
+
+/* ⚠️ 못 누르는 버튼도 읽혀야 한다 — 흐리게 지우지 않고 **보조 글자색**으로 물러난다
+   (#605E5C on #F3F2F1 = 5.8:1). 글리프도 브랜드색을 놓아야 "누를 수 있는 것"과 갈린다. */
+.ppt__make:disabled {
+  color: var(--ppt-text-2);
+  cursor: not-allowed;
+}
+
+.ppt__make:disabled .ppt__make-icon {
+  color: var(--ppt-text-2);
+}
+
+.ppt__cost {
+  color: var(--ppt-text-2);
+}
+
+.ppt__make:disabled .ppt__cost {
+  color: inherit;
+}
+
+/* 리본에서 버튼 대신 서는 말(만든 뒤·열린 문서 없음·행동력 부족).
+   ⚠️ 이 팔레트에 빨강이 없으므로 경고는 색이 아니라 **아이콘 + 글자**가 말한다. */
+.ppt__note {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: var(--sp-2);
+  margin: 0;
+  color: var(--ppt-text-2);
+  font-size: var(--fs-xs);
+}
+
+/* ── 슬라이드 축소판 레일 ─────────────────────────────
+   실제 PowerPoint의 왼쪽 레일 자리에 **자기 차례인 업무 목록**이 선다(번호 + 축소판).
+   여기가 이 창에서 고르는 유일한 자리다. */
+.ppt__rail {
+  grid-area: rail;
+  display: grid;
+  align-content: start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-2);
+  border-right: 1px solid var(--ppt-stroke);
+  background: var(--ppt-surface);
+  overflow-y: auto;
+}
+
+.ppt__slide {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sp-1) var(--sp-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ppt__num {
+  color: var(--ppt-text-2);
+  font-size: var(--fs-xs);
+}
+
+/* 고른 슬라이드는 **번호가 굵어지고 축소판에 브랜드 테두리**가 선다 — 색만으로 말하지 않는다. */
+.ppt__slide--on .ppt__num {
+  color: var(--ppt-text);
+  font-weight: 700;
+}
+
+/* 축소판. 흰 종이 위에 제목 한 줄과 본문 줄이 그려진 **한 장**이다
+   (`figma.css`의 썸네일과 같은 규칙 — 빈 사각형보다 문서처럼 읽힌다). */
+.ppt__thumb {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-1);
+  aspect-ratio: 16 / 9;
+  padding: var(--sp-2);
+  background: var(--ppt-surface);
+  box-shadow: 0 0 0 1px var(--ppt-stroke-2);
+  overflow: hidden;
+}
+
+.ppt__slide--on .ppt__thumb {
+  box-shadow: 0 0 0 2px var(--ppt-brand);
+}
+
+.ppt__thumb-title {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ppt__thumb-bar {
+  height: 2px;
+  background: var(--ppt-stroke);
+}
+
+.ppt__thumb-bar:last-child {
+  width: 60%;
+}
+
+/* 어느 업체 일인지. ⚠️ 번호 칸을 건너뛰고 축소판 밑에 붙는다. */
+.ppt__slide-from {
+  grid-column: 2;
+  color: var(--ppt-text-2);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ── 슬라이드 캔버스 ──────────────────────────────────
+   회색 바닥 위의 흰 종이 한 장. 그 종이가 곧 **고른 업무의 문서**다. */
+.ppt__stage {
+  grid-area: stage;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-6);
+  background: var(--ppt-stage);
+  overflow: auto;
+}
+
+.ppt__paper {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-3);
+  width: min(100%, 560px);
+  aspect-ratio: 16 / 9;
+  padding: var(--sp-6);
+  background: var(--ppt-surface);
+  /* 종이를 회색 바닥에서 띄우는 그림자. 오피스가 슬라이드를 그렇게 세운다. */
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.2);
+  overflow-y: auto;
+}
+
+.ppt__paper-title {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.ppt__paper-sub {
+  margin: 0;
+  color: var(--ppt-text-2);
+}
+
+.ppt__docs {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ppt__doc {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.ppt__doc-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 등급 뱃지. ⚠️ 색을 입히지 않는다 — 여덟 등급(F~SSS)에 색을 주면 팔레트가 그만큼 늘어난다
+   (`figma.css`·`photoshop.css`와 같은 규칙). */
+.ppt__grade {
+  margin-left: auto;
+  padding-inline: var(--sp-1);
+  border-radius: var(--sp-1);
+  background: var(--ppt-hover);
+  font-weight: 700;
+}
+
+/* 만들 문서가 없을 때. 셸의 `.empty` 카드를 얹지 않는다 — 두 시각 언어가 한 창에 겹친다
+   (`fig__blank`·`ps__blank`와 같은 판단). 문구는 그대로다. */
+.ppt__blank {
+  display: grid;
+  gap: var(--sp-2);
+  width: min(100%, 560px);
+  padding: var(--sp-8) var(--sp-6);
+  background: var(--ppt-surface);
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.2);
+  text-align: center;
+}
+
+.ppt__blank-title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+.ppt__blank-note {
+  margin: 0;
+  color: var(--ppt-text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+/* ── 상태 표시줄 ──────────────────────────────────────
+   실제 PowerPoint처럼 왼쪽은 지금 몇 번째 슬라이드인가, 오른쪽은 보기 전환과 확대다.
+   그 사이에 **회신 안내**가 선다 — 이 창을 떠나 무엇을 해야 하는지가 마지막 줄에 남는다. */
+.ppt__status {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-1) var(--sp-3);
+  border-top: 1px solid var(--ppt-stroke);
+  background: var(--ppt-chrome);
+  color: var(--ppt-text-2);
+  font-size: var(--fs-xs);
+}
+
+.ppt__status b {
+  color: var(--ppt-text);
+}
+
+.ppt__status-item {
+  white-space: nowrap;
+}
+
+.ppt__status-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-left: auto;
+}
+
+/* 보기 전환과 확대 슬라이더. ⚠️ **표시다**(탭 줄과 같은 판단) — button이 아니고
+   aria-hidden이다. 오피스 창의 아래 모서리는 늘 이 모양이라 없으면 창이 잘려 보인다. */
+.ppt__views {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.ppt__view--on {
+  color: var(--ppt-text);
+}
+
+.ppt__zoom {
+  position: relative;
+  width: 64px;
+  height: 2px;
+  background: var(--ppt-stroke-2);
+}
+
+.ppt__zoom::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: 999px;
+  background: var(--ppt-text-2);
+}
+
+/* ── 좁은 화면 ────────────────────────────────────────────
+ * 브레이크포인트는 `index.css`와 **같은 720px이다** — 갈리면 창마다 다른 폭에서 접힌다.
+ * 여기서 하는 것은 **배치뿐이다**: 색·간격·글자 크기는 위 블록의 값을 그대로 쓴다.
+ * ⚠️ 모바일 규칙은 이 한 블록에 모은다(파일 곳곳에 흩지 않는다).
+ *
+ * 176px 레일이 폰에서는 캔버스를 반으로 가른다 — 다른 창과 **같은 관용구**로 눕히고
+ * (가로로 훑는다), 리본과 캔버스는 세로로 쌓인다. 눕힌 축소판은 폭이 고정이라야
+ * 업무가 늘어도 제목이 줄임표를 물지 않는다. */
+@media (max-width: 720px) {
+  .ppt {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'title'
+      'tabs'
+      'ribbon'
+      'rail'
+      'stage'
+      'status';
+  }
+
+  .ppt__rail {
+    grid-auto-flow: column;
+    grid-auto-columns: 144px;
+    border-right: 0;
+    border-bottom: 1px solid var(--ppt-stroke);
+    overflow-x: auto;
+  }
+
+  /* 폭이 곧 화면이라 데스크톱 여백이 종이를 반으로 줄인다. */
+  .ppt__stage {
+    padding: var(--sp-4);
+  }
+
+  /* 회신 안내가 두 줄이 되면 상태 표시줄이 창을 밀어낸다 — 폰에서는 줄을 접는다. */
+  .ppt__status {
+    flex-wrap: wrap;
+    gap: var(--sp-1) var(--sp-3);
+  }
+}

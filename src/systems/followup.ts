@@ -1,4 +1,3 @@
-import { CLIENTS } from '../data/company'
 import {
   BUG_BASE,
   BUG_CHANCE_MAX,
@@ -112,9 +111,10 @@ export function revisionMail(
  * 완료 회신 시점에 만들어 **미래 주차(`week`)를 달아** 메일 목록에 넣는다 —
  * `inbox()`가 이미 `week`으로 아직 안 온 글을 거르므로 새 판정 자리가 필요 없다.
  *
- * ⚠️ `CLIENTS`에 없는 업체에는 **절대 안 만든다.** `fix` 업무는 에디터에서 FTP로 고치는데
- *    에디터는 `CLIENTS[].ftp`가 있는 업체만 목록에 세운다 — 신규 고객에게 신고를 보내면
- *    받고도 **고칠 수 없는 업무**가 생겨 기한이 지나 평판만 깎인다.
+ * ⚠️ 예전에는 `CLIENTS`에 있는 업체로 **제한했다** — 그때는 에디터가 상수 목록만 세워서
+ *    신규 고객에게 신고를 보내면 받고도 고칠 수 없는 업무가 됐기 때문이다. 지금은 일을 받은
+ *    업체면 접속 정보가 이름에서 파생하므로(`data/company.ts`의 `clientsOf`) 그 제한이
+ *    사라졌다. **되살리지 마라** — 되살리면 낙찰로 지은 사이트만 버그가 없는 판이 된다.
  * ⚠️ 버그 수정 업무(`bug:`)는 다시 버그를 낳지 않는다 — 무한 연쇄를 막는 유일한 문이다.
  *
  * 신고 글은 `Request`다(`ad`가 아니다 — 고칠 일이 생겼다). `channel: 'board'`라
@@ -127,7 +127,6 @@ export function bugReport(
 ): Request | undefined {
   if (job.kind !== 'site' && job.kind !== 'fix') return undefined
   if (job.id.startsWith('bug:')) return undefined
-  if (!CLIENTS.some((c) => c.name === job.from)) return undefined
 
   // ⚠️ 롤러 하나에서 확률과 문안을 함께 뽑는다 — 씨앗이 `bug:<jobId>` 하나라
   //    같은 업무의 신고는 늘 같은 증상이다(다시 그릴 때마다 말이 바뀌지 않는다).

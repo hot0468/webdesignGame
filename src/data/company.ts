@@ -8,7 +8,93 @@
  *    접속 정보를 본다 — 그래서 업무가 붙을 자리인 `id`를 지금부터 지고 있다.
  *    수주 시스템이 생기면 이 상수는 스토어에서 오는 목록으로 바뀐다(모양은 그대로). */
 
-export type Client = (typeof CLIENTS)[number]
+import { roller } from '../systems/seed'
+
+/** 접속 정보 한 줄. 화면이 라벨·값 그대로 세운다. */
+export type Field = { label: string; value: string }
+
+/** 업체 하나. ⚠️ **`typeof CLIENTS[number]`가 아니다** — 수주로 생겨나는 업체는 상수 목록에
+ *  없으므로 리터럴 타입으로 좁히면 그것들이 이 타입에 못 들어온다.
+ *
+ *  `admin`은 **비어 있을 수 있다**: 관리자 페이지는 팝업 업무에만 쓰이고 팝업 의뢰는
+ *  상수 업체에서만 온다(`inbox.ts` — 수주센터·주말 돌발은 팝업을 내지 않는다). */
+export type Client = { id: string; name: string; ftp: readonly Field[]; admin: readonly Field[] }
+
+/** 처음부터 계약되어 있는 업체. **판을 시작할 때 업체정보에 서 있는 유일한 곳이다** —
+ *  나머지는 일을 받아야 열린다. */
+export const STARTER_CLIENT = 'dalbit'
+
+/** 사내시스템 **업체정보에 서는 업체**. `CLIENTS`는 게임이 아는 업체 전부의 목록이고,
+ *  화면에 서는 것은 **관계가 생긴 곳뿐이다**.
+ *
+ * ⚠️ **목록에서 지우지 않고 걸러 낸다.** `CLIENTS`는 `inbox.ts`의 초반 의뢰·`weekend.ts`의
+ *    돌발 의뢰·`ftp.ts`·`url.ts`가 전부 정본으로 삼는 자리라, 항목을 지우면 아직 만나지도
+ *    않은 업체의 의뢰가 통째로 사라진다. 만나기 전에 접속 정보가 보이는 것이 문제였지
+ *    업체가 있는 것이 문제가 아니다.
+ *
+ * ⚠️ **종류를 가리지 않는다**(사이트만 세지 않는다) — 팝업 업무는 그 업체의 관리자 계정을
+ *    업체정보에서 찾아 옮겨 적어야 진행되므로, 사이트만 열어 주면 팝업을 수주하고도 걸 수
+ *    없는 판이 된다.
+ *
+ * ⚠️ 수주한 것만 센다(`jobs`) — 의뢰가 도착한 것만으로는 아직 아무 사이도 아니다. */
+export function knownClients(jobs: readonly { from: string }[]): readonly Client[] {
+  return CLIENTS.filter(
+    (c) => c.id === STARTER_CLIENT || jobs.some((j) => j.from === c.name),
+  )
+}
+
+/** 생겨나는 업체의 접속 정보 재료. ⚠️ 전부 가짜다(`example` 도메인만) — 상수 업체와 같은 규칙. */
+const HOST_WORDS = [
+  'namu', 'baram', 'ondal', 'saebom', 'garam', 'nuri', 'haneul', 'miso',
+  'dodam', 'areum', 'sol', 'byeol',
+] as const
+const PORTS = ['21', '2121'] as const
+const ROOTS = ['/public_html', '/html', '/www', '/home/www'] as const
+
+/** 상수 목록에 없는 업체의 접속 정보를 **이름 하나에서 파생한다**(`personalityOf`·
+ *  `clientKeywords`와 같은 규칙 — `systems/seed.ts`의 `roller`만 쓴다).
+ *
+ * ⚠️ **저장하지 않는다.** 저장하면 세이브가 업체마다 불어나고 두 번째 출처가 생긴다.
+ *    같은 이름은 늘 같은 정보라 창을 닫았다 열어도, 불러와도 값이 그대로다.
+ * ⚠️ `id`에 이름이 그대로 들어간다 — `ftpClients`·`contracts`가 이 id를 **저장**하므로
+ *    같은 업체가 늘 같은 id여야 한다(순번을 쓰면 목록이 바뀔 때 남의 업체를 가리킨다).
+ * ⚠️ `admin`은 **비운다** — 수주센터·메일로 새로 만난 곳은 팝업 의뢰를 내지 않으므로
+ *    관리자 계정이 쓰일 자리가 없다(없는 자물쇠의 열쇠를 만들지 않는다). */
+export function derivedClient(name: string): Client {
+  const r = roller(`client:${name}`)
+  const word = r.pick(HOST_WORDS)
+  const n = r.int(1000, 9999)
+  return {
+    id: `gen:${name}`,
+    name,
+    ftp: [
+      { label: '호스트', value: `ftp.${word}${n}.example` },
+      { label: '포트', value: r.pick(PORTS) },
+      { label: '계정', value: `${word}_web` },
+      { label: '비밀번호', value: `${word}-${r.int(1000, 9999)}` },
+      { label: '기본 경로', value: r.pick(ROOTS) },
+    ],
+    admin: [],
+  }
+}
+
+/** **지금 판이 아는 업체 전부.** 상수 업체 중 관계가 생긴 곳(`knownClients`) + 일을 받은
+ *  곳 중 상수 목록에 없는 곳(수주센터 낙찰처·주말 돌발 의뢰처).
+ *
+ * ⚠️ **이 함수가 업체 목록의 정본이다** — 사내시스템·에디터·FTP 판정이 전부 이것을 본다.
+ *    한 곳이라도 `CLIENTS`를 직접 보면 "업체정보에는 있는데 에디터에는 안 뜨는" 업체가
+ *    생기고, 그 업무는 끝낼 길이 없어진다(그것이 이 함수가 생긴 이유다).
+ * ⚠️ 순서는 **상수 업체가 먼저**다 — 새로 만난 곳이 끼어들면 탭 자리가 판마다 달라진다. */
+export function clientsOf(jobs: readonly { from: string }[]): readonly Client[] {
+  const known = knownClients(jobs)
+  // ⚠️ `Set<string>`으로 넓힌다 — `CLIENTS`가 `as const`라 그냥 두면 상수 이름만 담는
+  //    좁은 집합이 되어 새 업체 이름을 넣어 볼 수조차 없다.
+  const names = new Set<string>(CLIENTS.map((c) => c.name))
+  const fresh = [...new Set(jobs.map((j) => j.from))]
+    .filter((name) => !names.has(name))
+    .map(derivedClient)
+  return [...known, ...fresh]
+}
 
 export const CLIENTS = [
   {

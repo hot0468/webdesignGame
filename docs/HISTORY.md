@@ -4,6 +4,9 @@
 코드에 앉힐 자리가 없는 결정(전역 방향 전환, 기각된 대안 전체)만 여기서 정본이 된다.
 
 <!-- 밀려난 줄은 이 아래에 -->
+| 2026-08-13 | 의뢰에 **도착 주차**(`week`) — 1주차는 메일·고객게시판 한 통씩으로 시작하고 주가 갈수록 늘어난다. `inbox`·`unreadCount`가 주차를 받는다 | src/data/inbox.ts(+test), src/programs/Mail.tsx·Company.tsx, src/components/Desktop.tsx·MessageList.tsx |
+| 2026-08-13 | 첫 판에 **핀라이트 소개** 5장 — 화면을 어둡게 덮고 말하는 자리(메일·프로그램 줄·업무목록·주차 판)만 뚫는다. `seenIntro`가 세이브에 남아 한 번만 | src/components/Intro.tsx·data/intro.ts(신규), src/components/Desktop.tsx(data-*), src/store.ts, src/App.tsx, src/index.css |
+| 2026-08-13 | 입찰은 **소기업 이상**만 — 공고별 조건과 다른 축의 문(평판이 떨어지면 다시 닫힌다). 초반 수주 경로를 메일 하나로 묶는다 | src/data/bidding.ts, src/systems/bidding.ts(+test), src/store.ts(+test), src/programs/WorkSite.tsx |
 | 2026-08-13 | 인간인을 **구인 포털 얼개**로 — 메뉴 줄(표시) + 눕는 공고 판 + 지원자 카드 격자(880px, 큰 값은 월급 하나). 없는 토큰 `--sp-5`로 죽어 있던 판 셋의 padding도 살렸다 | src/programs/HireSite.tsx, src/programs/browser.css, project-context(shell.md) |
 | 2026-08-13 | 브라우저 **뒤로·앞으로** — 방문 기록 한 줄에서 화면·주소·별이 전부 파생한다(새로고침은 안 쌓고, 뒤로 뒤 새 주소는 앞쪽을 버린다) | src/programs/Browser.tsx |
 | 2026-08-13 | 일정 달력이 **그 주에 걸린 일**을 적는다 — 업무 마감(임박하면 빨강)과 직원 휴무가 주차 줄 아래에 눕는다 | src/programs/Schedule.tsx, src/index.css |

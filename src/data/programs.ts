@@ -28,7 +28,8 @@ export const PROGRAMS = [
   { id: 'photoshop', title: '포토샵', icon: 'devicon:photoshop', col: 'right', size: 'app' },
   // ⚠️ devicon에 파워포인트 로고가 없다(office 계열이 통째로 없다) — 다색 규칙을 지키려고
   //    fluent-color의 슬라이드 글리프를 쓴다. 로고를 지어내거나 CDN에서 받아 오지 말 것.
-  { id: 'ppt', title: 'PPT', icon: 'fluent-color:slide-text-sparkle-32', col: 'right' },
+  // ⚠️ `app`이다 — 리본·레일·캔버스 세 칸이 기본 440px 창에 들어가지 않는다.
+  { id: 'ppt', title: 'PPT', icon: 'fluent-color:slide-text-sparkle-32', col: 'right', size: 'app' },
   { id: 'messenger', title: '메신저', icon: 'fluent-color:chat-32', col: 'right', size: 'app' },
   { id: 'editor', title: '에디터', icon: 'devicon:vscode', col: 'right', size: 'app' },
   // ⚠️ **오른쪽 줄이다** — 만든 것을 보는 창이라 만드는 프로그램들의 이웃이다.

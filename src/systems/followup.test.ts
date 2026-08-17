@@ -71,11 +71,14 @@ describe('needsRevision', () => {
 describe('bugReport', () => {
   const anyJob = (id: string, from: string) => ({ id, from, title: '사이트', kind: 'site' as const })
 
-  // ⚠️ 진짜 제약이다: 에디터는 `CLIENTS[].ftp`가 있는 업체만 세우므로 신규 고객에게
-  //    신고를 보내면 받고도 **고칠 수 없는 업무**가 생긴다.
-  it('CLIENTS에 없는 업체에는 절대 생기지 않는다', () => {
-    for (let i = 0; i < 300; i++)
-      expect(bugReport(anyJob(`n${i}`, `없는업체${i}`), 5, 0)).toBeUndefined()
+  // ⚠️ 예전에는 상수 업체로 **제한했다**(에디터가 그 목록만 세워서 신고를 받고도 고칠 수
+  //    없었다). 지금은 일을 받은 업체면 접속 정보가 이름에서 파생하므로 제한이 사라졌다 —
+  //    낙찰로 지은 사이트만 버그가 없는 판이 되면 안 된다.
+  it('상수 목록에 없는 업체에도 생긴다 — 접속 정보가 파생되므로 고칠 수 있다', () => {
+    const made = Array.from({ length: 300 }, (_, i) =>
+      bugReport(anyJob(`n${i}`, `새봄공단${i}`), 5, 0),
+    ).filter(Boolean)
+    expect(made.length).toBeGreaterThan(0)
   })
 
   it('버그 수정 업무는 다시 버그를 낳지 않는다', () => {

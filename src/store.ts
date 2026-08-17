@@ -22,7 +22,7 @@ import {
 import { gradeOf, type Draft } from './systems/craft'
 import { MEETING_AP, MEETING_OCCUPY_WEEKS, type KeywordId } from './data/keywords'
 import { clientKeywords, hitCount, keywordShift, meetingMail, revealedKeywords } from './systems/keywords'
-import { CLIENTS } from './data/company'
+import { CLIENTS, clientsOf } from './data/company'
 import { EMPLOYEE_LEVEL, FEEDBACK_AP, ORDER_AP, ORDER_FILE_EXT, ORDER_QUALITY, POST_AP, TRAIN_COST } from './data/employees'
 import type { Applicant } from './systems/hire'
 import {
@@ -1489,7 +1489,8 @@ export const useGame = create<Store>()(
       const settling = isSettleWeek(next)
       // ⚠️ 유지보수 수입은 **지출보다 먼저** 더한다 — 급여를 줬는지 판정(`unpaidMonths`)이
       //    이 잔액을 보므로, 계약이 있는데도 밀린 것으로 세면 파산이 앞당겨진다.
-      const contractNames = s.contracts.map((id) => CLIENTS.find((c) => c.id === id)?.name ?? id)
+      const known = clientsOf(s.jobs)
+      const contractNames = s.contracts.map((id) => known.find((c) => c.id === id)?.name ?? id)
       const money =
         s.money + (settling ? monthlyIncome(s.contracts) - monthlyCost(withGrudge) : 0)
 
@@ -1620,7 +1621,9 @@ export const useGame = create<Store>()(
 
   signContract: (clientId) =>
     set((s) => {
-      const name = CLIENTS.find((c) => c.id === clientId)?.name
+      // ⚠️ 상수 목록이 아니라 **지금 판이 아는 업체**에서 찾는다 — 수주로 생겨난
+      //    업체와도 유지보수 계약을 맺을 수 있어야 한다(화면이 그 탭을 세운다).
+      const name = clientsOf(s.jobs).find((c) => c.id === clientId)?.name
       if (!name) return {}
       // 깨진 계약은 세지 않는다 — 잘해 준 사이라는 뜻이 이 조건의 전부다.
       const done = s.jobs.filter((j) => j.from === name && j.done && !j.breached).length

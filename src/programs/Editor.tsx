@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AppIcon } from '../icons/AppIcon'
-import { CLIENTS } from '../data/company'
+import { clientsOf } from '../data/company'
 import { apCost, PUBLISH_AP, skillFor } from '../data/game'
 import { EDITOR_ICONS } from '../data/icons'
 import { formatDate } from '../systems/calendar'
@@ -54,7 +54,10 @@ export function Editor() {
   const [failed, setFailed] = useState(false)
   const work = useWorking()
 
-  const connected = CLIENTS.filter((c) => ftpClients.includes(c.id))
+  // ⚠️ 업체 목록의 정본은 `clientsOf(jobs)` 하나다 — 상수 `CLIENTS`를 직접 보면 수주센터로
+  //    딴 업체가 여기 안 떠서 그 사이트 업무를 영영 끝낼 수 없다(겪은 구멍이다).
+  const clients = clientsOf(jobs)
+  const connected = clients.filter((c) => ftpClients.includes(c.id))
   const open = connected.find((c) => c.id === openId) ?? null
   // **퍼블리싱 차례인 업무만** 선다(`systems/pipeline.ts`) — 시안이 안 끝난 사이트 업무도,
   // 팝업 업무도 여기 오지 않는다. 여기는 그 업체의 **지금 올릴 수 있는 일**의 목록이다.
@@ -63,7 +66,7 @@ export function Editor() {
   const todo = open ? jobs.filter((j) => j.from === open.name && showsIn(asStep(j), 'editor')) : []
 
   const submit = () => {
-    const hit = checkFtp(form)
+    const hit = checkFtp(form, clients)
     if (!hit) {
       setFailed(true)
       return
@@ -149,6 +152,10 @@ export function Editor() {
             }}
           >
             <h3 className="ed__form-title">FTP 연결</h3>
+            {/* ⚠️ 값을 여기 적어 주지 않는다 — **찾아서 옮겨 적는 왕복이 의도된 동선**이다
+                (업체 관리자 페이지와 같은 규칙). 대신 **어디서 찾는지**는 말한다: 그것까지
+                감추면 왕복이 아니라 수수께끼가 된다. */}
+            <p className="ed__note">사내시스템 &gt; 업체정보에서 그 업체의 접속 정보를 확인해 옮겨 적는다.</p>
             {FTP_FIELDS.map((f) => (
               <label key={f.key} className="ed__field">
                 <span className="ed__field-label">{f.label}</span>

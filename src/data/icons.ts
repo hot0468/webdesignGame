@@ -79,6 +79,28 @@ export const EDITOR_ICONS = {
   publish: 'mdi:cloud-upload-outline',
 } as const
 
+/** `PPT`(파워포인트) 창 전용 글리프. ⚠️ **밝은 창이라 단색 `mdi` 한 세트다** — 다색을
+ *  들이면 그 자리만 색이 뜨고, 리본 아이콘이 브랜드색(`--ppt-brand`)으로 물들어야 하는데
+ *  currentColor로 물드는 것은 단색뿐이다(메일·피그마와 같은 이유). */
+export const PPT_ICONS = {
+  /** 리본의 제작 버튼 셋. 퀄리티 id로 짝짓는다 — 순서(index)로 이으면 `QUALITY`가 늘 때
+   *  조용히 어긋난다. 같은 글리프 가족이라 세기 차이만 읽힌다. */
+  make: {
+    light: 'mdi:text-box-outline',
+    hard: 'mdi:text-box-plus-outline',
+    care: 'mdi:text-box-check-outline',
+  },
+  /** 캔버스(흰 종이) 위에 선 만든 문서 줄. */
+  doc: 'mdi:file-document-outline',
+  /** 행동력 부족 알림. 이 팔레트에 빨강이 없어 경고는 아이콘 + 글자가 말한다. */
+  warn: 'mdi:alert-circle-outline',
+  /** 상태 표시줄의 보기 전환. ⚠️ **표시다**(button 아님 · aria-hidden). */
+  viewNormal: 'mdi:presentation',
+  viewSorter: 'mdi:view-grid-outline',
+  viewRead: 'mdi:book-open-outline',
+  viewShow: 'mdi:play-box-outline',
+} as const
+
 /** 계기판(주차)과 `스탯` 창이 함께 쓰는 단색 묶음. 한 세트여야 currentColor로 물든다. */
 export const STAT_ICONS = {
   week: 'mdi:calendar-week-outline',

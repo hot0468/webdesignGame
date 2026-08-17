@@ -27,6 +27,9 @@
 
 | 날짜 | 변경 | 대상 |
 |------|------|------|
+| 2026-08-14 | **PPT 창을 파워포인트로** — 리본이 제작 버튼 셋(무는 행동력·나올 등급을 달고), 축소판 레일이 업무 목록, 흰 종이가 그 문서다. 팔레트는 `ppt.css`에 가두고 셸에서 `.ppt`를 걷었다 | src/programs/Ppt.tsx·ppt.css(신규), src/index.css, src/data/programs.ts(size app)·icons.ts, project-context(shell.md) |
+| 2026-08-14 | **수주가 업체를 만든다** — 업체정보에는 일을 받은 곳만 서고, 상수 목록에 없는 낙찰처는 접속 정보를 **이름에서 파생**해 생겨난다(저장 없음). 목록의 정본은 `clientsOf` 하나 — 수주센터로 딴 사이트를 퍼블리싱 못 하던 구멍이 막혔다 | src/data/company.ts(+test), src/programs/Company.tsx·Editor.tsx, src/systems/ftp.ts(+test)·followup.ts(+test), src/store.ts, src/components/JobActions.tsx |
+| 2026-08-14 | **미팅을 두 단계로** — 메일에서 할지 말지 먼저 고르고, 하기로 하면 내가 갈지 직원이 갈지 정한다(직원 버튼에 기획력 표기). 안 하는 쪽도 버튼이라 "미팅 없이도 된다"가 화면에 보인다 | src/components/JobActions.tsx |
 | 2026-08-14 | **모바일 반응형(720px)** — 창은 전체화면, 작업 표시줄이 앱 전환기. 계기판은 시간만 남기고 스탯·업무목록은 **독의 네이티브 팝오버**로(전체화면 창 위에서도 행동력이 읽힌다). 좁은 화면에서 창이 화면 밖에 태어나던 버그도 함께 고쳤다 | src/index.css, src/programs/mail·messenger·editor·figma·photoshop·browser.css, src/components/Taskbar.tsx·Hud.tsx·Desktop.tsx, src/data/game.ts(WINDOW_FIT), src/store.ts(+test), project-context(shell.md) |
 | 2026-08-14 | **어워더즈** — 일 미루고 남의 수상작을 구경하는 자리. 행동력 1을 태우면 그 주 시안이 한 등급 좋아진다(남는 상태는 주차 한 칸이고 주가 넘으면 식는다) | src/programs/RefSite.tsx·systems/reference.ts(+test)(신규), src/data/reference.ts(신규), src/store.ts, src/data/sites.ts·icons.ts, src/programs/Browser.tsx·browser.css |
 | 2026-08-14 | **작업물 창** — 만든 것(팝업·시안·문서)을 등급과 함께 모아 본다. A 이상이 몇 개인지가 곧 낙찰 확률 보정이고 화면·스토어가 같은 함수를 쓴다 | src/programs/Folder.tsx·folder.css·systems/portfolio.ts(신규), src/portfolio.store.test.ts(신규), src/data/bidding.ts·programs.ts, src/store.ts, src/programs/WorkSite.tsx, src/App.tsx |
@@ -34,8 +37,5 @@
 | 2026-08-13 | CS 스탯을 살렸다 — 클레임 글의 `사과하기`가 행동력 1로 평판을 되돌린다(깎인 것보다 적게, 글마다 한 번) | src/data/game.ts·inbox.ts, src/systems/popup.ts, src/store.ts(+test), src/components/JobActions.tsx |
 | 2026-08-13 | 유지보수 계약 — 그 업체 일을 2건 끝내면 맺을 수 있고 매달 정산에 수입이 선다(급여의 반대편) | src/data/game.ts, src/systems/money.ts, src/store.ts(+test), src/programs/Company.tsx, src/index.css |
 | 2026-08-13 | **웹디몰** — 소지금이 사람 손으로 나가는 유일한 자리. 장비는 숙련도(한 번만), 소모품은 정신력. 상한이면 못 산다 | src/data/shop.ts·systems/shop.ts·programs/ShopSite.tsx(신규), src/store.ts, src/data/sites.ts·icons.ts, src/programs/Browser.tsx·browser.css |
-| 2026-08-13 | 의뢰에 **도착 주차**(`week`) — 1주차는 메일·고객게시판 한 통씩으로 시작하고 주가 갈수록 늘어난다. `inbox`·`unreadCount`가 주차를 받는다 | src/data/inbox.ts(+test), src/programs/Mail.tsx·Company.tsx, src/components/Desktop.tsx·MessageList.tsx |
-| 2026-08-13 | 첫 판에 **핀라이트 소개** 5장 — 화면을 어둡게 덮고 말하는 자리(메일·프로그램 줄·업무목록·주차 판)만 뚫는다. `seenIntro`가 세이브에 남아 한 번만 | src/components/Intro.tsx·data/intro.ts(신규), src/components/Desktop.tsx(data-*), src/store.ts, src/App.tsx, src/index.css |
-| 2026-08-13 | 입찰은 **소기업 이상**만 — 공고별 조건과 다른 축의 문(평판이 떨어지면 다시 닫힌다). 초반 수주 경로를 메일 하나로 묶는다 | src/data/bidding.ts, src/systems/bidding.ts(+test), src/store.ts(+test), src/programs/WorkSite.tsx |
 
 

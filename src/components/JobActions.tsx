@@ -140,6 +140,11 @@ function MeetingAction({ job }: { job: Job }) {
   const orders = useGame((s) => s.orders)
   const trainings = useGame((s) => s.trainings)
   const [open, setOpen] = useState(false)
+  /** 이 글에서 어디까지 정했는가. **저장하지 않는다** — 진짜로 굳는 것은 시안을 만드는
+   *  순간이고(그때 이 판이 통째로 닫힌다), 그전에는 마음을 바꿀 수 있어야 한다.
+   *  ⚠️ 스토어에 '미팅 안 함' 칸을 만들지 마라 — "안 하기로 했다"와 "아직 안 정했다"가
+   *     같은 상태로 갈려, 낙찰 메일에 거절 버튼을 두지 않은 것과 같은 사고가 난다. */
+  const [stage, setStage] = useState<'ask' | 'who' | 'skip'>('ask')
   const free = employees.filter((e) => !isBusy(e.id, orders, trainings))
 
   // ⚠️ **기획서(화면정의서)를 제출한 뒤에야 미팅을 간다**(설계자 확정 2026-08-13) —
@@ -166,6 +171,48 @@ function MeetingAction({ job }: { job: Job }) {
     return <p className="jobact__decided">기획서를 제출하면 미팅을 잡을 수 있다.</p>
   }
 
+  // ── ① 할지 말지 ────────────────────────────────────────
+  // ⚠️ **미팅 없이도 시안을 만들 수 있다**(설계자 확정 2026-08-14) — 그런데 화면이 그것을
+  //    말하지 않으면 미팅이 거쳐야 하는 관문처럼 읽힌다. 그래서 안 하는 쪽도 **버튼으로**
+  //    세운다: 무엇을 얻고 무엇을 포기하는지 한 줄씩 적어 두 갈래가 값으로 비교되게 한다.
+  if (stage === 'ask') {
+    return (
+      <div className="jobact">
+        <button
+          type="button"
+          className="jobact__btn jobact__btn--go"
+          onClick={() => setStage('who')}
+        >
+          미팅 잡기
+        </button>
+        <button type="button" className="jobact__btn" onClick={() => setStage('skip')}>
+          미팅 없이 진행
+        </button>
+        <span className="jobact__due">
+          미팅에서 원하는 분위기를 알아내면 시안 등급이 오른다. 안 가면 키워드를 찍어야 한다.
+        </span>
+      </div>
+    )
+  }
+
+  // ⚠️ 되돌릴 수 있어야 한다 — 아직 아무것도 물지 않았고, 굳는 것은 시안을 만들 때다.
+  if (stage === 'skip') {
+    return (
+      <div className="jobact">
+        <span className="jobact__due">
+          미팅 없이 진행하기로 했다 — 피그마에서 키워드를 직접 골라 시안을 만든다.
+        </span>
+        <button type="button" className="jobact__btn" onClick={() => setStage('ask')}>
+          다시 생각하기
+        </button>
+      </div>
+    )
+  }
+
+  // ── ② 누가 가는가 ──────────────────────────────────────
+  // 내가 가면 **행동력**을, 직원을 보내면 **그 사람의 한 주**를 문다(`store.holdMeeting`).
+  // ⚠️ 알아내는 개수는 **가는 사람의 기획력**이 정한다 — 그래서 이름 옆에 그 값을 적는다
+  //    (누구를 보낼지가 이 갈래의 유일한 선택인데, 값이 안 보이면 고를 근거가 없다).
   return (
     <div className="jobact">
       <button
@@ -177,7 +224,7 @@ function MeetingAction({ job }: { job: Job }) {
           setOpen(true)
         }}
       >
-        미팅 참석
+        내가 간다
       </button>
       <span className="jobact__due">행동력 {MEETING_AP}</span>
       {free.map((e) => (
@@ -187,9 +234,18 @@ function MeetingAction({ job }: { job: Job }) {
           className="jobact__btn"
           onClick={() => holdMeeting(job.id, e.id)}
         >
-          {e.name} 보내기
+          {e.name} 보내기 (기획 {e.stats.planning})
         </button>
       ))}
+      {/* 보낼 사람이 없는 것과 직원이 다 바쁜 것을 구분해 적는다 — 고칠 방법이 다르다. */}
+      {free.length === 0 && (
+        <span className="jobact__due">
+          {employees.length === 0 ? '보낼 직원이 없다.' : '직원이 모두 다른 일에 잡혀 있다.'}
+        </span>
+      )}
+      <button type="button" className="jobact__btn" onClick={() => setStage('ask')}>
+        뒤로
+      </button>
     </div>
   )
 }
@@ -236,10 +292,25 @@ function Progress({ job, week, care }: { job: Job; week: number; care: boolean }
           {/* 회신할 것이 없다 = 아직 만들지 않았다. 어느 창을 열어야 하는지까지 적는다. */}
           {/* 수주 직후에만 "받았다"를 붙인다 — 답장 글에서까지 그 말을 반복하면
               방금 회신한 것이 아니라 지금 막 수주한 것처럼 읽힌다. */}
-          {next
-            ? `${job.step === 0 && job.replied === 0 ? `${care ? '확인했다' : '견적을 보냈다'} — ` : ''}다음은 ${next.label}(${PROGRAM_LABEL[next.program]})이다.`
-            : /* 팝업의 완료 회신만 여기 걸린다 — 게시 기간이 끝나야 보낼 수 있다. */
-              '게시 기간이 끝나면 완료 회신을 보낼 수 있다.'}
+          {next ? (
+            <>
+              {`${job.step === 0 && job.replied === 0 ? `${care ? '확인했다' : '견적을 보냈다'} — ` : ''}다음은 ${next.label}(${PROGRAM_LABEL[next.program]})이다.`}
+              {/* ⚠️ 퍼블리싱은 **창을 열어도 바로 못 한다** — FTP로 그 업체 서버에 붙어야
+                  업무가 목록에 서는데, 접속 정보는 사내시스템에서 찾아 옮겨 적는 왕복이
+                  의도된 동선이다(관리자 페이지와 같은 규칙). 그 왕복을 모르면 에디터를
+                  열어 놓고 왜 아무것도 없는지 알 수 없으므로 여기서 미리 말한다. */}
+              {next.program === 'editor' && (
+                <>
+                  {' '}
+                  사내시스템 &gt; 업체정보에서 {job.from}의 FTP 접속 정보를 확인해 에디터에서
+                  연결해야 한다.
+                </>
+              )}
+            </>
+          ) : (
+            /* 팝업의 완료 회신만 여기 걸린다 — 게시 기간이 끝나야 보낼 수 있다. */
+            '게시 기간이 끝나면 완료 회신을 보낼 수 있다.'
+          )}
         </span>
       )}
     </div>

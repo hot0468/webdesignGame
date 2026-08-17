@@ -51,6 +51,7 @@
 - 프로그램 창이 **자기 팔레트를 가지는 예외**의 실례가 `Mail`이다(`src/programs/mail.css` — Fluent/WinUI 값 + Segoe UI). ⚠️ 그 안에서 셸 토큰(`.badge`·`.empty` 등)을 섞어 쓰지 않는다 — 두 팔레트가 한 창에 서면 둘 다 무너진다
 - `Photoshop`도 같은 예외다(`src/programs/photoshop.css` — Photoshop CC Dark). ⚠️ 강조색(Adobe 파랑)은 **행동력을 무는 제작 버튼 하나**에만 선다 — 어두운 창에서 색이 여러 곳에 서면 어디를 눌러야 하는지가 흐려진다
 - 셋째 사례가 `Figma`다(`src/programs/figma.css` — 캔버스 뉴트럴 + 시스템 글꼴). ⚠️ **액센트 색을 들이지 않는다** — 제작 버튼은 팔레트의 가장 진한 값(썸네일 캔버스와 같은 값)으로 채운다. 사이드바 메뉴는 button이 아니라 표시다(갈 화면이 하나뿐). ⚠️ 고른 카드를 회색 면으로 칠하지 말 것 — 그 위에서 부제가 4.0:1로 미달한다(흰 면 + 진한 테두리로 말한다)
+- `Ppt`도 같은 예외다(`src/programs/ppt.css` — Office/PowerPoint 밝은 테마 값 + 시스템 글꼴). 게임 기능이 파워포인트의 자리에 그대로 앉는다: **리본 = 제작 버튼 셋** · **왼쪽 레일 = 자기 차례인 업무** · **캔버스 = 그 업무의 문서 한 장** · **상태 표시줄 = 회신 안내와 문서 수**. ⚠️ 리본 **탭 줄과 상태 표시줄의 보기·확대**는 표시다(button 아님 · `aria-hidden`). ⚠️ 슬라이드 바깥 회색(#D2D0CE)에는 **글자를 얹지 않는다** — 흰 종이와 크롬만 글자를 진다
 - 같은 예외의 둘째 사례가 `Browser`다(`src/programs/browser.css` — 뉴트럴 그레이 + 링크 블루 + 시스템 글꼴). ⚠️ **크롬(주소 표시줄)은 무채색으로 물러난다** — 브라우저 UI가 색을 가지면 그 안의 사이트가 색을 못 가진다. 파랑은 링크와 초점, 그리고 **사이트 안의 주된 버튼**(`.nv-site__go`)에만 선다
 - ⚠️ 사이트라고 다 같은 폭이 아니다: **폼 화면**(관리자 로그인·팝업 등록)은 `.nv-site__panel`의 한 단(420px), **훑어 비교하는 목록**(수주센터 `.nv-bid*`, 채용사이트 `.nv-hire*`)은 880px이다 — 수주센터는 본문+결정 칸 두 단, 채용사이트는 카드 격자(`auto-fill minmax(240px,1fr)`). 목록에 폼 폭을 씌우면 공고마다 회색 줄이 세로로 쌓여 비교가 안 된다 — 반대로 `.nv-site__panel`을 넓히면 관리자 폼까지 같이 넓어진다
 - ⚠️ `--sp-5`는 **없는 토큰이다**(정의는 1·2·3·4·6·8·12뿐). 쓰면 그 선언이 통째로 죽어 padding이 0이 된다 — 겪었다. 새 값이 필요하면 감으로 만들지 말고 있는 토큰을 고른다
@@ -155,7 +156,7 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/programs/ShopSite.tsx` | 쇼핑몰(`webdimall.kr`) — 상품 격자. 상품·값은 `data/shop.ts`, 살 수 있는지는 `systems/shop.ts`의 `buyBlock`(화면·스토어 공용) |
 | `src/systems/money.ts` | 대금·평판 변화(`reward`) · 파기(`breach`) · 월말 정산(`isSettleWeek`·`monthlyCost`) + 파기·정산 메일 문안. ⚠️ 수치는 전부 `data/game.ts`에서 온다 |
 | `src/systems/pipeline.ts` | **공정의 줄과 회신 규칙의 정본**(`PIPELINE`·`openStep`·`canReply`·`satisfaction` + 답장/완료 메일 문안). 창들은 `isTurnOf(job, 자기 프로그램)` 한 줄로 목록을 가른다 — 종류별 조건을 컴포넌트에 다시 적지 말 것 |
-| `src/programs/Ppt.tsx` | 화면정의서(사이트 첫 공정)와 발표자료(PPT 업무)를 **같은 손으로** 만든다(`makeSlides`). 셸 언어 그대로인 작은 창이다 |
+| `src/programs/Ppt.tsx` · `ppt.css` | 화면정의서(사이트 첫 공정)와 발표자료(PPT 업무)를 **같은 손으로** 만든다(`makeSlides`). 실제 파워포인트의 얼개(제목 줄·리본·축소판 레일·캔버스·상태 표시줄)를 쓰는 `app` 창이고 팔레트는 `ppt.css`에 갇힌다 |
 | `src/systems/ftp.ts` | FTP 접속 정보 대조(`checkFtp`). **정본은 `CLIENTS[].ftp`** — 여기 값을 다시 적지 않는다. `ftp://`만 여기서 벗긴다(`normalizeUrl`은 http(s)만 안다) |
 | `src/programs/Figma.tsx` | 피그마 파일 브라우저(사이드바 + 파일 그리드 + 속성 패널). 속성 패널이 **미팅 참석 + 분위기 키워드 고르기**를 진다(고른 키워드는 `useState` — 세이브에 넣지 않는다). ⚠️ 미팅 전에는 **"아직 무엇을 원하는지 모른다"고 말한다** — 정답을 흐리게라도 보여 주면 미팅이 값을 잃는다. 키워드 `SITE_KEYWORDS`개를 다 골라야 제작 버튼이 열리고, 버튼에 적히는 등급은 **보정 전**이다(맞췄는지는 만들기 전에 알 수 없다). 카드를 고르면 오른쪽에서 **시안을 만든다**(행동력을 무는 셋째 자리). 만든 시안은 스토어 `drafts` — 팝업 `files`와 **다른 목록**이다(등록 화면에 .fig가 뜨면 안 된다) |
 | `src/systems/popup.ts` | 팝업 판정의 순수 함수(`judgePopups`) + 파일 id 규약(`popupFileId`/`isFileOf`) + 클레임 메일 문안 |
