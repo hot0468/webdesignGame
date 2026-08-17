@@ -1441,6 +1441,17 @@ body {
   text-align: center;
 }
 
+/* 완성 순간의 그림. 목록의 손톱만 한 크기와 달리 여기서는 **결과 발표**라 크게 선다. */
+.work__thumb {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--sp-3);
+}
+
+.work__thumb .thumb {
+  width: 180px;
+}
+
 .work__grade {
   margin-left: var(--sp-2);
   font-family: var(--font-display);

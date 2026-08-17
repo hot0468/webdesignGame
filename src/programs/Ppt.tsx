@@ -90,7 +90,12 @@ export function Ppt() {
                       .getState()
                       .slides.filter((d) => d.jobId === picked.id)
                       .at(-1)
-                    if (made) work.show({ title: what(picked.kind), grade: made.grade })
+                    if (made)
+                      work.show({
+                        title: what(picked.kind),
+                        grade: made.grade,
+                        thumb: { kind: 'doc', seed: made.id },
+                      })
                   }}
                 >
                   <AppIcon name={PPT_ICONS.make[q.id]} size={24} className="ppt__make-icon" />

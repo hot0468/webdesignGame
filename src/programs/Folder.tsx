@@ -7,6 +7,7 @@ import { formatWeek } from '../systems/calendar'
 import { isShowpiece, portfolioBonus, showpieces } from '../systems/portfolio'
 import type { Draft } from '../systems/craft'
 import type { PopupFile } from '../systems/popup'
+import { Thumb, type ThumbKind } from '../components/Thumb'
 import { useGame } from '../store'
 
 /** `작업물` 창. **읽기 전용이다** — 만든 것을 모아 보는 자리이고 여기서 고칠 수 있는 것은
@@ -31,27 +32,31 @@ const TABS = [
     id: 'files',
     label: '팝업 이미지',
     icon: PROGRAM_ICONS.file,
+    kind: 'popup',
     empty: '포토샵에서 팝업을 만들면 여기 쌓인다.',
   },
   {
     id: 'drafts',
     label: '시안',
     icon: FIGMA_ICONS.drafts,
+    kind: 'site',
     empty: '피그마에서 시안을 만들면 여기 쌓인다.',
   },
   {
     id: 'slides',
     label: '문서',
     icon: STAT_ICONS.jobs,
+    kind: 'doc',
     empty: 'PPT에서 화면정의서·발표자료를 만들면 여기 쌓인다.',
   },
   {
     id: 'publishes',
     label: '퍼블리싱',
     icon: EDITOR_ICONS.publish,
+    kind: 'code',
     empty: '에디터에서 퍼블리싱하면 여기 쌓인다.',
   },
-] as const
+] as const satisfies readonly { id: string; label: string; icon: string; kind: ThumbKind; empty: string }[]
 
 export function Folder() {
   // ⚠️ 고른 갈래는 `useState`다 — 창을 보는 방식이지 게임 상태가 아니다(스토어에 넣으면
@@ -121,7 +126,7 @@ export function Folder() {
           ) : (
             <ul className="folder__list">
               {items.map((it) => (
-                <Row key={it.id} item={it} icon={tab.icon} title={jobs.find((j) => j.id === it.jobId)?.title} />
+                <Row key={it.id} item={it} icon={tab.icon} kind={tab.kind} title={jobs.find((j) => j.id === it.jobId)?.title} />
               ))}
             </ul>
           )}
@@ -136,10 +141,22 @@ export function Folder() {
  *
  * ⚠️ `title`이 없을 수 있다(깨진 계약·옛 세이브) — 그때는 그 조각만 빠지고 줄은 선다.
  *    줄을 감추면 만든 것이 사라진 것처럼 보인다. */
-function Row({ item, icon, title }: { item: Item; icon: string; title?: string }) {
+function Row({
+  item,
+  icon,
+  kind,
+  title,
+}: {
+  item: Item
+  icon: string
+  kind: ThumbKind
+  title?: string
+}) {
   const star = isShowpiece(item.grade)
   return (
     <li className={`folder__item${star ? ' folder__item--star' : ''}`}>
+      {/* 만든 것의 초상 — 등급이 마감새를, 파일 id가 색을 정한다(`Thumb` 주석). */}
+      <Thumb kind={kind} grade={item.grade} seed={item.id} />
       <span className="folder__name">
         <AppIcon name={star ? STAT_ICONS.reputation : icon} />
         {item.name}

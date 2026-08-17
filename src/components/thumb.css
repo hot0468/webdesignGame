@@ -1,0 +1,131 @@
+/* 작업물 썸네일 — **그림이라 색이 토큰 밖이다**(어워더즈 `.nv-ref__shot`과 같은 예외.
+   UI가 아니라 만든 결과물의 초상이고, 글자를 얹지 않으므로 대비 규칙이 설 자리가 없다).
+   ⚠️ 그 예외는 이 파일 안에서 끝난다 — 여기 값을 UI(테두리·글자·버튼)에 가져가지 마라. */
+
+.thumb {
+  position: relative;
+  flex: none;
+  width: 72px;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--sp-1);
+  background: #ffffff;
+}
+
+/* 파일 id가 고르는 색 두 벌. 계기판 막대와 같은 이유로 **색상으로** 가른다. */
+.thumb--h0 { --th-a: #6366f1; --th-b: #a5b4fc; }
+.thumb--h1 { --th-a: #f97316; --th-b: #fdba74; }
+.thumb--h2 { --th-a: #10b981; --th-b: #6ee7b7; }
+.thumb--h3 { --th-a: #ec4899; --th-b: #f9a8d4; }
+
+/* ── 마감새(등급) ──────────────────────────────────────────
+   F·D: 색이 죽고 요소가 비뚤다. ⚠️ 색상 클래스보다 **뒤**에 서야 이긴다. */
+.thumb--t0 { --th-a: #9ca3af; --th-b: #d1d5db; }
+.thumb--t0 .thumb__bits { transform: rotate(-4deg) translateY(6%); }
+
+/* A부터: 광 스트릭 하나. 값싼 "윤이 난다" — 요소를 더 그리는 것보다 한 줄로 읽힌다. */
+.thumb__shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 42%, rgb(255 255 255 / 0.5) 50%, transparent 58%);
+}
+
+/* ── 구도(종류) ────────────────────────────────────────────
+   시안: 사이트 얼개 — 머리띠 + 히어로 + 본문 두 단. */
+.thumb--site::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 16%;
+  background: var(--th-a);
+}
+.thumb--site::after {
+  content: '';
+  position: absolute;
+  inset: 22% 8% auto 8%;
+  height: 34%;
+  border-radius: 2px;
+  background: linear-gradient(135deg, var(--th-a), var(--th-b));
+}
+.thumb--site .thumb__bits {
+  position: absolute;
+  inset: 64% 8% 10% 8%;
+  background: linear-gradient(90deg, #e5e7eb 0 44%, transparent 44% 56%, #e5e7eb 56% 100%);
+  border-radius: 2px;
+}
+
+/* 팝업: 배너 — 원 + 헤드라인 막대. */
+.thumb--popup { background: linear-gradient(135deg, var(--th-a), var(--th-b)); }
+.thumb--popup::before {
+  content: '';
+  position: absolute;
+  top: 14%;
+  right: 12%;
+  width: 34%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.85);
+}
+.thumb--popup::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  bottom: 22%;
+  width: 46%;
+  height: 12%;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.9);
+}
+.thumb--popup .thumb__bits {
+  position: absolute;
+  left: 10%;
+  bottom: 42%;
+  width: 30%;
+  height: 8%;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.55);
+}
+
+/* 문서: 슬라이드 — 제목 막대 + 글줄. */
+.thumb--doc::before {
+  content: '';
+  position: absolute;
+  top: 14%;
+  left: 10%;
+  width: 55%;
+  height: 14%;
+  border-radius: 2px;
+  background: var(--th-a);
+}
+.thumb--doc::after {
+  content: '';
+  position: absolute;
+  inset: 42% 10% 14% 10%;
+  background: repeating-linear-gradient(#e5e7eb 0 12%, transparent 12% 34%);
+}
+.thumb--doc .thumb__bits { display: none; }
+
+/* 퍼블리싱: 코드 — 어두운 판 + 색 줄. 에디터가 어두운 창인 것과 같은 사정이다. */
+.thumb--code { background: #1e1e1e; border-color: #1e1e1e; }
+.thumb--code::before {
+  content: '';
+  position: absolute;
+  inset: 14% 40% 14% 10%;
+  background: repeating-linear-gradient(var(--th-b) 0 10%, transparent 10% 28%);
+  opacity: 0.9;
+}
+.thumb--code::after {
+  content: '';
+  position: absolute;
+  inset: 28% 14% 14% 46%;
+  background: repeating-linear-gradient(#6b7280 0 10%, transparent 10% 28%);
+}
+.thumb--code .thumb__bits {
+  position: absolute;
+  top: 14%;
+  left: 46%;
+  width: 26%;
+  height: 8%;
+  background: var(--th-a);
+}

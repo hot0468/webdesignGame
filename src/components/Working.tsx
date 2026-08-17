@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { WORK_ANIM_MS, type Grade } from '../data/game'
+import { Thumb, type ThumbKind } from './Thumb'
 
 /** 공정을 돌릴 때 뜨는 작업 창. 막대가 끝까지 차면 **완성되었다!**가 뜬다.
  *
@@ -15,12 +16,16 @@ import { WORK_ANIM_MS, type Grade } from '../data/game'
 export function Working({
   title,
   grade,
+  thumb,
   onClose,
 }: {
   /** 무엇을 만드는가(`시안`·`팝업 이미지`처럼 결과물의 이름). */
   title: string
   /** 만든 것의 등급. 퍼블리싱처럼 등급이 없는 공정은 넘기지 않는다. */
   grade?: Grade
+  /** 만든 것의 초상(종류 + 파일 id). 넘기면 완성 순간에 그림이 선다 —
+   *  등급 글자보다 이것이 먼저 "잘 나왔다/망했다"를 말한다. */
+  thumb?: { kind: ThumbKind; seed: string }
   onClose: () => void
 }) {
   const reduced =
@@ -60,6 +65,11 @@ export function Working({
 
         {/* ⚠️ 조사를 붙이지 않는다 — 이름이 `시안`·`화면정의서`처럼 받침이 갈려
             "이(가)" 같은 군더더기가 생긴다. */}
+        {done && thumb && (
+          <span className="work__thumb">
+            <Thumb kind={thumb.kind} grade={grade} seed={thumb.seed} />
+          </span>
+        )}
         {done && (
           <p className="confirm__note work__result">
             <b>{title}</b> 완성
@@ -100,9 +110,14 @@ export function Working({
  * {work.view}
  * ``` */
 export function useWorking() {
-  const [work, setWork] = useState<{ title: string; grade?: Grade } | null>(null)
+  const [work, setWork] = useState<{
+    title: string
+    grade?: Grade
+    thumb?: { kind: ThumbKind; seed: string }
+  } | null>(null)
   return {
-    show: (w: { title: string; grade?: Grade }) => setWork(w),
+    show: (w: { title: string; grade?: Grade; thumb?: { kind: ThumbKind; seed: string } }) =>
+      setWork(w),
     view: work ? <Working {...work} onClose={() => setWork(null)} /> : null,
   }
 }

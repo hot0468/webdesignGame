@@ -174,7 +174,8 @@ node scripts/measure.mjs --reduced --click .desktop-icon --scan --shot out.png
 | `src/components/MessageList.tsx` | 받은 글 목록(고객게시판용 — 셸 언어) |
 | `src/components/JobActions.tsx` | 견적/거절/사업 시작/미팅 버튼 — 색은 감싸는 창이 `--jobact-*`로 준다 |
 | `src/components/Intro.tsx` | 첫 판 핀라이트 소개(포털, `box-shadow` 구멍) |
-| `src/components/Working.tsx` | 공정 진행 막대 + `useWorking()`(결과는 열기 전에 굳는다) |
+| `src/components/Working.tsx` | 공정 진행 막대 + `useWorking()`(결과는 열기 전에 굳는다). 완성 순간 `Thumb`이 선다 |
+| `src/components/Thumb.tsx` · `thumb.css` | 작업물 썸네일 — 종류가 구도, 등급이 마감새, 파일 id가 색(씨앗, 저장 없음). ⚠️ 그림이라 색이 토큰 밖(어워더즈와 같은 예외, 그 파일 안에서 끝난다) |
 | `src/components/Meeting.tsx` | 미팅 채팅 창(포털, `.confirm__panel` 공용) |
 | `src/components/GameOver.tsx` | 패배 화면 |
 | `src/programs/Mail.tsx` | 받은편지함 세 칸 화면 |

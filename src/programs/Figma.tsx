@@ -225,7 +225,12 @@ export function Figma() {
                           .getState()
                           .drafts.filter((d) => d.jobId === picked.id)
                           .at(-1)
-                        if (made) work.show({ title: '시안', grade: made.grade })
+                        if (made)
+                          work.show({
+                            title: '시안',
+                            grade: made.grade,
+                            thumb: { kind: 'site', seed: made.id },
+                          })
                       }}
                     >
                       {q.label}

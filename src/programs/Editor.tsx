@@ -215,7 +215,16 @@ export function Editor() {
                         publishJob(j.id)
                         // 퀄리티 선택은 없지만 **등급은 난다**(퍼블리싱 스탯이 정한다) —
                         // 결과를 안 보여 주면 스탯을 올릴 이유가 화면에서 사라진다.
-                        work.show({ title: '퍼블리싱', grade })
+                        // ⚠️ 그림 씨앗은 만든 **뒤에** 스토어에서 집는다(제작 창들과 같은 규칙).
+                        const made = useGame
+                          .getState()
+                          .publishes.filter((f) => f.jobId === j.id)
+                          .at(-1)
+                        work.show({
+                          title: '퍼블리싱',
+                          grade,
+                          ...(made && { thumb: { kind: 'code' as const, seed: made.id } }),
+                        })
                       }}
                     >
                       <AppIcon name={EDITOR_ICONS.publish} size={16} />

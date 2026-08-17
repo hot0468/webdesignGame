@@ -17,13 +17,20 @@
 }
 
 /* 줄 하나 = 파일 하나. 창 바탕이 이미 카드색이라 줄을 가르는 것은 면이 아니라 테두리다
-   (`.company__tab`과 같은 관용구). */
+   (`.company__tab`과 같은 관용구). 왼쪽 칸은 썸네일이 두 줄에 걸쳐 선다. */
 .folder__item {
   display: grid;
-  gap: var(--sp-1);
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--sp-3);
+  row-gap: var(--sp-1);
   padding: var(--sp-2) var(--sp-3);
   border: 2px solid var(--color-border);
   border-radius: var(--sp-2);
+}
+
+.folder__item .thumb {
+  grid-row: 1 / 3;
 }
 
 .folder__name {

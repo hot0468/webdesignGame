@@ -134,7 +134,12 @@ export function Photoshop() {
                     .getState()
                     .files.filter((f) => f.jobId === open.id)
                     .at(-1)
-                  if (made) work.show({ title: '팝업 이미지', grade: made.grade })
+                  if (made)
+                    work.show({
+                      title: '팝업 이미지',
+                      grade: made.grade,
+                      thumb: { kind: 'popup', seed: made.id },
+                    })
                 }}
               >
                 {q.label}
