@@ -4,6 +4,7 @@
 코드에 앉힐 자리가 없는 결정(전역 방향 전환, 기각된 대안 전체)만 여기서 정본이 된다.
 
 <!-- 밀려난 줄은 이 아래에 -->
+| 2026-08-14 | **특수 이벤트 셋** — 소개(평판 50+, 거래처가 4→7곳으로 늘어난다)·수상(A급 작업물)·저작권 위반(법무사무실 합의금) | src/data/events.ts·systems/referral.ts(+test)(신규), src/data/company.ts, src/store.ts, src/programs/Company.tsx |
 | 2026-08-14 | **공휴일 피크타임** — 공휴일 직전 주에 팝업 의뢰 3건이 몰린다(단가 1.4배·마감 짧음). 한 주 앞서 예고가 온다 | src/data/holiday.ts·systems/holiday.ts(+test)(신규), src/store.ts |
 | 2026-08-14 | 정신력이 **나쁜 일에도 깎인다**(클레임6·파기10·퇴사8) — 주말에 안 일하면 100에 붙어 있던 죽은 자원이었다. 회복 뒤에 뺀다 | src/data/game.ts(MENTAL_HIT), src/systems/weekend.ts(+test), src/store.ts |
 | 2026-08-14 | 해금 문턱을 실제 수입 속도에 맞춰 내림(300만→60만 등) — 첫 해금 10주→**4주**, 수주센터 36주→**12주**. 실제로 20주 굴려 실측 | src/data/game.ts(COMPANY_LEVELS), src/systems/unlock.test.ts |

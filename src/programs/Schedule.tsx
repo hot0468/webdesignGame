@@ -3,7 +3,7 @@ import { PROGRAM_ICONS, STAT_ICONS } from '../data/icons'
 import {
   DEADLINE_URGENT_WEEKS,
   WEEKDAYS,
-  WEEKEND_COUNT,
+  isWeekendDay,
   WEEKEND_MENTAL_COST,
   WEEKS_PER_MONTH,
   mentalPenalty,
@@ -34,7 +34,9 @@ export function Schedule() {
   const employees = useGame((s) => s.employees)
   const { year, month, weekOfMonth } = toCalendar(week)
 
-  const isWeekend = (day: number) => day >= WEEKDAYS.length - WEEKEND_COUNT
+  // ⚠️ 주말 판정의 정본은 `data/game.ts`의 `isWeekendDay` 하나다 — 여기서 다시 세면
+  //    칠하는 날과 정신력을 무는 날이 어긋난다.
+  const isWeekend = isWeekendDay
   /** 그리는 달의 첫 주. 줄 번호 → 통산 주차 환산의 기준이다. */
   const firstWeek = week - weekOfMonth + 1
   const nameOf = (id: string) => employees.find((e) => e.id === id)?.name ?? '직원'
@@ -76,7 +78,8 @@ export function Schedule() {
                   ⚠️ 하루를 넘는 작업은 날마다 한 칸씩 쪼개져 들어온다(`spendTime`) —
                      한 칸이 두 날에 걸칠 수 없기 때문이다. */}
               {WEEKDAYS.map((d, i) => {
-                const blocks = isWeekend(i) ? [] : rowLog.filter((b) => b.day === i)
+                // 주말도 근무일이다 — 칠만 다르고 블록은 똑같이 선다(`WORKDAY_COUNT`).
+                const blocks = rowLog.filter((b) => b.day === i)
                 const now = rowWeek === week && i === day
                 return (
                   <span
@@ -132,7 +135,10 @@ export function Schedule() {
       <Weekend />
 
       <p className="schedule__note">
-        {weekOfMonth}째 주 · {WEEKDAYS[day]}요일 {formatClock(spent)} · 오늘 {formatHours(dayMins - spent)} 남음
+        {weekOfMonth}째 주 · {WEEKDAYS[day]}요일 {formatClock(spent)} · 오늘{' '}
+        {formatHours(dayMins - spent)} 남음
+        {/* 주말도 일할 수 있다 — 다만 값을 문다. 그 사실을 달력이 말한다. */}
+        {' · '}토·일에 일하면 그날마다 정신력 −{WEEKEND_MENTAL_COST}
       </p>
     </div>
   )

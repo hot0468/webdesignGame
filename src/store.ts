@@ -20,6 +20,7 @@ import {
   gainSkill,
   raiseSkill,
   WEEKS_PER_MONTH,
+  isWeekendDay,
 } from './data/game'
 import { gradeOf, type Draft } from './systems/craft'
 import { MEETING_MINS, MEETING_OCCUPY_WEEKS, type KeywordId } from './data/keywords'
@@ -698,9 +699,18 @@ function spend(s: Store, mins: number, label: string) {
   const clock = { day: s.day, spent: s.spent }
   if (!canSpend(clock, mins, s.dayMins)) return undefined
   const { end, blocks } = spendTime(clock, mins, s.dayMins)
+  // ⚠️ **주말 하루에 처음 손을 댈 때만** 정신력을 문다. `start === 0`이 곧 "그날의 첫
+  //    일"이라 따로 세는 칸이 필요 없다 — 이미 일한 토요일에 한 번 더 일해도 두 번 물지
+  //    않고, 금요일에서 토요일로 넘어간 작업은 토요일 몫을 문다.
+  // ⚠️ 정신력은 **0에서 잘린다**(`worked`가 그 자리다) — 음수에는 뜻이 없고
+  //    `MENTAL_PENALTY` 표만 흐려진다.
+  const weekendDays = blocks.filter((b) => b.start === 0 && isWeekendDay(b.day)).length
   return {
     day: end.day,
     spent: end.spent,
+    ...(weekendDays > 0 && {
+      mental: Array.from({ length: weekendDays }).reduce<number>((m) => worked(m), s.mental),
+    }),
     log: [...s.log, ...blocks.map((b) => ({ ...b, week: s.week, label }))],
   }
 }
@@ -1414,10 +1424,10 @@ export const useGame = create<Store>()(
       // 돌발 의뢰가 없는 주말에는 태울 것이 없다(화면도 버튼을 그리지 않는다).
       if (!event || s.jobs.some((j) => j.id === event.id)) return {}
       get().acceptJob(event)
-      return {
-        mental: worked(s.mental),
-        weekendWorked: [...s.weekendWorked, s.week],
-      }
+      // ⚠️ **여기서 정신력을 물지 않는다**(설계 확정 2026-08-17) — 대가는 실제로 토·일에
+      //    손을 댈 때 `spend`가 문다. 받는 순간에도 물면 같은 주말에 두 번 물게 되고,
+      //    받아만 두고 월요일에 하는 길이 정신력을 아끼는 꼼수가 아니라 벌이 된다.
+      return { weekendWorked: [...s.weekendWorked, s.week] }
     }),
 
   // ⚠️ 판정은 여기서 하지 않는다 — `systems/popup.ts`의 순수 함수가 내고 스토어는

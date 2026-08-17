@@ -152,10 +152,14 @@ export const DEADLINE_URGENT_WEEKS = 1
 export const WEEKS_PER_MONTH = 4
 export const MONTHS_PER_YEAR = 12
 
-/** 한 주의 요일. ⚠️ **뒤 `WEEKEND_COUNT`개가 주말**이다 — 주말 근무는 선택이라
- *  달력이 그 이틀을 따로 칠한다. 순서를 바꾸면 주말 칸이 엉뚱한 요일로 간다. */
+/** 한 주의 요일. ⚠️ **뒤 `WEEKEND_COUNT`개가 주말**이다 — 달력이 그 이틀을 따로 칠하고,
+ *  그날 일하면 정신력을 문다. 순서를 바꾸면 주말 칸이 엉뚱한 요일로 간다. */
 export const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'] as const
 export const WEEKEND_COUNT = 2
+
+/** 그 요일이 주말인가. **주말을 가르는 유일한 판정이다** — 달력의 칠도, 정신력을 무는
+ *  날도 이 함수 하나를 본다(두 곳에서 각자 세면 칠한 날과 값을 무는 날이 어긋난다). */
+export const isWeekendDay = (day: number) => day >= WEEKDAYS.length - WEEKEND_COUNT
 
 /** 복사 버튼의 "됐다" 표식이 남아 있는 시간(ms). ⚠️ 너무 짧으면 눈에 안 띄고,
  *  길면 다음에 눌렀을 때 표식이 이미 켜져 있어 바뀐 것이 안 보인다. */
@@ -388,8 +392,12 @@ export const WEEKEND_DUE_WEEKS = 1
  *  ⚠️ 등급 배율(`GRADE_REWARD`)과 **곱해진다** — 여기서 등급을 따로 손대지 않는다. */
 export const WEEKEND_FEE_MULT = 1.6
 
-/** 주말에 일하기로 했을 때 무는 정신력. ⚠️ 이것이 주말 근무의 **유일한 대가다** —
- *  행동력을 따로 깎지 않는다(주말은 주중 밖의 이틀이라 그 주의 행동력과 다른 축이다). */
+/** **주말 하루에 손을 대면** 무는 정신력. 이것이 주말 근무의 **유일한 대가다**.
+ *
+ * ⚠️ 그날 **처음 일할 때 한 번만** 문다(`store.spend`가 그날의 첫 블록에서 센다) —
+ *    토요일에 두 번 나눠 일한다고 두 번 물면 같은 하루가 나눠 쓰는 방식에 따라 다른 값이 된다.
+ * ⚠️ 시간을 따로 깎지 않는다 — 주말도 평일과 같은 하루이고, 다른 것은 이 값 하나다.
+ *    그래서 선택이 성립한다: **쉬면 시간을 잃고 일하면 정신력을 잃는다.** */
 export const WEEKEND_MENTAL_COST = 20
 
 /** 주차를 넘길 때 저절로 도는 정신력. ⚠️ **회복이 소모보다 작아야** 주말 근무가
@@ -455,9 +463,15 @@ export const dayMinsOf = (revenue: number, mental: number): number =>
  *     플레이어가 고를 것이 없다(죽은 눈금을 그리지 않는다는 규칙과 같다). */
 export const WORK_START = 9 * 60
 
-/** 일하는 요일 수. ⚠️ `WEEKDAYS.length - WEEKEND_COUNT`와 **같아야 한다** —
- *  달력이 주말로 칠하는 칸과 진행이 도는 날이 갈리면 금요일이 두 번 오거나 사라진다. */
-export const WORKDAY_COUNT = WEEKDAYS.length - WEEKEND_COUNT
+/** 한 주에 도는 날 수 = **이레 전부**(설계자 확정 2026-08-17).
+ *
+ * ⚠️ **주말도 근무일이다.** 그전에는 닷새만 돌고 토·일은 축 밖에 있었는데, 그러면 달력의
+ *    이틀이 죽은 칸이 되고 "이번 주가 며칠 남았나"가 달력과 어긋난다. 대신 주말은
+ *    **정신력을 무는 날**로 남는다(`WEEKEND_MENTAL_COST`·`isWeekendDay`) — 쉬면 시간을
+ *    잃고 일하면 정신력을 잃는 저울질이 이제 그 축의 전부다.
+ * ⚠️ `WEEKDAYS.length`와 **같아야 한다** — 작으면 달력의 뒷칸이 영영 안 오고,
+ *    크면 없는 요일로 넘어간다. */
+export const WORKDAY_COUNT = WEEKDAYS.length
 
 /** 결과를 **보내는** 손짓의 값. ⚠️ 공정이 아니라서 작다 — 그래도 0이 아닌 이유는
  *  자투리 시간에 무엇을 끼워 넣을지가 이 게임의 새 선택이기 때문이다(0이면 선택이 아니다). */

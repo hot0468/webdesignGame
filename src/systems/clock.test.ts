@@ -32,7 +32,8 @@ describe('canSpend — 주를 넘기지 못한다', () => {
   it('늦게 집을수록 큰 작업을 못 시작한다 — 이것이 일정표의 판단이다', () => {
     const big = DAY * 3
     expect(canSpend({ day: 0, spent: 0 }, big, DAY)).toBe(true)
-    expect(canSpend({ day: 3, spent: 0 }, big, DAY)).toBe(false)
+    // 마지막 날 아침에는 하루치만 남아 사흘짜리가 안 들어간다.
+    expect(canSpend({ day: WORKDAY_COUNT - 1, spent: 0 }, big, DAY)).toBe(false)
   })
 })
 

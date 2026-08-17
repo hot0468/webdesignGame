@@ -31,6 +31,7 @@ import {
   WINDOW_FIT,
   WINDOW_SPAWN,
   WORKDAY_COUNT,
+  WEEKDAYS,
 } from './data/game'
 import { weekLeft } from './systems/clock'
 import { POPUP_SIZES, SLIDE_RANGE } from './data/spec'
@@ -1375,6 +1376,45 @@ describe('회사레벨', () => {
 
 // ── 주말 돌발 이벤트 + 정신력 ──────────────────────────────────────
 // 정신력 → 행동력과 주차 진행은 이 게임의 불변식이라 규칙을 뒤집어 확인한다.
+/** 주말이 근무일이 되면서 생긴 저울질. **쉬면 시간을 잃고 일하면 정신력을 잃는다** —
+ *  한쪽만 있으면 토·일이 그냥 공짜 이틀이거나 죽은 칸이 된다. */
+describe('주말에 일하기', () => {
+  const popupJob = MESSAGES.find((m): m is Request => !m.ad && m.popup !== undefined)!
+
+  const workOn = (day: number) => {
+    useGame.setState({ ...emptyState(), ...FRESH })
+    useGame.getState().acceptJob(popupJob)
+    useGame.setState({ day, spent: 0 })
+    const before = useGame.getState().mental
+    useGame.getState().makePopup(popupJob.id, 'light', popupSize(popupJob.id))
+    return before - useGame.getState().mental
+  }
+
+  it('평일에는 정신력을 안 물고, 주말에는 문다', () => {
+    expect(workOn(0)).toBe(0)
+    expect(workOn(WORKDAY_COUNT - 1)).toBe(WEEKEND_MENTAL_COST)
+  })
+
+  // ⚠️ 그날 처음 손을 댈 때만 문다 — 나눠 일한다고 두 번 물면 같은 하루가
+  //    쓰는 방식에 따라 다른 값이 된다.
+  it('같은 주말에 두 번 일해도 한 번만 문다', () => {
+    useGame.setState({ ...emptyState(), ...FRESH })
+    useGame.getState().acceptJob(popupJob)
+    useGame.setState({ day: WORKDAY_COUNT - 1, spent: 0 })
+    const before = useGame.getState().mental
+    useGame.getState().makePopup(popupJob.id, 'light', popupSize(popupJob.id))
+    const afterFirst = useGame.getState().mental
+    // 같은 날 이어서 시간을 한 번 더 태운다(회신 전에는 다시 만들 수 없다).
+    useGame.getState().surfReference()
+    expect(useGame.getState().mental).toBe(afterFirst)
+    expect(before - afterFirst).toBe(WEEKEND_MENTAL_COST)
+  })
+
+  it('이레가 다 근무일이다 — 달력의 칸과 도는 날이 같다', () => {
+    expect(WORKDAY_COUNT).toBe(WEEKDAYS.length)
+  })
+})
+
 describe('주말 근무와 정신력', () => {
   /** 돌발 의뢰가 실제로 뜨는 주차. */
   const eventWeek = (() => {
@@ -1382,12 +1422,14 @@ describe('주말 근무와 정신력', () => {
     throw new Error('60주 안에 주말 이벤트가 없다')
   })()
 
-  it('주말에 일하면 정신력이 줄고 그 의뢰가 평소 업무로 선다', () => {
+  it('돌발 의뢰를 받으면 평소 업무로 선다 — 받는 것만으로는 정신력이 안 준다', () => {
     useGame.setState({ week: eventWeek })
     const before = useGame.getState().mental
     useGame.getState().workWeekend()
     const s = useGame.getState()
-    expect(s.mental).toBe(before - WEEKEND_MENTAL_COST)
+    // ⚠️ 대가는 **실제로 토·일에 손을 댈 때** 문다(위 '주말에 일하기') — 받는 순간에도
+    //    물면 같은 주말에 두 번 물게 되고, 받아만 두고 월요일에 하는 길이 벌이 된다.
+    expect(s.mental).toBe(before)
     // ⚠️ **새 업무 축이 아니다** — `jobs`에 평범한 한 줄이 서고 공정의 줄을 그대로 탄다.
     const job = s.jobs.find((j) => j.id === `we:${eventWeek}`)!
     expect(job).toBeDefined()

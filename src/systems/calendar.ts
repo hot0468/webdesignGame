@@ -82,3 +82,13 @@ export function formatClock(spent: number) {
 
 /** 요일 인덱스(0=월) → 이름. ⚠️ `WEEKDAYS`가 정본이다 — 화면마다 배열을 다시 적지 마라. */
 export const dayName = (day: number) => WEEKDAYS[day] ?? WEEKDAYS[0]
+
+/** 주차 + 요일 → **그 하루의 날짜**. 한 주가 이레라 요일이 곧 그 주 안의 날짜 칸이다.
+ *
+ * ⚠️ `formatDate`(주의 첫날·마지막 날)와 **다른 함수다** — 저쪽은 마감처럼 "그 주"를
+ *    말하는 값이 쓰고, 이쪽은 "지금 며칠인가"를 말한다. 둘을 합치면 마감 표기가 요일에
+ *    끌려다닌다. */
+export function formatDayDate(week: number, day: number) {
+  const { month, weekOfMonth } = toCalendar(week)
+  return `${month}월 ${(weekOfMonth - 1) * 7 + day + 1}일(${dayName(day)})`
+}

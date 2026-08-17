@@ -8,8 +8,9 @@ import {
   REPUTATION_CRISIS,
   REPUTATION_MAX,
   WORKDAY_COUNT,
+  isWeekendDay,
 } from '../data/game'
-import { dayName, formatClock, formatDate, formatHours, formatSpan, toCalendar } from '../systems/calendar'
+import { formatClock, formatDate, formatDayDate, formatHours, formatSpan, toCalendar } from '../systems/calendar'
 import { weekLeft } from '../systems/clock'
 import { useGame } from '../store'
 
@@ -95,9 +96,9 @@ export function Stats() {
       <Stat
         icon={STAT_ICONS.ap}
         label="시간"
-        value={`${formatClock(g.spent)} · ${formatHours(g.dayMins - g.spent)}`}
+        value={`${formatDayDate(g.week, g.day)} ${formatClock(g.spent)}`}
         bar={<Bar value={g.dayMins - g.spent} max={g.dayMins} tone="accent" />}
-        warn={`${dayName(g.day)}요일 · 이번 주 ${formatSpan(weekLeft({ day: g.day, spent: g.spent }, g.dayMins), g.dayMins)} 남음`}
+        warn={`오늘 ${formatHours(g.dayMins - g.spent)} · 이번 주 ${formatSpan(weekLeft({ day: g.day, spent: g.spent }, g.dayMins), g.dayMins)} 남음${isWeekendDay(g.day) ? ' · 주말이다' : ''}`}
       />
       {/* ⚠️ 정신력이 깎는 것은 **다음 주 하루 근무 시간**이라, 그 몫을 적지 않으면 다음
           주에 칸이 왜 줄었는지 알 자리가 없다(깎일 때가 아니라 깎이기 전에 읽힌다).
